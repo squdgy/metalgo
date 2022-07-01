@@ -13,14 +13,14 @@ coreth_path="$GOPATH/pkg/mod/github.com/ava-labs/coreth@$coreth_version"
 
 # Where AvalancheGo binary goes
 build_dir="$AVALANCHE_PATH/build"
-avalanchego_path="$build_dir/avalanchego"
+avalanchego_path="$build_dir/metalgo"
 plugin_dir="$build_dir/plugins"
 evm_path="$plugin_dir/evm"
 
 # Avalabs docker hub
 # avaplatform/avalanchego - defaults to local as to avoid unintentional pushes
 # You should probably set it - export DOCKER_REPO='avaplatform/avalanchego'
-avalanchego_dockerhub_repo=${DOCKER_REPO:-"avalanchego"}
+avalanchego_dockerhub_repo=${DOCKER_REPO:-"metalgo"}
 
 # Current branch
 # TODO: fix "fatal: No names found, cannot describe anything" in github CI

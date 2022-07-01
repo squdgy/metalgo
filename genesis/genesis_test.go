@@ -26,12 +26,12 @@ func TestValidateConfig(t *testing.T) {
 		err       string
 	}{
 		"mainnet": {
-			networkID: 1,
+			networkID: 1191772,
 			config:    &MainnetConfig,
 		},
 		"fuji": {
-			networkID: 5,
-			config:    &FujiConfig,
+			networkID: 1191773,
+			config:    &TestnetConfig,
 		},
 		"local": {
 			networkID: 12345,
@@ -106,9 +106,9 @@ func TestValidateConfig(t *testing.T) {
 			err: "duplicated in initial staked funds",
 		},
 		"initial staked funds not in allocations": {
-			networkID: 5,
+			networkID: 1191773,
 			config: func() *Config {
-				thisConfig := FujiConfig
+				thisConfig := TestnetConfig
 				thisConfig.InitialStakedFunds = append(thisConfig.InitialStakedFunds, LocalConfig.InitialStakedFunds[0])
 				return &thisConfig
 			}(),
@@ -241,17 +241,17 @@ func TestGenesisFromFile(t *testing.T) {
 		"mainnet": {
 			networkID:    constants.MainnetID,
 			customConfig: customGenesisConfigJSON,
-			err:          "cannot override genesis config for standard network mainnet (1)",
+			err:          "cannot override genesis config for standard network mainnet (1191772)",
 		},
-		"fuji": {
-			networkID:    constants.FujiID,
+		"testnet": {
+			networkID:    constants.TestnetID,
 			customConfig: customGenesisConfigJSON,
-			err:          "cannot override genesis config for standard network fuji (5)",
+			err:          "cannot override genesis config for standard network testnet (1191773)",
 		},
-		"fuji (with custom specified)": {
-			networkID:    constants.FujiID,
+		"testnet (with custom specified)": {
+			networkID:    constants.TestnetID,
 			customConfig: localGenesisConfigJSON, // won't load
-			err:          "cannot override genesis config for standard network fuji (5)",
+			err:          "cannot override genesis config for standard network testnet (1191773)",
 		},
 		"local": {
 			networkID:    constants.LocalID,
@@ -266,7 +266,7 @@ func TestGenesisFromFile(t *testing.T) {
 		"custom": {
 			networkID:    9999,
 			customConfig: customGenesisConfigJSON,
-			expected:     "a1d1838586db85fe94ab1143560c3356df9ba2445794b796bba050be89f4fcb4",
+			expected:     "18dc0a7ab9b257b86ee65870649a0dabbb76c03d0ca9f5c44a43ce0d0a7f20c6",
 		},
 		"custom (networkID mismatch)": {
 			networkID:    9999,
@@ -327,11 +327,11 @@ func TestGenesisFromFlag(t *testing.T) {
 	}{
 		"mainnet": {
 			networkID: constants.MainnetID,
-			err:       "cannot override genesis config for standard network mainnet (1)",
+			err:       "cannot override genesis config for standard network mainnet (1191772)",
 		},
-		"fuji": {
-			networkID: constants.FujiID,
-			err:       "cannot override genesis config for standard network fuji (5)",
+		"testnet": {
+			networkID: constants.TestnetID,
+			err:       "cannot override genesis config for standard network testnet (1191773)",
 		},
 		"local": {
 			networkID: constants.LocalID,
@@ -345,7 +345,7 @@ func TestGenesisFromFlag(t *testing.T) {
 		"custom": {
 			networkID:    9999,
 			customConfig: customGenesisConfigJSON,
-			expected:     "a1d1838586db85fe94ab1143560c3356df9ba2445794b796bba050be89f4fcb4",
+			expected:     "18dc0a7ab9b257b86ee65870649a0dabbb76c03d0ca9f5c44a43ce0d0a7f20c6",
 		},
 		"custom (networkID mismatch)": {
 			networkID:    9999,
@@ -377,7 +377,7 @@ func TestGenesisFromFlag(t *testing.T) {
 					genBytes, err = json.Marshal(&MainnetConfig)
 					assert.NoError(err)
 				case constants.TestnetID:
-					genBytes, err = json.Marshal(&FujiConfig)
+					genBytes, err = json.Marshal(&TestnetConfig)
 					assert.NoError(err)
 				case constants.LocalID:
 					genBytes, err = json.Marshal(&LocalConfig)
@@ -422,24 +422,24 @@ func TestVMGenesis(t *testing.T) {
 			vmTest: []vmTest{
 				{
 					vmID:       constants.AVMID,
-					expectedID: "2oYMBNV4eNHyqk2fjjV5nVQLDbtmNJzq5s3qs3Lo6ftnC6FByM",
+					expectedID: "Kd39pAXNK5ockRBASy3qbWfBcsG37GhhibqRqLNY3PYWUwRcq",
 				},
 				{
 					vmID:       constants.EVMID,
-					expectedID: "2q9e4r6Mu3U68nU1fYjgbR6JvwrRx36CohpAX5UQxse55x1Q5",
+					expectedID: "2J9xPEqz5sQNJ2W5YFunurYMkmKYKfRUyEdUMcXTLv6fz5RqHQ",
 				},
 			},
 		},
 		{
-			networkID: constants.FujiID,
+			networkID: constants.TestnetID,
 			vmTest: []vmTest{
 				{
 					vmID:       constants.AVMID,
-					expectedID: "2JVSBoinj9C2J33VntvzYtVJNZdN2NKiwwKjcumHUWEb5DbBrm",
+					expectedID: "2aBeLFAUpXPN8d7Uj52jUD8uqR2to6YvNSmEotpT35WHFC4Ufy",
 				},
 				{
 					vmID:       constants.EVMID,
-					expectedID: "yH8D7ThNJkxmtkuv2jgBa4P1Rn3Qpr4pPr7QYNfcdoS6k6HWp",
+					expectedID: "mfX8E5nPLnxfHi2oYSaUoh4TqdKpW51pijSXB5txBot2APchN",
 				},
 			},
 		},
@@ -448,7 +448,7 @@ func TestVMGenesis(t *testing.T) {
 			vmTest: []vmTest{
 				{
 					vmID:       constants.AVMID,
-					expectedID: "2eNy1mUFdmaxXNj1eQHUe7Np4gju9sJsEtWQ4MX3ToiNKuADed",
+					expectedID: "2EwQEpAoKi3b8GgAhKGprkGiJYFduE9bbbEANMWioSWXsb6ZQz",
 				},
 				{
 					vmID:       constants.EVMID,
@@ -493,15 +493,15 @@ func TestAVAXAssetID(t *testing.T) {
 	}{
 		{
 			networkID:  constants.MainnetID,
-			expectedID: "FvwEAhmxKfeiG8SnEvq42hc6whRyY3EFYAvebMqDNDGCgxN5Z",
+			expectedID: "DWH2QvATv1dfpZvR6y9XQ8Gj6gXiorW6UJjc4dEEtcukENimv",
 		},
 		{
-			networkID:  constants.FujiID,
-			expectedID: "U8iRqJoiJm8xZHAacmvYyZVwqQx6uDNtQeP3CQ6fcgQk3JqnK",
+			networkID:  constants.TestnetID,
+			expectedID: "22isChTFe6CZnCCj5Kbi6S5efvooPAtUtkzZScGXsvoE5jczDZ",
 		},
 		{
 			networkID:  constants.LocalID,
-			expectedID: "2fombhL7aGPwj3KH4bfrmJwW6PVnMobf9Y2fn9GwxiAAJyFDbe",
+			expectedID: "ui6eSQwLELPt3zZsreVkdSFhimBdAyXgADd7CGfQ58NeDNzCS",
 		},
 	}
 

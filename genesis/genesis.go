@@ -259,8 +259,8 @@ func FromConfig(config *Config) ([]byte, ids.ID, error) {
 	}
 	{
 		avax := avm.AssetDefinition{
-			Name:         "Avalanche",
-			Symbol:       "AVAX",
+			Name:         "Metal",
+			Symbol:       "METAL",
 			Denomination: 9,
 			InitialState: map[string][]interface{}{},
 		}
@@ -293,7 +293,7 @@ func FromConfig(config *Config) ([]byte, ids.ID, error) {
 			return nil, ids.Empty, fmt.Errorf("couldn't parse memo bytes to string: %w", err)
 		}
 		avmArgs.GenesisData = map[string]avm.AssetDefinition{
-			"AVAX": avax, // The AVM starts out with one asset: AVAX
+			"METAL": avax, // The AVM starts out with one asset: AVAX
 		}
 	}
 	avmReply := avm.BuildGenesisReply{}

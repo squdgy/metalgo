@@ -40,9 +40,9 @@ func getIPs(networkID uint32) []string {
 		}
 	case constants.TestnetID:
 		return []string{
-			"127.0.0.1:9651",
-			"127.0.0.1:9653",
-			"127.0.0.1:9655",
+			"18.158.206.92:9651",
+			"3.73.114.4:9653",
+			"3.74.175.192:9655",
 		}
 	default:
 		return nil

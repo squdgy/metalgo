@@ -11,12 +11,12 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/ava-labs/avalanchego/ids"
-	"github.com/ava-labs/avalanchego/utils/constants"
-	"github.com/ava-labs/avalanchego/utils/formatting/address"
-	"github.com/ava-labs/avalanchego/utils/wrappers"
+	"github.com/MetalBlockchain/avalanchego/ids"
+	"github.com/MetalBlockchain/avalanchego/utils/constants"
+	"github.com/MetalBlockchain/avalanchego/utils/formatting/address"
+	"github.com/MetalBlockchain/avalanchego/utils/wrappers"
 
-	safemath "github.com/ava-labs/avalanchego/utils/math"
+	safemath "github.com/MetalBlockchain/avalanchego/utils/math"
 )
 
 type LockedAmount struct {
@@ -148,7 +148,7 @@ var (
 
 	// TestnetConfig is the config that should be used to generate the testnet
 	// genesis.
-	TestnetConfig Config
+	TahoeConfig Config
 
 	// LocalConfig is the config that should be used to generate a local
 	// genesis.
@@ -157,13 +157,13 @@ var (
 
 func init() {
 	unparsedMainnetConfig := UnparsedConfig{}
-	unparsedTestnetConfig := UnparsedConfig{}
+	unparsedTahoeConfig := UnparsedConfig{}
 	unparsedLocalConfig := UnparsedConfig{}
 
 	errs := wrappers.Errs{}
 	errs.Add(
 		json.Unmarshal(mainnetGenesisConfigJSON, &unparsedMainnetConfig),
-		json.Unmarshal(testnetGenesisConfigJSON, &unparsedTestnetConfig),
+		json.Unmarshal(tahoeGenesisConfigJSON, &unparsedTahoeConfig),
 		json.Unmarshal(localGenesisConfigJSON, &unparsedLocalConfig),
 	)
 	if errs.Errored() {
@@ -174,9 +174,9 @@ func init() {
 	errs.Add(err)
 	MainnetConfig = mainnetConfig
 
-	testnetConfig, err := unparsedTestnetConfig.Parse()
+	tahoeConfig, err := unparsedTahoeConfig.Parse()
 	errs.Add(err)
-	TestnetConfig = testnetConfig
+	TahoeConfig = tahoeConfig
 
 	localConfig, err := unparsedLocalConfig.Parse()
 	errs.Add(err)
@@ -191,8 +191,8 @@ func GetConfig(networkID uint32) *Config {
 	switch networkID {
 	case constants.MainnetID:
 		return &MainnetConfig
-	case constants.TestnetID:
-		return &TestnetConfig
+	case constants.TahoeID:
+		return &TahoeConfig
 	case constants.LocalID:
 		return &LocalConfig
 	default:

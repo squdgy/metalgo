@@ -11,9 +11,9 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/ava-labs/avalanchego/staking"
-	"github.com/ava-labs/avalanchego/utils/ips"
-	"github.com/ava-labs/avalanchego/utils/timer/mockable"
+	"github.com/MetalBlockchain/avalanchego/staking"
+	"github.com/MetalBlockchain/avalanchego/utils/ips"
+	"github.com/MetalBlockchain/avalanchego/utils/timer/mockable"
 )
 
 func TestIPSigner(t *testing.T) {

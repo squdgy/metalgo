@@ -7,13 +7,13 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/ava-labs/avalanchego/app"
-	"github.com/ava-labs/avalanchego/nat"
-	"github.com/ava-labs/avalanchego/node"
-	"github.com/ava-labs/avalanchego/utils/constants"
-	"github.com/ava-labs/avalanchego/utils/logging"
-	"github.com/ava-labs/avalanchego/utils/perms"
-	"github.com/ava-labs/avalanchego/utils/ulimit"
+	"github.com/MetalBlockchain/avalanchego/app"
+	"github.com/MetalBlockchain/avalanchego/nat"
+	"github.com/MetalBlockchain/avalanchego/node"
+	"github.com/MetalBlockchain/avalanchego/utils/constants"
+	"github.com/MetalBlockchain/avalanchego/utils/logging"
+	"github.com/MetalBlockchain/avalanchego/utils/perms"
+	"github.com/MetalBlockchain/avalanchego/utils/ulimit"
 )
 
 const (

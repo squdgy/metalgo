@@ -4,10 +4,10 @@
 package platformvm
 
 import (
-	"github.com/ava-labs/avalanchego/chains/atomic"
-	"github.com/ava-labs/avalanchego/ids"
-	"github.com/ava-labs/avalanchego/vms/platformvm/state"
-	"github.com/ava-labs/avalanchego/vms/platformvm/txs"
+	"github.com/MetalBlockchain/avalanchego/chains/atomic"
+	"github.com/MetalBlockchain/avalanchego/ids"
+	"github.com/MetalBlockchain/avalanchego/vms/platformvm/state"
+	"github.com/MetalBlockchain/avalanchego/vms/platformvm/txs"
 )
 
 var _ txs.Visitor = &atomicTxExecutor{}

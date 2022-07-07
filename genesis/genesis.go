@@ -10,21 +10,21 @@ import (
 	"sort"
 	"time"
 
-	"github.com/ava-labs/avalanchego/ids"
-	"github.com/ava-labs/avalanchego/utils/constants"
-	"github.com/ava-labs/avalanchego/utils/formatting"
-	"github.com/ava-labs/avalanchego/utils/formatting/address"
-	"github.com/ava-labs/avalanchego/utils/json"
-	"github.com/ava-labs/avalanchego/vms/avm"
-	"github.com/ava-labs/avalanchego/vms/avm/fxs"
-	"github.com/ava-labs/avalanchego/vms/nftfx"
-	"github.com/ava-labs/avalanchego/vms/platformvm/api"
-	"github.com/ava-labs/avalanchego/vms/platformvm/genesis"
-	"github.com/ava-labs/avalanchego/vms/propertyfx"
-	"github.com/ava-labs/avalanchego/vms/secp256k1fx"
+	"github.com/MetalBlockchain/avalanchego/ids"
+	"github.com/MetalBlockchain/avalanchego/utils/constants"
+	"github.com/MetalBlockchain/avalanchego/utils/formatting"
+	"github.com/MetalBlockchain/avalanchego/utils/formatting/address"
+	"github.com/MetalBlockchain/avalanchego/utils/json"
+	"github.com/MetalBlockchain/avalanchego/vms/avm"
+	"github.com/MetalBlockchain/avalanchego/vms/avm/fxs"
+	"github.com/MetalBlockchain/avalanchego/vms/nftfx"
+	"github.com/MetalBlockchain/avalanchego/vms/platformvm/api"
+	"github.com/MetalBlockchain/avalanchego/vms/platformvm/genesis"
+	"github.com/MetalBlockchain/avalanchego/vms/propertyfx"
+	"github.com/MetalBlockchain/avalanchego/vms/secp256k1fx"
 
-	xchaintxs "github.com/ava-labs/avalanchego/vms/avm/txs"
-	pchaintxs "github.com/ava-labs/avalanchego/vms/platformvm/txs"
+	xchaintxs "github.com/MetalBlockchain/avalanchego/vms/avm/txs"
+	pchaintxs "github.com/MetalBlockchain/avalanchego/vms/platformvm/txs"
 )
 
 const (
@@ -185,7 +185,7 @@ func validateConfig(networkID uint32, config *Config) error {
 // 2) The asset ID of AVAX
 func FromFile(networkID uint32, filepath string) ([]byte, ids.ID, error) {
 	switch networkID {
-	case constants.MainnetID, constants.TestnetID, constants.LocalID:
+	case constants.MainnetID, constants.TahoeID, constants.LocalID:
 		return nil, ids.ID{}, fmt.Errorf(
 			"cannot override genesis config for standard network %s (%d)",
 			constants.NetworkName(networkID),
@@ -226,7 +226,7 @@ func FromFile(networkID uint32, filepath string) ([]byte, ids.ID, error) {
 // 2) The asset ID of AVAX
 func FromFlag(networkID uint32, genesisContent string) ([]byte, ids.ID, error) {
 	switch networkID {
-	case constants.MainnetID, constants.TestnetID, constants.LocalID:
+	case constants.MainnetID, constants.TahoeID, constants.LocalID:
 		return nil, ids.ID{}, fmt.Errorf(
 			"cannot override genesis config for standard network %s (%d)",
 			constants.NetworkName(networkID),

@@ -18,32 +18,32 @@ import (
 
 	"github.com/spf13/viper"
 
-	"github.com/ava-labs/avalanchego/app/runner"
-	"github.com/ava-labs/avalanchego/chains"
-	"github.com/ava-labs/avalanchego/genesis"
-	"github.com/ava-labs/avalanchego/ids"
-	"github.com/ava-labs/avalanchego/ipcs"
-	"github.com/ava-labs/avalanchego/nat"
-	"github.com/ava-labs/avalanchego/network"
-	"github.com/ava-labs/avalanchego/network/dialer"
-	"github.com/ava-labs/avalanchego/network/throttling"
-	"github.com/ava-labs/avalanchego/node"
-	"github.com/ava-labs/avalanchego/snow/consensus/avalanche"
-	"github.com/ava-labs/avalanchego/snow/consensus/snowball"
-	"github.com/ava-labs/avalanchego/snow/networking/benchlist"
-	"github.com/ava-labs/avalanchego/snow/networking/router"
-	"github.com/ava-labs/avalanchego/snow/networking/sender"
-	"github.com/ava-labs/avalanchego/snow/networking/tracker"
-	"github.com/ava-labs/avalanchego/staking"
-	"github.com/ava-labs/avalanchego/utils/constants"
-	"github.com/ava-labs/avalanchego/utils/dynamicip"
-	"github.com/ava-labs/avalanchego/utils/ips"
-	"github.com/ava-labs/avalanchego/utils/logging"
-	"github.com/ava-labs/avalanchego/utils/password"
-	"github.com/ava-labs/avalanchego/utils/profiler"
-	"github.com/ava-labs/avalanchego/utils/storage"
-	"github.com/ava-labs/avalanchego/utils/timer"
-	"github.com/ava-labs/avalanchego/vms"
+	"github.com/MetalBlockchain/avalanchego/app/runner"
+	"github.com/MetalBlockchain/avalanchego/chains"
+	"github.com/MetalBlockchain/avalanchego/genesis"
+	"github.com/MetalBlockchain/avalanchego/ids"
+	"github.com/MetalBlockchain/avalanchego/ipcs"
+	"github.com/MetalBlockchain/avalanchego/nat"
+	"github.com/MetalBlockchain/avalanchego/network"
+	"github.com/MetalBlockchain/avalanchego/network/dialer"
+	"github.com/MetalBlockchain/avalanchego/network/throttling"
+	"github.com/MetalBlockchain/avalanchego/node"
+	"github.com/MetalBlockchain/avalanchego/snow/consensus/avalanche"
+	"github.com/MetalBlockchain/avalanchego/snow/consensus/snowball"
+	"github.com/MetalBlockchain/avalanchego/snow/networking/benchlist"
+	"github.com/MetalBlockchain/avalanchego/snow/networking/router"
+	"github.com/MetalBlockchain/avalanchego/snow/networking/sender"
+	"github.com/MetalBlockchain/avalanchego/snow/networking/tracker"
+	"github.com/MetalBlockchain/avalanchego/staking"
+	"github.com/MetalBlockchain/avalanchego/utils/constants"
+	"github.com/MetalBlockchain/avalanchego/utils/dynamicip"
+	"github.com/MetalBlockchain/avalanchego/utils/ips"
+	"github.com/MetalBlockchain/avalanchego/utils/logging"
+	"github.com/MetalBlockchain/avalanchego/utils/password"
+	"github.com/MetalBlockchain/avalanchego/utils/profiler"
+	"github.com/MetalBlockchain/avalanchego/utils/storage"
+	"github.com/MetalBlockchain/avalanchego/utils/timer"
+	"github.com/MetalBlockchain/avalanchego/vms"
 )
 
 const (
@@ -727,7 +727,7 @@ func getStakingConfig(v *viper.Viper, networkID uint32) (node.StakingConfig, err
 		return node.StakingConfig{}, errInvalidStakerWeights
 	}
 
-	if !config.EnableStaking && (networkID == constants.MainnetID || networkID == constants.TestnetID) {
+	if !config.EnableStaking && (networkID == constants.MainnetID || networkID == constants.TahoeID) {
 		return node.StakingConfig{}, errStakingDisableOnPublicNetwork
 	}
 
@@ -736,7 +736,7 @@ func getStakingConfig(v *viper.Viper, networkID uint32) (node.StakingConfig, err
 	if err != nil {
 		return node.StakingConfig{}, err
 	}
-	if networkID != constants.MainnetID && networkID != constants.TestnetID {
+	if networkID != constants.MainnetID && networkID != constants.TahoeID {
 		config.UptimeRequirement = v.GetFloat64(UptimeRequirementKey)
 		config.MinValidatorStake = v.GetUint64(MinValidatorStakeKey)
 		config.MaxValidatorStake = v.GetUint64(MaxValidatorStakeKey)
@@ -771,7 +771,7 @@ func getStakingConfig(v *viper.Viper, networkID uint32) (node.StakingConfig, err
 }
 
 func getTxFeeConfig(v *viper.Viper, networkID uint32) genesis.TxFeeConfig {
-	if networkID != constants.MainnetID && networkID != constants.TestnetID {
+	if networkID != constants.MainnetID && networkID != constants.TahoeID {
 		return genesis.TxFeeConfig{
 			TxFee:                 v.GetUint64(TxFeeKey),
 			CreateAssetTxFee:      v.GetUint64(CreateAssetTxFeeKey),

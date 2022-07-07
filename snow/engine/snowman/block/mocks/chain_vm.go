@@ -8,12 +8,12 @@ import (
 	reflect "reflect"
 	time "time"
 
-	manager "github.com/ava-labs/avalanchego/database/manager"
-	ids "github.com/ava-labs/avalanchego/ids"
-	snow "github.com/ava-labs/avalanchego/snow"
-	snowman "github.com/ava-labs/avalanchego/snow/consensus/snowman"
-	common "github.com/ava-labs/avalanchego/snow/engine/common"
-	version "github.com/ava-labs/avalanchego/version"
+	manager "github.com/MetalBlockchain/avalanchego/database/manager"
+	ids "github.com/MetalBlockchain/avalanchego/ids"
+	snow "github.com/MetalBlockchain/avalanchego/snow"
+	snowman "github.com/MetalBlockchain/avalanchego/snow/consensus/snowman"
+	common "github.com/MetalBlockchain/avalanchego/snow/engine/common"
+	version "github.com/MetalBlockchain/avalanchego/version"
 	gomock "github.com/golang/mock/gomock"
 )
 

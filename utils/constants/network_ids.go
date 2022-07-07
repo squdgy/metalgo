@@ -8,23 +8,23 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/ava-labs/avalanchego/ids"
+	"github.com/MetalBlockchain/avalanchego/ids"
 )
 
 // Const variables to be exported
 const (
-	MainnetID  uint32 = 1191772
-	TestnetID  uint32 = 1191773
+	MainnetID  uint32 = 1
+	TahoeID    uint32 = 5
 	UnitTestID uint32 = 10
 	LocalID    uint32 = 12345
 
 	MainnetName  = "mainnet"
-	TestnetName  = "testnet"
+	TahoeName    = "tahoe"
 	UnitTestName = "testing"
 	LocalName    = "local"
 
 	MainnetHRP  = "metal"
-	TestnetHRP  = "testnet"
+	TahoeHRP    = "tahoe"
 	UnitTestHRP = "testing"
 	LocalHRP    = "local"
 	FallbackHRP = "custom"
@@ -37,26 +37,26 @@ var (
 
 	NetworkIDToNetworkName = map[uint32]string{
 		MainnetID:  MainnetName,
-		TestnetID:  TestnetName,
+		TahoeID:    TahoeName,
 		UnitTestID: UnitTestName,
 		LocalID:    LocalName,
 	}
 	NetworkNameToNetworkID = map[string]uint32{
 		MainnetName:  MainnetID,
-		TestnetName:  TestnetID,
+		TahoeName:    TahoeID,
 		UnitTestName: UnitTestID,
 		LocalName:    LocalID,
 	}
 
 	NetworkIDToHRP = map[uint32]string{
 		MainnetID:  MainnetHRP,
-		TestnetID:  TestnetHRP,
+		TahoeID:    TahoeHRP,
 		UnitTestID: UnitTestHRP,
 		LocalID:    LocalHRP,
 	}
 	NetworkHRPToNetworkID = map[string]uint32{
 		MainnetHRP:  MainnetID,
-		TestnetHRP:  TestnetID,
+		TahoeHRP:    TahoeID,
 		UnitTestHRP: UnitTestID,
 		LocalHRP:    LocalID,
 	}

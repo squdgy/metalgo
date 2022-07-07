@@ -6,8 +6,8 @@ package platformvm
 import (
 	"errors"
 
-	"github.com/ava-labs/avalanchego/vms/platformvm/state"
-	"github.com/ava-labs/avalanchego/vms/platformvm/txs"
+	"github.com/MetalBlockchain/avalanchego/vms/platformvm/state"
+	"github.com/MetalBlockchain/avalanchego/vms/platformvm/txs"
 )
 
 var _ txs.Visitor = &mempoolTxVerifier{}

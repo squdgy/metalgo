@@ -33,11 +33,11 @@ func TestParse(t *testing.T) {
 }
 
 func TestParseApplication(t *testing.T) {
-	v, err := ParseApplication("avalanche/1.2.3")
+	v, err := ParseApplication("metal/1.2.3")
 
 	assert.NoError(t, err)
 	assert.NotNil(t, v)
-	assert.Equal(t, "avalanche/1.2.3", v.String())
+	assert.Equal(t, "metal/1.2.3", v.String())
 	assert.Equal(t, 1, v.Major)
 	assert.Equal(t, 2, v.Minor)
 	assert.Equal(t, 3, v.Patch)
@@ -46,10 +46,10 @@ func TestParseApplication(t *testing.T) {
 
 	badVersions := []string{
 		"",
-		"avalanche/",
-		"avalanche/z.0.0",
-		"avalanche/0.z.0",
-		"avalanche/0.0.z",
+		"metal/",
+		"metal/z.0.0",
+		"metal/0.z.0",
+		"metal/0.0.z",
 	}
 	for _, badVersion := range badVersions {
 		_, err := ParseApplication(badVersion)

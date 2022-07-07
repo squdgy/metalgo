@@ -17,7 +17,7 @@ func TestNewDefaultApplication(t *testing.T) {
 		Patch: 3,
 	}
 
-	assert.Equal(t, "avalanche/1.2.3", v.String())
+	assert.Equal(t, "metal/1.2.3", v.String())
 	assert.NoError(t, v.Compatible(v))
 	assert.False(t, v.Before(v))
 }

@@ -32,7 +32,7 @@ func (a *Application) String() string {
 	}
 
 	str := fmt.Sprintf(
-		"avalanche/%d.%d.%d",
+		"metal/%d.%d.%d",
 		a.Major,
 		a.Minor,
 		a.Patch,

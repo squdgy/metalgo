@@ -7,13 +7,13 @@ import (
 	reflect "reflect"
 	time "time"
 
-	database "github.com/ava-labs/avalanchego/database"
-	ids "github.com/ava-labs/avalanchego/ids"
-	avax "github.com/ava-labs/avalanchego/vms/components/avax"
-	genesis "github.com/ava-labs/avalanchego/vms/platformvm/genesis"
-	state "github.com/ava-labs/avalanchego/vms/platformvm/state"
-	status "github.com/ava-labs/avalanchego/vms/platformvm/status"
-	txs "github.com/ava-labs/avalanchego/vms/platformvm/txs"
+	database "github.com/MetalBlockchain/avalanchego/database"
+	ids "github.com/MetalBlockchain/avalanchego/ids"
+	avax "github.com/MetalBlockchain/avalanchego/vms/components/avax"
+	genesis "github.com/MetalBlockchain/avalanchego/vms/platformvm/genesis"
+	state "github.com/MetalBlockchain/avalanchego/vms/platformvm/state"
+	status "github.com/MetalBlockchain/avalanchego/vms/platformvm/status"
+	txs "github.com/MetalBlockchain/avalanchego/vms/platformvm/txs"
 	gomock "github.com/golang/mock/gomock"
 )
 

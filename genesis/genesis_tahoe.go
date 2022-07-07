@@ -8,16 +8,16 @@ import (
 
 	_ "embed"
 
-	"github.com/ava-labs/avalanchego/utils/units"
-	"github.com/ava-labs/avalanchego/vms/platformvm/reward"
+	"github.com/MetalBlockchain/avalanchego/utils/units"
+	"github.com/MetalBlockchain/avalanchego/vms/platformvm/reward"
 )
 
 var (
-	//go:embed genesis_testnet.json
-	testnetGenesisConfigJSON []byte
+	//go:embed genesis_tahoe.json
+	tahoeGenesisConfigJSON []byte
 
-	// FujiParams are the params used for the fuji testnet
-	TestnetParams = Params{
+	// TahoeParams are the params used for the tahoe testnet
+	TahoeParams = Params{
 		TxFeeConfig: TxFeeConfig{
 			TxFee:                 units.MilliAvax,
 			CreateAssetTxFee:      10 * units.MilliAvax,
@@ -36,7 +36,7 @@ var (
 				MaxConsumptionRate: .12 * reward.PercentDenominator,
 				MinConsumptionRate: .10 * reward.PercentDenominator,
 				MintingPeriod:      365 * 24 * time.Hour,
-				SupplyCap:          720 * units.MegaAvax,
+				SupplyCap:          666666666 * units.Avax,
 			},
 		},
 	}

@@ -214,7 +214,6 @@ func NewNetwork(
 		Network:              nil, // This is set below.
 		Router:               router,
 		VersionCompatibility: version.GetCompatibility(config.NetworkID),
-		VersionParser:        version.DefaultApplicationParser,
 		MySubnets:            config.WhitelistedSubnets,
 		Beacons:              config.Beacons,
 		NetworkID:            config.NetworkID,
@@ -365,7 +364,10 @@ func (n *network) Connected(nodeID ids.NodeID) {
 	n.metrics.markConnected(peer)
 
 	peerVersion := peer.Version()
-	n.router.Connected(nodeID, peerVersion)
+	n.router.Connected(nodeID, peerVersion, constants.PrimaryNetworkID)
+	for subnetID := range peer.TrackedSubnets() {
+		n.router.Connected(nodeID, peerVersion, subnetID)
+	}
 }
 
 // AllowConnection returns true if this node should have a connection to the
@@ -606,7 +608,7 @@ func (n *network) TracksSubnet(nodeID ids.NodeID, subnetID ids.ID) bool {
 		return false
 	}
 	trackedSubnets := peer.TrackedSubnets()
-	return trackedSubnets.Contains(subnetID)
+	return subnetID == constants.PrimaryNetworkID || trackedSubnets.Contains(subnetID)
 }
 
 func (n *network) sampleValidatorIPs() []ips.ClaimedIPPort {
@@ -658,7 +660,7 @@ func (n *network) getPeers(
 		}
 
 		trackedSubnets := peer.TrackedSubnets()
-		if !trackedSubnets.Contains(subnetID) {
+		if subnetID != constants.PrimaryNetworkID && !trackedSubnets.Contains(subnetID) {
 			continue
 		}
 
@@ -693,7 +695,7 @@ func (n *network) samplePeers(
 		func(p peer.Peer) bool {
 			// Only return peers that are tracking [subnetID]
 			trackedSubnets := p.TrackedSubnets()
-			if !trackedSubnets.Contains(subnetID) {
+			if subnetID != constants.PrimaryNetworkID && !trackedSubnets.Contains(subnetID) {
 				return false
 			}
 
@@ -994,6 +996,9 @@ func (n *network) upgrade(conn net.Conn, upgrader peer.Upgrader) error {
 
 	n.peerConfig.Log.Verbo("starting handshake with %s", nodeID)
 
+	// peer.Start requires there is only ever one peer instance running with the
+	// same [peerConfig.InboundMsgThrottler]. This is guaranteed by the above
+	// de-duplications for [connectingPeers] and [connectedPeers].
 	peer := peer.Start(
 		n.peerConfig,
 		tlsConn,

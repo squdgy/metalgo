@@ -162,9 +162,9 @@ func init() {
 
 	errs := wrappers.Errs{}
 	errs.Add(
-		json.Unmarshal([]byte(mainnetGenesisConfigJSON), &unparsedMainnetConfig),
-		json.Unmarshal([]byte(testnetGenesisConfigJSON), &unparsedTestnetConfig),
-		json.Unmarshal([]byte(localGenesisConfigJSON), &unparsedLocalConfig),
+		json.Unmarshal(mainnetGenesisConfigJSON, &unparsedMainnetConfig),
+		json.Unmarshal(testnetGenesisConfigJSON, &unparsedTestnetConfig),
+		json.Unmarshal(localGenesisConfigJSON, &unparsedLocalConfig),
 	)
 	if errs.Errored() {
 		panic(errs.Err)

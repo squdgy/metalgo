@@ -49,99 +49,14 @@
 			"delegationFee": 1000000
 		},
 		{
-			"nodeID": "NodeID-AGXv6QpCY4m8Qmug7A9pDYrSSxqdbJAZS",
+			"nodeID": "NodeID-EW9JuwPmgSdt5SXkePz1JnfW3x9zzsqkd",
 			"rewardAddress": "X-tahoe1y5669vthzv2f9hy3uqryz8cf70kdqevsrjhpvn",
 			"delegationFee": 500000
 		},
 		{
-			"nodeID": "NodeID-3BPMUK91rSbiG1mdBmpissDqTmVFAfc8J",
-			"rewardAddress": "X-tahoe1y5669vthzv2f9hy3uqryz8cf70kdqevsrjhpvn",
-			"delegationFee": 250000
-		},
-		{
-			"nodeID": "NodeID-EW9JuwPmgSdt5SXkePz1JnfW3x9zzsqkd",
-			"rewardAddress": "X-tahoe1y5669vthzv2f9hy3uqryz8cf70kdqevsrjhpvn",
-			"delegationFee": 125000
-		},
-		{
 			"nodeID": "NodeID-6QRpj3qBVPzNwdD2YewfB66Aa9Z9pv243",
 			"rewardAddress": "X-tahoe1y5669vthzv2f9hy3uqryz8cf70kdqevsrjhpvn",
-			"delegationFee": 62500
-		},
-		{
-			"nodeID": "NodeID-B73oENBBKtquFNWkjPfjN9F2pHZp5r16g",
-			"rewardAddress": "X-tahoe1y5669vthzv2f9hy3uqryz8cf70kdqevsrjhpvn",
-			"delegationFee": 31250
-		},
-		{
-			"nodeID": "NodeID-GJhvteVE4Rn7unxmzZrTwpUmuHvT4ioJU",
-			"rewardAddress": "X-tahoe1y5669vthzv2f9hy3uqryz8cf70kdqevsrjhpvn",
-			"delegationFee": 20000
-		},
-		{
-			"nodeID": "NodeID-CfsdUtCrAB6grr8kBSLiHSdrKe993Gwvg",
-			"rewardAddress": "X-tahoe1y5669vthzv2f9hy3uqryz8cf70kdqevsrjhpvn",
-			"delegationFee": 20000
-		},
-		{
-			"nodeID": "NodeID-Ew9uKh7xnyEiZHU1xwi5MMVjHsxkmPScN",
-			"rewardAddress": "X-tahoe1y5669vthzv2f9hy3uqryz8cf70kdqevsrjhpvn",
-			"delegationFee": 20000
-		},
-		{
-			"nodeID": "NodeID-3uC5oYpq5hqn8Ky46qT13pEYK6avjZY6T",
-			"rewardAddress": "X-tahoe1y5669vthzv2f9hy3uqryz8cf70kdqevsrjhpvn",
-			"delegationFee": 20000
-		},
-		{
-			"nodeID": "NodeID-GmRnQWwWNjeZ2g7hbaHabHMgpcUABZzXV",
-			"rewardAddress": "X-tahoe1y5669vthzv2f9hy3uqryz8cf70kdqevsrjhpvn",
-			"delegationFee": 20000
-		},
-		{
-			"nodeID": "NodeID-HSxLZv4zNkRF9vH2xYQW9zkLwtyQdjnne",
-			"rewardAddress": "X-tahoe1y5669vthzv2f9hy3uqryz8cf70kdqevsrjhpvn",
-			"delegationFee": 20000
-		},
-		{
-			"nodeID": "NodeID-H6xhpvuVgKEXjTYbfAH629SnoZFLtsTMW",
-			"rewardAddress": "X-tahoe1y5669vthzv2f9hy3uqryz8cf70kdqevsrjhpvn",
-			"delegationFee": 20000
-		},
-		{
-			"nodeID": "NodeID-2eypiRnhHyoZe94PBxbwu1TBDNAP9Te7e",
-			"rewardAddress": "X-tahoe1y5669vthzv2f9hy3uqryz8cf70kdqevsrjhpvn",
-			"delegationFee": 20000
-		},
-		{
-			"nodeID": "NodeID-AHxkNdDLHMY7x3xFoGXetZgQVfQK9mHpz",
-			"rewardAddress": "X-tahoe1y5669vthzv2f9hy3uqryz8cf70kdqevsrjhpvn",
-			"delegationFee": 20000
-		},
-		{
-			"nodeID": "NodeID-BJYAmxn5SMHaz3J61fN97r7sAiNGp1o7H",
-			"rewardAddress": "X-tahoe1y5669vthzv2f9hy3uqryz8cf70kdqevsrjhpvn",
-			"delegationFee": 20000
-		},
-		{
-			"nodeID": "NodeID-971kRywJGDu651QBGDJDPSDyth5NTb2Yy",
-			"rewardAddress": "X-tahoe1y5669vthzv2f9hy3uqryz8cf70kdqevsrjhpvn",
-			"delegationFee": 20000
-		},
-		{
-			"nodeID": "NodeID-7XmnU74M3APxBV6WLZS51NH9r7KhNoCTr",
-			"rewardAddress": "X-tahoe1y5669vthzv2f9hy3uqryz8cf70kdqevsrjhpvn",
-			"delegationFee": 20000
-		},
-		{
-			"nodeID": "NodeID-GGCBNGeqoLbHp6jhc4wtn5o92Eszj9HZt",
-			"rewardAddress": "X-tahoe1y5669vthzv2f9hy3uqryz8cf70kdqevsrjhpvn",
-			"delegationFee": 20000
-		},
-		{
-			"nodeID": "NodeID-M1ivUWVi9Ad2HxJcNcXTwoSfimLBhz8SK",
-			"rewardAddress": "X-tahoe1y5669vthzv2f9hy3uqryz8cf70kdqevsrjhpvn",
-			"delegationFee": 20000
+			"delegationFee": 250000
 		}
 	],
 	"cChainGenesis": "{\"config\":{\"chainId\":43119,\"homesteadBlock\":0,\"daoForkBlock\":0,\"daoForkSupport\":true,\"eip150Block\":0,\"eip150Hash\":\"0x2086799aeebeae135c246c65021c82b4e15a2c451340993aacfd2751886514f0\",\"eip155Block\":0,\"eip158Block\":0,\"byzantiumBlock\":0,\"constantinopleBlock\":0,\"petersburgBlock\":0,\"istanbulBlock\":0,\"muirGlacierBlock\":0,\"apricotPhase1BlockTimestamp\":0,\"apricotPhase2BlockTimestamp\":0,\"apricotPhase3BlockTimestamp\":0,\"apricotPhase4BlockTimestamp\":0,\"apricotPhase5BlockTimestamp\":0},\"nonce\":\"0x0\",\"timestamp\":\"0x0\",\"extraData\":\"0x00\",\"gasLimit\":\"0x5f5e100\",\"difficulty\":\"0x0\",\"mixHash\":\"0x0000000000000000000000000000000000000000000000000000000000000000\",\"coinbase\":\"0x0000000000000000000000000000000000000000\",\"alloc\":{\"15884B0F70b7C0db084e5aa738605f7a681A5D6E\":{\"balance\":\"0xDE0B6B3A7640000\"}},\"number\":\"0x0\",\"gasUsed\":\"0x0\",\"parentHash\":\"0x0000000000000000000000000000000000000000000000000000000000000000\"}",

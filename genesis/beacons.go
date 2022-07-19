@@ -41,10 +41,10 @@ func getIPs(networkID uint32) []string {
 	case constants.TahoeID:
 		return []string{
 			"18.158.206.92:9651",
-			"3.73.114.4:9651",
-			"3.74.175.192:9651",
-			"3.69.225.81:9651",
 			"18.157.229.117:9651",
+			"3.69.225.81:9651",
+			/* "3.73.114.4:9651",
+			"3.74.175.192:9651",
 			"34.196.246.54:9651",
 			"54.174.105.14:9651",
 			"34.206.150.45:9651",
@@ -59,7 +59,7 @@ func getIPs(networkID uint32) []string {
 			"35.75.87.63:9651",
 			"54.65.199.213:9651",
 			"18.177.175.140:9651",
-			"3.113.255.59:9651",
+			"3.113.255.59:9651", */
 		}
 	default:
 		return nil
@@ -99,10 +99,10 @@ func getNodeIDs(networkID uint32) []string {
 	case constants.TahoeID:
 		return []string{
 			"NodeID-EiRsmffiu3t1MFnhjrrFJEJGqfdtnkEvc",
-			"NodeID-AGXv6QpCY4m8Qmug7A9pDYrSSxqdbJAZS",
-			"NodeID-3BPMUK91rSbiG1mdBmpissDqTmVFAfc8J",
-			"NodeID-EW9JuwPmgSdt5SXkePz1JnfW3x9zzsqkd",
 			"NodeID-6QRpj3qBVPzNwdD2YewfB66Aa9Z9pv243",
+			"NodeID-EW9JuwPmgSdt5SXkePz1JnfW3x9zzsqkd",
+			/* "NodeID-AGXv6QpCY4m8Qmug7A9pDYrSSxqdbJAZS",
+			"NodeID-3BPMUK91rSbiG1mdBmpissDqTmVFAfc8J",
 			"NodeID-B73oENBBKtquFNWkjPfjN9F2pHZp5r16g",
 			"NodeID-GJhvteVE4Rn7unxmzZrTwpUmuHvT4ioJU",
 			"NodeID-CfsdUtCrAB6grr8kBSLiHSdrKe993Gwvg",
@@ -117,7 +117,7 @@ func getNodeIDs(networkID uint32) []string {
 			"NodeID-971kRywJGDu651QBGDJDPSDyth5NTb2Yy",
 			"NodeID-7XmnU74M3APxBV6WLZS51NH9r7KhNoCTr",
 			"NodeID-GGCBNGeqoLbHp6jhc4wtn5o92Eszj9HZt",
-			"NodeID-M1ivUWVi9Ad2HxJcNcXTwoSfimLBhz8SK",
+			"NodeID-M1ivUWVi9Ad2HxJcNcXTwoSfimLBhz8SK", */
 		}
 	default:
 		return nil

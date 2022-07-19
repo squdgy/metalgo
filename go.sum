@@ -43,8 +43,8 @@ github.com/BurntSushi/toml v0.3.1 h1:WXkYYl6Yr3qBf1K79EBnL4mak0OimBfB0XUf9Vl28OQ
 github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03qcyfWMU=
 github.com/BurntSushi/xgb v0.0.0-20160522181843-27f122750802/go.mod h1:IVnqGOEym/WlBOVXweHU+Q+/VP0lqqI8lqeDx9IjBqo=
 github.com/DATA-DOG/go-sqlmock v1.3.3/go.mod h1:f/Ixk793poVmq4qj/V1dPUg2JEAKC73Q5eFN3EC/SaM=
-github.com/MetalBlockchain/coreth v0.8.13-rc.6 h1:CtX6DQIbazG4j6HA05Gkh5Rf+uYoUbwhqUpMPcJWRuU=
-github.com/MetalBlockchain/coreth v0.8.13-rc.6/go.mod h1:VzOhdcOvsERWE4LAXwLMyoeZgMtwEKjsy48ZApg/wFw=
+github.com/MetalBlockchain/coreth v0.8.13-rc.7 h1:UvgTw6fQFavpUCFV4eOlvDHG88m6tMToz6UCfs/q6Do=
+github.com/MetalBlockchain/coreth v0.8.13-rc.7/go.mod h1:Nv3NXbDHaQvrntmhQ2x7ES4qpnlO0ADy1RZQDZl8zuo=
 github.com/Microsoft/go-winio v0.4.16 h1:FtSW/jqD+l4ba5iPBj9CODVtgfYAD8w2wS923g/cFDk=
 github.com/Microsoft/go-winio v0.4.16/go.mod h1:XB6nPKklQyQ7GC9LdcBEcBl8PF76WugXOPRXwdLnMv0=
 github.com/NYTimes/gziphandler v1.1.1 h1:ZUDjpQae29j0ryrS0u/B8HZfJBtBQHjqw2rQ2cqUQ3I=

@@ -13,21 +13,168 @@
 		},
 		{
 			"ethAddr": "0xb3d82b1367d362de99ab59a658165aff520cbd4d",
-			"avaxAddr": "X-tahoe1c0d772twvlhnhp637ddktxm08w3nmd2chd9rvk",
-			"initialAmount": 166416666000000000,
-			"unlockSchedule": []
+			"avaxAddr": "X-tahoe17qq8ygxm5yuer3q2fj3z4jz379ktcjlrnr579h",
+			"initialAmount": 0,
+			"unlockSchedule": [
+				{
+					"amount": 1500000000000000,
+					"locktime": 1658239000
+				},
+				{
+					"amount": 1500000000000000,
+					"locktime": 1660917400
+				},
+				{
+					"amount": 1500000000000000,
+					"locktime": 1663595800
+				},
+				{
+					"amount": 1500000000000000,
+					"locktime": 1666274200
+				},
+				{
+					"amount": 1500000000000000,
+					"locktime": 1668952600
+				},
+				{
+					"amount": 1500000000000000,
+					"locktime": 1671631000
+				},
+				{
+					"amount": 1500000000000000,
+					"locktime": 1674309400
+				},
+				{
+					"amount": 1500000000000000,
+					"locktime": 1676987800
+				},
+				{
+					"amount": 1500000000000000,
+					"locktime": 1679666200
+				},
+				{
+					"amount": 1500000000000000,
+					"locktime": 1682344600
+				},
+				{
+					"amount": 1500000000000000,
+					"locktime": 1685023000
+				},
+				{
+					"amount": 1500000000000000,
+					"locktime": 1687701400
+				}
+			]
 		},
 		{
 			"ethAddr": "0xb3d82b1367d362de99ab59a658165aff520cbd4d",
-			"avaxAddr": "X-tahoe1h30nf9jj2g0dm5nh928my04kze2wlw4tqhsyw7",
-			"initialAmount": 166416666000000000,
-			"unlockSchedule": []
+			"avaxAddr": "X-tahoe1s7nsyh83a48wgm5shj3vagu9yhc2ajv2uchun6",
+			"initialAmount": 0,
+			"unlockSchedule": [
+				{
+					"amount": 1500000000000000,
+					"locktime": 1658239000
+				},
+				{
+					"amount": 1500000000000000,
+					"locktime": 1660917400
+				},
+				{
+					"amount": 1500000000000000,
+					"locktime": 1663595800
+				},
+				{
+					"amount": 1500000000000000,
+					"locktime": 1666274200
+				},
+				{
+					"amount": 1500000000000000,
+					"locktime": 1668952600
+				},
+				{
+					"amount": 1500000000000000,
+					"locktime": 1671631000
+				},
+				{
+					"amount": 1500000000000000,
+					"locktime": 1674309400
+				},
+				{
+					"amount": 1500000000000000,
+					"locktime": 1676987800
+				},
+				{
+					"amount": 1500000000000000,
+					"locktime": 1679666200
+				},
+				{
+					"amount": 1500000000000000,
+					"locktime": 1682344600
+				},
+				{
+					"amount": 1500000000000000,
+					"locktime": 1685023000
+				},
+				{
+					"amount": 1500000000000000,
+					"locktime": 1687701400
+				}
+			]
 		},
 		{
 			"ethAddr": "0xb3d82b1367d362de99ab59a658165aff520cbd4d",
-			"avaxAddr": "X-tahoe133qdfexfyhckkky2g59n4anekg2vwp28dvpsj0",
-			"initialAmount": 166416666000000000,
-			"unlockSchedule": []
+			"avaxAddr": "X-tahoe1sfgp2glrc4wz37f8e028chrht86hqtwzne3p2r",
+			"initialAmount": 0,
+			"unlockSchedule": [
+				{
+					"amount": 83333333333333,
+					"locktime": 1658239000
+				},
+				{
+					"amount": 83333333333333,
+					"locktime": 1660917400
+				},
+				{
+					"amount": 83333333333333,
+					"locktime": 1663595800
+				},
+				{
+					"amount": 83333333333333,
+					"locktime": 1666274200
+				},
+				{
+					"amount": 83333333333333,
+					"locktime": 1668952600
+				},
+				{
+					"amount": 83333333333333,
+					"locktime": 1671631000
+				},
+				{
+					"amount": 83333333333333,
+					"locktime": 1674309400
+				},
+				{
+					"amount": 83333333333333,
+					"locktime": 1676987800
+				},
+				{
+					"amount": 83333333333333,
+					"locktime": 1679666200
+				},
+				{
+					"amount": 83333333333333,
+					"locktime": 1682344600
+				},
+				{
+					"amount": 83333333333333,
+					"locktime": 1685023000
+				},
+				{
+					"amount": 83333333333333,
+					"locktime": 1687701400
+				}
+			]
 		},
 		{
 			"ethAddr": "0xb3d82b1367d362de99ab59a658165aff520cbd4d",

@@ -11,12 +11,12 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/ava-labs/avalanchego/database"
-	"github.com/ava-labs/avalanchego/ids"
-	"github.com/ava-labs/avalanchego/utils"
-	"github.com/ava-labs/avalanchego/vms/components/avax"
-	"github.com/ava-labs/avalanchego/vms/platformvm/status"
-	"github.com/ava-labs/avalanchego/vms/platformvm/txs"
+	"github.com/MetalBlockchain/avalanchego/database"
+	"github.com/MetalBlockchain/avalanchego/ids"
+	"github.com/MetalBlockchain/avalanchego/utils"
+	"github.com/MetalBlockchain/avalanchego/vms/components/avax"
+	"github.com/MetalBlockchain/avalanchego/vms/platformvm/status"
+	"github.com/MetalBlockchain/avalanchego/vms/platformvm/txs"
 )
 
 func TestDiffMissingState(t *testing.T) {

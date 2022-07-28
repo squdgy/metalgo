@@ -6,10 +6,10 @@ package p
 import (
 	stdcontext "context"
 
-	"github.com/ava-labs/avalanchego/ids"
-	"github.com/ava-labs/avalanchego/utils/constants"
-	"github.com/ava-labs/avalanchego/vms/components/avax"
-	"github.com/ava-labs/avalanchego/vms/platformvm/txs"
+	"github.com/MetalBlockchain/avalanchego/ids"
+	"github.com/MetalBlockchain/avalanchego/utils/constants"
+	"github.com/MetalBlockchain/avalanchego/vms/components/avax"
+	"github.com/MetalBlockchain/avalanchego/vms/platformvm/txs"
 )
 
 var _ txs.Visitor = &backendVisitor{}

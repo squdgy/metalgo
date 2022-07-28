@@ -6,10 +6,7 @@ package atomic
 import (
 	"bytes"
 	"sync"
-)
 
-const (
-	codecVersion = 0
 	"github.com/MetalBlockchain/avalanchego/database"
 	"github.com/MetalBlockchain/avalanchego/database/prefixdb"
 	"github.com/MetalBlockchain/avalanchego/ids"

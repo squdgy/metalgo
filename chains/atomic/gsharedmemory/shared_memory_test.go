@@ -19,7 +19,6 @@ import (
 	"github.com/MetalBlockchain/avalanchego/database/memdb"
 	"github.com/MetalBlockchain/avalanchego/database/prefixdb"
 	"github.com/MetalBlockchain/avalanchego/ids"
-	"github.com/MetalBlockchain/avalanchego/utils/logging"
 	"github.com/MetalBlockchain/avalanchego/utils/units"
 	"github.com/MetalBlockchain/avalanchego/vms/rpcchainvm/grpcutils"
 
@@ -37,20 +36,18 @@ func TestInterface(t *testing.T) {
 	chainID1 := ids.GenerateTestID()
 
 	for _, test := range atomic.SharedMemoryTests {
-		m := atomic.Memory{}
 		baseDB := memdb.New()
 		memoryDB := prefixdb.New([]byte{0}, baseDB)
 		testDB := prefixdb.New([]byte{1}, baseDB)
 
-		err := m.Initialize(logging.NoLog{}, memoryDB)
-		assert.NoError(err)
+		m := atomic.NewMemory(memoryDB)
 
 		sm0, conn0 := wrapSharedMemory(t, m.NewSharedMemory(chainID0), baseDB)
 		sm1, conn1 := wrapSharedMemory(t, m.NewSharedMemory(chainID1), baseDB)
 
 		test(t, chainID0, chainID1, sm0, sm1, testDB)
 
-		err = conn0.Close()
+		err := conn0.Close()
 		assert.NoError(err)
 
 		err = conn1.Close()

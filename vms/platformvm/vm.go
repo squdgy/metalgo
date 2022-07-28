@@ -41,20 +41,13 @@ import (
 	"github.com/MetalBlockchain/avalanchego/vms/platformvm/state"
 	"github.com/MetalBlockchain/avalanchego/vms/platformvm/txs"
 	"github.com/MetalBlockchain/avalanchego/vms/platformvm/txs/builder"
+	"github.com/MetalBlockchain/avalanchego/vms/platformvm/txs/executor"
 	"github.com/MetalBlockchain/avalanchego/vms/platformvm/utxo"
 	"github.com/MetalBlockchain/avalanchego/vms/secp256k1fx"
 )
 
 const (
-	// MaxValidatorWeightFactor is the maximum factor of the validator stake
-	// that is allowed to be placed on a validator.
-	MaxValidatorWeightFactor uint64 = 5
-
-	validatorSetsCacheSize = 64
-
-	// Maximum future start time for staking/delegating
-	maxFutureStartTime = 24 * 7 * 2 * time.Hour
-
+	validatorSetsCacheSize        = 64
 	maxRecentlyAcceptedWindowSize = 256
 	recentlyAcceptedWindowTTL     = 5 * time.Minute
 )
@@ -64,8 +57,8 @@ var (
 	_ secp256k1fx.VM   = &VM{}
 	_ validators.State = &VM{}
 
-	errInvalidID      = errors.New("invalid ID")
-	errWrongCacheType = errors.New("unexpectedly cached type")
+	errWrongCacheType      = errors.New("unexpectedly cached type")
+	errMissingValidatorSet = errors.New("missing validator set")
 )
 
 type VM struct {
@@ -90,6 +83,7 @@ type VM struct {
 
 	internalState InternalState
 	utxoHandler   utxo.Handler
+	stateVersions state.Versions
 
 	// ID of the preferred block
 	preferred ids.ID
@@ -115,7 +109,8 @@ type VM struct {
 	// sliding window of blocks that were recently accepted
 	recentlyAccepted *window.Window
 
-	txBuilder builder.TxBuilder
+	txBuilder         builder.TxBuilder
+	txExecutorBackend executor.Backend
 }
 
 // Initialize this blockchain.
@@ -177,6 +172,11 @@ func (vm *VM) Initialize(
 	vm.internalState = is
 	vm.utxoHandler = utxo.NewHandler(vm.ctx, &vm.clock, vm.internalState, vm.fx)
 
+	vm.lastAcceptedID = is.GetLastAccepted()
+	ctx.Log.Info("initializing last accepted block as %s", vm.lastAcceptedID)
+
+	vm.stateVersions = state.NewVersions(vm.lastAcceptedID, is)
+
 	// Initialize the utility to track validator uptimes
 	vm.uptimeManager = uptime.NewManager(is)
 	vm.UptimeLockedCalculator.SetCalculator(&vm.bootstrapped, &ctx.Lock, vm.uptimeManager)
@@ -214,8 +214,17 @@ func (vm *VM) Initialize(
 		vm.utxoHandler,
 	)
 
-	vm.lastAcceptedID = is.GetLastAccepted()
-	ctx.Log.Info("initializing last accepted block as %s", vm.lastAcceptedID)
+	vm.txExecutorBackend = executor.Backend{
+		Config:        &vm.Config,
+		Ctx:           vm.ctx,
+		Clk:           &vm.clock,
+		Fx:            vm.fx,
+		FlowChecker:   vm.utxoHandler,
+		Uptimes:       vm.uptimeManager,
+		Rewards:       vm.rewards,
+		Bootstrapped:  &vm.bootstrapped,
+		StateVersions: vm.stateVersions,
+	}
 
 	// Build off the most recently accepted block
 	return vm.SetPreference(vm.lastAcceptedID)
@@ -483,7 +492,7 @@ func (vm *VM) GetValidatorSet(height uint64, subnetID ids.ID) (map[ids.NodeID]ui
 
 	currentValidators, ok := vm.Validators.GetValidators(subnetID)
 	if !ok {
-		return nil, state.ErrNotEnoughValidators
+		return nil, errMissingValidatorSet
 	}
 	currentValidatorList := currentValidators.List()
 
@@ -569,8 +578,7 @@ func (vm *VM) GetCurrentHeight() (uint64, error) {
 }
 
 func (vm *VM) updateValidators() error {
-	currentValidators := vm.internalState.CurrentStakers()
-	primaryValidators, err := currentValidators.ValidatorSet(constants.PrimaryNetworkID)
+	primaryValidators, err := vm.internalState.ValidatorSet(constants.PrimaryNetworkID)
 	if err != nil {
 		return err
 	}
@@ -583,7 +591,7 @@ func (vm *VM) updateValidators() error {
 	vm.totalStake.Set(float64(primaryValidators.Weight()))
 
 	for subnetID := range vm.WhitelistedSubnets {
-		subnetValidators, err := currentValidators.ValidatorSet(subnetID)
+		subnetValidators, err := vm.internalState.ValidatorSet(subnetID)
 		if err != nil {
 			return err
 		}

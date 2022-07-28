@@ -24,7 +24,6 @@ import (
 	"github.com/MetalBlockchain/avalanchego/network/peer"
 	"github.com/MetalBlockchain/avalanchego/network/throttling"
 	"github.com/MetalBlockchain/avalanchego/snow/engine/common"
-	"github.com/MetalBlockchain/avalanchego/snow/networking/benchlist"
 	"github.com/MetalBlockchain/avalanchego/snow/networking/router"
 	"github.com/MetalBlockchain/avalanchego/snow/networking/sender"
 	"github.com/MetalBlockchain/avalanchego/utils/constants"
@@ -157,7 +156,6 @@ func NewNetwork(
 	listener net.Listener,
 	dialer dialer.Dialer,
 	router router.ExternalHandler,
-	benchlistManager benchlist.Manager,
 ) (Network, error) {
 	primaryNetworkValidators, ok := config.Validators.GetValidators(constants.PrimaryNetworkID)
 	if !ok {

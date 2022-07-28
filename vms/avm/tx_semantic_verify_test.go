@@ -15,7 +15,6 @@ import (
 	"github.com/MetalBlockchain/avalanchego/snow"
 	"github.com/MetalBlockchain/avalanchego/snow/engine/common"
 	"github.com/MetalBlockchain/avalanchego/utils/crypto"
-	"github.com/MetalBlockchain/avalanchego/utils/logging"
 	"github.com/MetalBlockchain/avalanchego/version"
 	"github.com/MetalBlockchain/avalanchego/vms/avm/fxs"
 	"github.com/MetalBlockchain/avalanchego/vms/avm/txs"
@@ -1299,11 +1298,7 @@ func TestExportTxSemanticVerifyInvalidFx(t *testing.T) {
 
 	baseDBManager := manager.NewMemDB(version.Semantic1_0_0)
 
-	m := &atomic.Memory{}
-	err := m.Initialize(logging.NoLog{}, prefixdb.New([]byte{0}, baseDBManager.Current().Database))
-	if err != nil {
-		t.Fatal(err)
-	}
+	m := atomic.NewMemory(prefixdb.New([]byte{0}, baseDBManager.Current().Database))
 	ctx.SharedMemory = m.NewSharedMemory(ctx.ChainID)
 
 	ctx.Lock.Lock()

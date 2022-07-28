@@ -1,7 +1,7 @@
 // Copyright (C) 2019-2021, Ava Labs, Inc. All rights reserved.
 // See the file LICENSE for licensing terms.
 
-package platformvm
+package executor
 
 import (
 	"testing"
@@ -48,44 +48,37 @@ func TestCreateSubnetTxAP3FeeChange(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			assert := assert.New(t)
 
-			vm, _, _, _ := defaultVM()
-			vm.ApricotPhase3Time = ap3Time
-
-			vm.ctx.Lock.Lock()
+			env := newEnvironment()
+			env.config.ApricotPhase3Time = ap3Time
 			defer func() {
-				err := vm.Shutdown()
-				assert.NoError(err)
-				vm.ctx.Lock.Unlock()
+				assert.NoError(shutdownEnvironment(env))
 			}()
 
-			ins, outs, _, signers, err := vm.utxoHandler.Spend(keys, 0, test.fee, ids.ShortEmpty)
+			ins, outs, _, signers, err := env.utxosHandler.Spend(preFundedKeys, 0, test.fee, ids.ShortEmpty)
 			assert.NoError(err)
 
 			// Create the tx
 			utx := &txs.CreateSubnetTx{
 				BaseTx: txs.BaseTx{BaseTx: avax.BaseTx{
-					NetworkID:    vm.ctx.NetworkID,
-					BlockchainID: vm.ctx.ChainID,
+					NetworkID:    env.ctx.NetworkID,
+					BlockchainID: env.ctx.ChainID,
 					Ins:          ins,
 					Outs:         outs,
 				}},
 				Owner: &secp256k1fx.OutputOwners{},
 			}
 			tx := &txs.Tx{Unsigned: utx}
-			err = tx.Sign(Codec, signers)
+			assert.NoError(tx.Sign(txs.Codec, signers))
+
+			stateDiff, err := state.NewDiff(lastAcceptedID, env.backend.StateVersions)
 			assert.NoError(err)
 
-			state := state.NewDiff(
-				vm.internalState,
-				vm.internalState.CurrentStakers(),
-				vm.internalState.PendingStakers(),
-			)
-			state.SetTimestamp(test.time)
+			stateDiff.SetTimestamp(test.time)
 
-			executor := standardTxExecutor{
-				vm:    vm,
-				state: state,
-				tx:    tx,
+			executor := StandardTxExecutor{
+				Backend: &env.backend,
+				State:   stateDiff,
+				Tx:      tx,
 			}
 			err = tx.Unsigned.Visit(&executor)
 			assert.Equal(test.expectsError, err != nil)

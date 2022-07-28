@@ -12,13 +12,13 @@ import (
 	"github.com/MetalBlockchain/avalanchego/snow/choices"
 	"github.com/MetalBlockchain/avalanchego/vms/platformvm/status"
 	"github.com/MetalBlockchain/avalanchego/vms/platformvm/txs"
+	"github.com/MetalBlockchain/avalanchego/vms/platformvm/txs/executor"
 )
 
 var (
 	errConflictingParentTxs = errors.New("block contains a transaction that conflicts with a transaction in a parent block")
 
-	_ Block    = &AtomicBlock{}
-	_ decision = &AtomicBlock{}
+	_ Block = &AtomicBlock{}
 )
 
 // AtomicBlock being accepted results in the atomic transaction contained in the
@@ -74,19 +74,10 @@ func (ab *AtomicBlock) Verify() error {
 		return err
 	}
 
-	parentIntf, err := ab.parentBlock()
-	if err != nil {
-		return err
-	}
-
-	// AtomicBlock is not a modifier on a proposal block, so its parent must be
-	// a decision.
-	parent, ok := parentIntf.(decision)
+	parentState, ok := ab.vm.stateVersions.GetState(ab.PrntID)
 	if !ok {
 		return errInvalidBlockType
 	}
-
-	parentState := parent.onAccept()
 
 	currentTimestamp := parentState.GetTimestamp()
 	enabledAP5 := !currentTimestamp.Before(ab.vm.ApricotPhase5Time)
@@ -99,36 +90,43 @@ func (ab *AtomicBlock) Verify() error {
 		)
 	}
 
-	executor := atomicTxExecutor{
-		vm:          ab.vm,
-		parentState: parentState,
-		tx:          ab.Tx,
+	atomicExecutor := executor.AtomicTxExecutor{
+		Backend:  &ab.vm.txExecutorBackend,
+		ParentID: ab.PrntID,
+		Tx:       ab.Tx,
 	}
-	err = ab.Tx.Unsigned.Visit(&executor)
+	err := ab.Tx.Unsigned.Visit(&atomicExecutor)
 	if err != nil {
 		txID := ab.Tx.ID()
 		ab.vm.blockBuilder.MarkDropped(txID, err.Error()) // cache tx as dropped
 		return fmt.Errorf("tx %s failed semantic verification: %w", txID, err)
 	}
 
-	executor.onAccept.AddTx(ab.Tx, status.Committed)
+	atomicExecutor.OnAccept.AddTx(ab.Tx, status.Committed)
 
-	ab.onAcceptState = executor.onAccept
-	ab.inputs = executor.inputs
-	ab.atomicRequests = executor.atomicRequests
-	ab.timestamp = executor.onAccept.GetTimestamp()
+	ab.onAcceptState = atomicExecutor.OnAccept
+	ab.inputs = atomicExecutor.Inputs
+	ab.atomicRequests = atomicExecutor.AtomicRequests
+	ab.timestamp = atomicExecutor.OnAccept.GetTimestamp()
 
-	conflicts, err := parentIntf.conflicts(ab.inputs)
-	if err != nil {
-		return err
-	}
-	if conflicts {
-		return errConflictingParentTxs
+	if ab.inputs.Len() > 0 {
+		parent, err := ab.parentBlock()
+		if err != nil {
+			return err
+		}
+
+		conflicts, err := parent.conflicts(ab.inputs)
+		if err != nil {
+			return err
+		}
+		if conflicts {
+			return errConflictingParentTxs
+		}
 	}
 
 	ab.vm.blockBuilder.RemoveDecisionTxs([]*txs.Tx{ab.Tx})
 	ab.vm.currentBlocks[blkID] = ab
-	parentIntf.addChild(ab)
+	ab.vm.stateVersions.SetState(blkID, ab.onAcceptState)
 	return nil
 }
 
@@ -163,9 +161,6 @@ func (ab *AtomicBlock) Accept() error {
 		return fmt.Errorf("failed to apply vm's state to shared memory: %w", err)
 	}
 
-	for _, child := range ab.children {
-		child.setBaseState()
-	}
 	if ab.onAcceptFunc != nil {
 		ab.onAcceptFunc()
 	}

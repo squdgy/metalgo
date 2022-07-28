@@ -18,7 +18,6 @@ import (
 	"github.com/MetalBlockchain/avalanchego/message"
 	"github.com/MetalBlockchain/avalanchego/network/dialer"
 	"github.com/MetalBlockchain/avalanchego/network/throttling"
-	"github.com/MetalBlockchain/avalanchego/snow/networking/benchlist"
 	"github.com/MetalBlockchain/avalanchego/snow/networking/router"
 	"github.com/MetalBlockchain/avalanchego/snow/networking/tracker"
 	"github.com/MetalBlockchain/avalanchego/snow/uptime"
@@ -249,7 +248,6 @@ func newFullyConnectedTestNetwork(t *testing.T, handlers []router.InboundHandler
 					numConnected--
 				},
 			},
-			benchlist.NewManager(&benchlist.Config{}),
 		)
 		assert.NoError(err)
 		networks[i] = net

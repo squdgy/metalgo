@@ -12,6 +12,7 @@ import (
 	"github.com/MetalBlockchain/avalanchego/vms/platformvm/state"
 	"github.com/MetalBlockchain/avalanchego/vms/platformvm/status"
 	"github.com/MetalBlockchain/avalanchego/vms/platformvm/txs"
+	"github.com/MetalBlockchain/avalanchego/vms/platformvm/txs/executor"
 )
 
 var _ Block = &ProposalBlock{}
@@ -90,14 +91,9 @@ func (pb *ProposalBlock) initialize(vm *VM, bytes []byte, status choices.Status,
 	return nil
 }
 
-func (pb *ProposalBlock) setBaseState() {
-	pb.onCommitState.SetBase(pb.vm.internalState)
-	pb.onAbortState.SetBase(pb.vm.internalState)
-}
-
 // Verify this block is valid.
 //
-// The parent block must either be a Commit or an Abort block.
+// The parent block must be a decision block
 //
 // If this block is valid, this function also sets pas.onCommit and pas.onAbort.
 func (pb *ProposalBlock) Verify() error {
@@ -107,44 +103,36 @@ func (pb *ProposalBlock) Verify() error {
 		return err
 	}
 
-	parentIntf, parentErr := pb.parentBlock()
-	if parentErr != nil {
-		return parentErr
+	txExecutor := executor.ProposalTxExecutor{
+		Backend:  &pb.vm.txExecutorBackend,
+		ParentID: pb.PrntID,
+		Tx:       pb.Tx,
 	}
-
-	// The parent of a proposal block (ie this block) must be a decision block
-	parent, ok := parentIntf.(decision)
-	if !ok {
-		return errInvalidBlockType
-	}
-
-	// parentState is the state if this block's parent is accepted
-	parentState := parent.onAccept()
-
-	executor := proposalTxExecutor{
-		vm:          pb.vm,
-		parentState: parentState,
-		tx:          pb.Tx,
-	}
-	err := pb.Tx.Unsigned.Visit(&executor)
+	err := pb.Tx.Unsigned.Visit(&txExecutor)
 	if err != nil {
 		txID := pb.Tx.ID()
 		pb.vm.blockBuilder.MarkDropped(txID, err.Error()) // cache tx as dropped
 		return err
 	}
 
-	pb.onCommitState = executor.onCommit
-	pb.onAbortState = executor.onAbort
-	pb.prefersCommit = executor.prefersCommit
+	pb.onCommitState = txExecutor.OnCommit
+	pb.onAbortState = txExecutor.OnAbort
+	pb.prefersCommit = txExecutor.PrefersCommit
 
 	pb.onCommitState.AddTx(pb.Tx, status.Committed)
 	pb.onAbortState.AddTx(pb.Tx, status.Aborted)
 
-	pb.timestamp = parentState.GetTimestamp()
+	// It is safe to use [pb.onAbortState] here because the timestamp will never
+	// be modified by an Abort block.
+	pb.timestamp = pb.onAbortState.GetTimestamp()
 
 	pb.vm.blockBuilder.RemoveProposalTx(pb.Tx)
 	pb.vm.currentBlocks[blkID] = pb
-	parentIntf.addChild(pb)
+
+	// Notice that we do not add an entry to the state versions here for this
+	// block. This block must be followed by either a Commit or an Abort block.
+	// These blocks will get their parent state by referencing [onCommitState]
+	// or [onAbortState] directly.
 	return nil
 }
 

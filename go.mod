@@ -10,7 +10,7 @@ module github.com/MetalBlockchain/avalanchego
 go 1.17
 
 require (
-	github.com/MetalBlockchain/coreth v0.8.14-rc.0
+	github.com/MetalBlockchain/coreth v0.8.14-rc.1
 	github.com/Microsoft/go-winio v0.4.16
 	github.com/NYTimes/gziphandler v1.1.1
 	github.com/ava-labs/avalanche-network-runner v1.0.6

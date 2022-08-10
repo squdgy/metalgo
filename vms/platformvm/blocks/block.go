@@ -6,8 +6,8 @@ package blocks
 import (
 	"fmt"
 
-	"github.com/ava-labs/avalanchego/ids"
-	"github.com/ava-labs/avalanchego/vms/platformvm/txs"
+	"github.com/MetalBlockchain/avalanchego/ids"
+	"github.com/MetalBlockchain/avalanchego/vms/platformvm/txs"
 )
 
 // Block defines the common stateless interface for all blocks

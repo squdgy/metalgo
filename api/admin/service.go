@@ -17,6 +17,7 @@ import (
 	"github.com/MetalBlockchain/avalanchego/chains"
 	"github.com/MetalBlockchain/avalanchego/ids"
 	"github.com/MetalBlockchain/avalanchego/snow/engine/common"
+	"github.com/MetalBlockchain/avalanchego/utils"
 	"github.com/MetalBlockchain/avalanchego/utils/constants"
 	"github.com/MetalBlockchain/avalanchego/utils/json"
 	"github.com/MetalBlockchain/avalanchego/utils/logging"

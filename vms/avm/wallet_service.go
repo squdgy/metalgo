@@ -11,11 +11,11 @@ import (
 	"github.com/MetalBlockchain/avalanchego/api"
 	"github.com/MetalBlockchain/avalanchego/ids"
 	"github.com/MetalBlockchain/avalanchego/utils/formatting"
+	"github.com/MetalBlockchain/avalanchego/utils/logging"
+	"github.com/MetalBlockchain/avalanchego/utils/math"
 	"github.com/MetalBlockchain/avalanchego/vms/avm/txs"
 	"github.com/MetalBlockchain/avalanchego/vms/components/avax"
 	"github.com/MetalBlockchain/avalanchego/vms/secp256k1fx"
-
-	safemath "github.com/MetalBlockchain/avalanchego/utils/math"
 )
 
 type WalletService struct {
@@ -88,7 +88,9 @@ func (w *WalletService) update(utxos []*avax.UTXO) ([]*avax.UTXO, error) {
 
 // IssueTx attempts to issue a transaction into consensus
 func (w *WalletService) IssueTx(r *http.Request, args *api.FormattedTx, reply *api.JSONTxID) error {
-	w.vm.ctx.Log.Debug("AVM Wallet: IssueTx called with %s", args.Tx)
+	w.vm.ctx.Log.Debug("AVM Wallet: IssueTx called",
+		logging.UserString("tx", args.Tx),
+	)
 
 	txBytes, err := formatting.Decode(args.Encoding, args.Tx)
 	if err != nil {
@@ -110,7 +112,9 @@ func (w *WalletService) Send(r *http.Request, args *SendArgs, reply *api.JSONTxI
 
 // SendMultiple sends a transaction with multiple outputs.
 func (w *WalletService) SendMultiple(r *http.Request, args *SendMultipleArgs, reply *api.JSONTxIDChangeAddr) error {
-	w.vm.ctx.Log.Debug("AVM Wallet: SendMultiple called with username: %s", args.Username)
+	w.vm.ctx.Log.Debug("AVM Wallet: SendMultiple",
+		logging.UserString("username", args.Username),
+	)
 
 	// Validate the memo field
 	memoBytes := []byte(args.Memo)
@@ -168,7 +172,7 @@ func (w *WalletService) SendMultiple(r *http.Request, args *SendMultipleArgs, re
 			assetIDs[output.AssetID] = assetID
 		}
 		currentAmount := amounts[assetID]
-		newAmount, err := safemath.Add64(currentAmount, uint64(output.Amount))
+		newAmount, err := math.Add64(currentAmount, uint64(output.Amount))
 		if err != nil {
 			return fmt.Errorf("problem calculating required spend amount: %w", err)
 		}
@@ -199,7 +203,7 @@ func (w *WalletService) SendMultiple(r *http.Request, args *SendMultipleArgs, re
 		amountsWithFee[assetKey] = amount
 	}
 
-	amountWithFee, err := safemath.Add64(amounts[w.vm.feeAssetID], w.vm.TxFee)
+	amountWithFee, err := math.Add64(amounts[w.vm.feeAssetID], w.vm.TxFee)
 	if err != nil {
 		return fmt.Errorf("problem calculating required spend amount: %w", err)
 	}

@@ -4,9 +4,12 @@
 package keystore
 
 import (
+	"go.uber.org/zap"
+
 	"github.com/MetalBlockchain/avalanchego/database"
 	"github.com/MetalBlockchain/avalanchego/database/encdb"
 	"github.com/MetalBlockchain/avalanchego/ids"
+	"github.com/MetalBlockchain/avalanchego/utils/logging"
 )
 
 var _ BlockchainKeystore = &blockchainKeystore{}
@@ -28,13 +31,19 @@ type blockchainKeystore struct {
 }
 
 func (bks *blockchainKeystore) GetDatabase(username, password string) (*encdb.Database, error) {
-	bks.ks.log.Debug("Keystore: GetDatabase called with %s from %s", username, bks.blockchainID)
+	bks.ks.log.Debug("Keystore: GetDatabase called",
+		logging.UserString("username", username),
+		zap.Stringer("blockchainID", bks.blockchainID),
+	)
 
 	return bks.ks.GetDatabase(bks.blockchainID, username, password)
 }
 
 func (bks *blockchainKeystore) GetRawDatabase(username, password string) (database.Database, error) {
-	bks.ks.log.Debug("Keystore: GetRawDatabase called with %s from %s", username, bks.blockchainID)
+	bks.ks.log.Debug("Keystore: GetRawDatabase called",
+		logging.UserString("username", username),
+		zap.Stringer("blockchainID", bks.blockchainID),
+	)
 
 	return bks.ks.GetRawDatabase(bks.blockchainID, username, password)
 }

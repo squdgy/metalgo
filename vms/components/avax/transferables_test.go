@@ -10,7 +10,6 @@ import (
 	"github.com/MetalBlockchain/avalanchego/codec"
 	"github.com/MetalBlockchain/avalanchego/codec/linearcodec"
 	"github.com/MetalBlockchain/avalanchego/ids"
-	"github.com/MetalBlockchain/avalanchego/utils/formatting"
 	"github.com/MetalBlockchain/avalanchego/vms/secp256k1fx"
 )
 
@@ -165,9 +164,9 @@ func TestTransferableOutputSerialization(t *testing.T) {
 		t.Fatal(err)
 	}
 	if !bytes.Equal(outBytes, expected) {
-		t.Fatalf("Expected:\n%s\nResult:\n%s",
-			formatting.DumpBytes(expected),
-			formatting.DumpBytes(outBytes),
+		t.Fatalf("Expected:\n0x%x\nResult:\n0x%x",
+			expected,
+			outBytes,
 		)
 	}
 }
@@ -329,9 +328,9 @@ func TestTransferableInputSerialization(t *testing.T) {
 		t.Fatal(err)
 	}
 	if !bytes.Equal(inBytes, expected) {
-		t.Fatalf("Expected:\n%s\nResult:\n%s",
-			formatting.DumpBytes(expected),
-			formatting.DumpBytes(inBytes),
+		t.Fatalf("Expected:\n0x%x\nResult:\n0x%x",
+			expected,
+			inBytes,
 		)
 	}
 }

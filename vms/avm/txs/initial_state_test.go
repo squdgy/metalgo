@@ -11,7 +11,6 @@ import (
 	"github.com/MetalBlockchain/avalanchego/codec"
 	"github.com/MetalBlockchain/avalanchego/codec/linearcodec"
 	"github.com/MetalBlockchain/avalanchego/ids"
-	"github.com/MetalBlockchain/avalanchego/utils/formatting"
 	"github.com/MetalBlockchain/avalanchego/vms/components/avax"
 	"github.com/MetalBlockchain/avalanchego/vms/components/verify"
 	"github.com/MetalBlockchain/avalanchego/vms/secp256k1fx"
@@ -76,9 +75,9 @@ func TestInitialStateVerifySerialization(t *testing.T) {
 		t.Fatal(err)
 	}
 	if !bytes.Equal(isBytes, expected) {
-		t.Fatalf("Expected:\n%s\nResult:\n%s",
-			formatting.DumpBytes(expected),
-			formatting.DumpBytes(isBytes),
+		t.Fatalf("Expected:\n0x%x\nResult:\n0x%x",
+			expected,
+			isBytes,
 		)
 	}
 }

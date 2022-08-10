@@ -5,7 +5,6 @@ package platformvm
 
 import (
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 
@@ -49,7 +48,6 @@ func TestMempoolValidGossipedTxIsAddedToMempool(t *testing.T) {
 		return nil
 	}
 
-	vm.gossipActivationTime = time.Unix(0, 0) // enable mempool gossiping
 	nodeID := ids.GenerateTestNodeID()
 
 	// create a tx
@@ -78,7 +76,7 @@ func TestMempoolValidGossipedTxIsAddedToMempool(t *testing.T) {
 	reply, ok := replyIntf.(*message.Tx)
 	assert.True(ok, "unknown message type")
 
-	retrivedTx, err := txs.Parse(Codec, reply.Tx)
+	retrivedTx, err := txs.Parse(txs.Codec, reply.Tx)
 	assert.NoError(err, "failed parsing tx")
 
 	assert.Equal(txID, retrivedTx.ID())
@@ -93,8 +91,6 @@ func TestMempoolInvalidGossipedTxIsNotAddedToMempool(t *testing.T) {
 		assert.NoError(vm.Shutdown())
 		vm.ctx.Lock.Unlock()
 	}()
-
-	vm.gossipActivationTime = time.Unix(0, 0) // enable mempool gossiping
 
 	// create a tx and mark as invalid
 	tx := getValidTx(vm, t)
@@ -123,7 +119,6 @@ func TestMempoolNewLocaTxIsGossiped(t *testing.T) {
 		vm.ctx.Lock.Unlock()
 	}()
 
-	vm.gossipActivationTime = time.Unix(0, 0) // enable mempool gossiping
 	mempool := &vm.blockBuilder
 
 	var gossipedBytes []byte
@@ -147,7 +142,7 @@ func TestMempoolNewLocaTxIsGossiped(t *testing.T) {
 	reply, ok := replyIntf.(*message.Tx)
 	assert.True(ok, "unknown message type")
 
-	retrivedTx, err := txs.Parse(Codec, reply.Tx)
+	retrivedTx, err := txs.Parse(txs.Codec, reply.Tx)
 	assert.NoError(err, "failed parsing tx")
 
 	assert.Equal(txID, retrivedTx.ID())
@@ -155,7 +150,7 @@ func TestMempoolNewLocaTxIsGossiped(t *testing.T) {
 	// show that transaction is not re-gossiped is recently added to mempool
 	gossipedBytes = nil
 	vm.mempool.RemoveDecisionTxs([]*txs.Tx{tx})
-	err = vm.mempool.AddVerifiedTx(tx)
+	err = vm.mempool.Add(tx)
 	assert.NoError(err, "could not reintroduce tx to mempool")
 
 	assert.True(gossipedBytes == nil)

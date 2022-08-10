@@ -4,6 +4,8 @@
 package avm
 
 import (
+	"time"
+
 	"github.com/MetalBlockchain/avalanchego/snow"
 	"github.com/MetalBlockchain/avalanchego/vms"
 )
@@ -13,6 +15,9 @@ var _ vms.Factory = &Factory{}
 type Factory struct {
 	TxFee            uint64
 	CreateAssetTxFee uint64
+
+	// Time of the Blueberry network upgrade
+	BlueberryTime time.Time
 }
 
 func (f *Factory) New(*snow.Context) (interface{}, error) {

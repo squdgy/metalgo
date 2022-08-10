@@ -14,6 +14,7 @@ import (
 	"github.com/MetalBlockchain/avalanchego/vms/avm"
 	"github.com/MetalBlockchain/avalanchego/vms/components/avax"
 	"github.com/MetalBlockchain/avalanchego/vms/platformvm"
+	"github.com/MetalBlockchain/avalanchego/vms/platformvm/txs"
 	"github.com/MetalBlockchain/avalanchego/wallet/chain/p"
 	"github.com/MetalBlockchain/avalanchego/wallet/chain/x"
 )
@@ -69,7 +70,7 @@ func FetchState(ctx context.Context, uri string, addrs ids.ShortSet) (p.Context,
 		{
 			id:     constants.PlatformChainID,
 			client: platformvm.NewClient(uri),
-			codec:  platformvm.Codec,
+			codec:  txs.Codec,
 		},
 		{
 			id:     xCTX.BlockchainID(),

@@ -20,6 +20,8 @@ import (
 	"github.com/syndtr/goleveldb/leveldb/opt"
 	"github.com/syndtr/goleveldb/leveldb/util"
 
+	"go.uber.org/zap"
+
 	"github.com/MetalBlockchain/avalanchego/database"
 	"github.com/MetalBlockchain/avalanchego/utils"
 	"github.com/MetalBlockchain/avalanchego/utils/logging"
@@ -78,6 +80,10 @@ type Database struct {
 	closeOnce sync.Once
 	// closeCh is closed when Close() is called.
 	closeCh chan struct{}
+	// closeWg is used to wait for all goroutines created by New() to exit.
+	// This avoids racy behavior when Close() is called at the same time as
+	// Stats(). See: https://github.com/syndtr/goleveldb/issues/418
+	closeWg sync.WaitGroup
 }
 
 type config struct {
@@ -192,11 +198,10 @@ func New(file string, configBytes []byte, log logging.Logger, namespace string, 
 			return nil, fmt.Errorf("failed to parse db config: %w", err)
 		}
 	}
-	configJSON, err := json.Marshal(&parsedConfig)
-	if err != nil {
-		return nil, err
-	}
-	log.Info("leveldb config: %s", string(configJSON))
+
+	log.Info("creating new leveldb",
+		zap.Reflect("config", parsedConfig),
+	)
 
 	// Open the db and recover any potential corruptions
 	db, err := leveldb.OpenFile(file, &opt.Options{
@@ -235,14 +240,19 @@ func New(file string, configBytes []byte, log logging.Logger, namespace string, 
 			return nil, err
 		}
 		wrappedDB.metrics = metrics
+		wrappedDB.closeWg.Add(1)
 		go func() {
 			t := time.NewTicker(parsedConfig.MetricUpdateFrequency)
-			defer t.Stop()
+			defer func() {
+				t.Stop()
+				wrappedDB.closeWg.Done()
+			}()
 
 			for {
-				err := wrappedDB.updateMetrics()
-				if !wrappedDB.closed.GetValue() && err != nil {
-					log.Warn("failed to update leveldb metrics: %s", err)
+				if err := wrappedDB.updateMetrics(); err != nil {
+					log.Warn("failed to update leveldb metrics",
+						zap.Error(err),
+					)
 				}
 
 				select {
@@ -342,6 +352,7 @@ func (db *Database) Close() error {
 	db.closeOnce.Do(func() {
 		close(db.closeCh)
 	})
+	db.closeWg.Wait()
 	return updateError(db.DB.Close())
 }
 

@@ -1,20 +1,20 @@
 %define _build_id_links none
 
-Name:           avalanchego
+Name:           metalgo
 Version:        %{version}
 Release:        %{release}
-Summary:        The Avalanche platform binaries
+Summary:        The Metal platform binaries
 URL:            https://github.com/MetalBlockchain/%{name}
 License:        BSD-3
 AutoReqProv:    no
 
 %description
-Avalanche is an incredibly lightweight protocol, so the minimum computer requirements are quite modest.
+Metal is an incredibly lightweight protocol, so the minimum computer requirements are quite modest.
 
 %files
-/usr/local/bin/avalanchego
-/usr/local/lib/avalanchego
-/usr/local/lib/avalanchego/evm
+/usr/local/bin/metalgo
+/usr/local/lib/metalgo
+/usr/local/lib/metalgo/evm
 
 %changelog
 * Mon Oct 26 2020 Charlie Wyse <charlie@avalabs.org>

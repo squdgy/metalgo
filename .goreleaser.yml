@@ -27,4 +27,4 @@ release:
   # Default is extracted from the origin remote URL or empty if its private hosted.
   github:
     owner: MetalBlockchain
-    name: avalanchego
+    name: metalgo

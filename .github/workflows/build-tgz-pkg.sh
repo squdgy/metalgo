@@ -1,14 +1,14 @@
 PKG_ROOT=/tmp
 VERSION=$TAG
-AVALANCHE_ROOT=$PKG_ROOT/avalanchego-$VERSION
+METAL_ROOT=$PKG_ROOT/metalgo-$VERSION
 
-mkdir -p $AVALANCHE_ROOT
+mkdir -p $METAL_ROOT
 
-OK=`cp ./build/avalanchego $AVALANCHE_ROOT`
+OK=`cp ./build/metalgo $METAL_ROOT`
 if [[ $OK -ne 0 ]]; then
   exit $OK;
 fi
-OK=`cp -r ./build/plugins $AVALANCHE_ROOT`
+OK=`cp -r ./build/plugins $METAL_ROOT`
 if [[ $OK -ne 0 ]]; then
   exit $OK;
 fi
@@ -17,6 +17,6 @@ fi
 echo "Build tgz package..."
 cd $PKG_ROOT
 echo "Version: $VERSION"
-tar -czvf "avalanchego-linux-$ARCH-$VERSION.tar.gz" avalanchego-$VERSION
-aws s3 cp avalanchego-linux-$ARCH-$VERSION.tar.gz s3://$BUCKET/linux/binaries/ubuntu/$RELEASE/$ARCH/
-rm -rf $PKG_ROOT/avalanchego*
+tar -czvf "metalgo-linux-$ARCH-$VERSION.tar.gz" metalgo-$VERSION
+aws s3 cp metalgo-linux-$ARCH-$VERSION.tar.gz s3://$BUCKET/linux/binaries/ubuntu/$RELEASE/$ARCH/
+rm -rf $PKG_ROOT/metalgo*

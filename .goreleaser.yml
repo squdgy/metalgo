@@ -14,32 +14,6 @@ builds:
       - goos: freebsd
         goarch: 386
 
-dockers:
-  - image_templates:
-      - "metalblockchain/metalgo:{{ .Version }}-amd64"
-    dockerfile: .goreleaser/Dockerfile
-    build_flag_templates:
-      - "--platform=linux/amd64"
-    extra_files:
-      - build/plugins/evm
-    use: buildx
-    goarch: amd64
-  - image_templates:
-      - "metalblockchain/metalgo:{{ .Version }}-arm64"
-    dockerfile: .goreleaser/Dockerfile
-    build_flag_templates:
-      - "--platform=linux/arm64/v8"
-    extra_files:
-      - build/plugins/evm
-    use: buildx
-    goarch: arm64
-
-docker_manifests:
-- name_template: "metalblockchain/metalgo:v{{ .Version }}"
-  image_templates:
-  - metalblockchain/metalgo:{{ .Version }}-amd64
-  - metalblockchain/metalgo:{{ .Version }}-arm64
-
 archives:
   - name_template: "{{ .ProjectName }}-{{ .Os }}-{{ .Arch }}-v{{ .Version }}"
     wrap_in_directory: true

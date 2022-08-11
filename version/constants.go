@@ -6,7 +6,7 @@ package version
 import (
 	"time"
 
-	"github.com/MetalBlockchain/avalanchego/utils/constants"
+	"github.com/MetalBlockchain/metalgo/utils/constants"
 )
 
 // These are globals that describe network upgrades and node versions
@@ -78,8 +78,8 @@ var (
 
 	// FIXME: update this before release
 	XChainMigrationTimes = map[uint32]time.Time{
-		constants.MainnetID: time.Date(2020, time.December, 5, 5, 0, 0, 0, time.UTC),
-		constants.TahoeID:   time.Date(2020, time.December, 5, 5, 0, 0, 0, time.UTC),
+		constants.MainnetID: time.Date(10000, time.December, 1, 0, 0, 0, 0, time.UTC),
+		constants.TahoeID:   time.Date(10000, time.December, 1, 0, 0, 0, 0, time.UTC),
 	}
 	XChainMigrationDefaultTime = time.Date(2020, time.December, 5, 5, 0, 0, 0, time.UTC)
 )

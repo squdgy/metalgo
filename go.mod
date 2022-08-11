@@ -1,4 +1,4 @@
-module github.com/MetalBlockchain/avalanchego
+module github.com/MetalBlockchain/metalgo
 
 // Changes to the minimum golang version must also be replicated in
 // scripts/ansible/roles/golang_base/defaults/main.yml
@@ -10,7 +10,7 @@ module github.com/MetalBlockchain/avalanchego
 go 1.17
 
 require (
-	github.com/MetalBlockchain/coreth v0.8.15-rc.1
+	github.com/MetalBlockchain/coreth v0.8.15-rc.2
 	github.com/Microsoft/go-winio v0.5.2
 	github.com/NYTimes/gziphandler v1.1.1
 	github.com/ava-labs/avalanche-network-runner-sdk v0.1.0

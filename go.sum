@@ -39,8 +39,8 @@ dmitri.shuralyov.com/gpu/mtl v0.0.0-20190408044501-666a987793e9/go.mod h1:H6x//7
 github.com/BurntSushi/toml v0.3.1 h1:WXkYYl6Yr3qBf1K79EBnL4mak0OimBfB0XUf9Vl28OQ=
 github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03qcyfWMU=
 github.com/BurntSushi/xgb v0.0.0-20160522181843-27f122750802/go.mod h1:IVnqGOEym/WlBOVXweHU+Q+/VP0lqqI8lqeDx9IjBqo=
-github.com/MetalBlockchain/coreth v0.8.15-rc.2 h1:8UEs8cZ+tqNpjZH+m/O0FetcMxLthixCb6Gg8P8zv6M=
-github.com/MetalBlockchain/coreth v0.8.15-rc.2/go.mod h1:hfHKeoolIPhj8CEp4xBhrQ3Rp9Vw8Po2ANL8uAwjA1c=
+github.com/MetalBlockchain/coreth v0.8.15-rc.3 h1:XbLkTEwwwbuiR2eFRvDCDmm5rEldDTQXsAVW404vfIo=
+github.com/MetalBlockchain/coreth v0.8.15-rc.3/go.mod h1:wAjfnovPVfKiiEQ7lHisEml3nF0McTqB4UGlcUiijcU=
 github.com/Microsoft/go-winio v0.5.2 h1:a9IhgEQBCUEk6QCdml9CiJGhAws+YwffDHEMp1VMrpA=
 github.com/Microsoft/go-winio v0.5.2/go.mod h1:WpS1mjBmmwHBEWmogvA2mj8546UReBk4v8QkMxJ6pZY=
 github.com/NYTimes/gziphandler v1.1.1 h1:ZUDjpQae29j0ryrS0u/B8HZfJBtBQHjqw2rQ2cqUQ3I=

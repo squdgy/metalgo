@@ -13,6 +13,13 @@ service AppSender {
   rpc SendAppGossipSpecific(SendAppGossipSpecificMsg) returns (google.protobuf.Empty);
 }
 
+service AppSender {
+  rpc SendAppRequest(SendAppRequestMsg) returns (google.protobuf.Empty);
+  rpc SendAppResponse(SendAppResponseMsg) returns (google.protobuf.Empty);
+  rpc SendAppGossip(SendAppGossipMsg) returns (google.protobuf.Empty);
+  rpc SendAppGossipSpecific(SendAppGossipSpecificMsg) returns (google.protobuf.Empty);
+}
+
 message SendAppRequestMsg {
   // The nodes to send this request to
   repeated bytes node_ids = 1;

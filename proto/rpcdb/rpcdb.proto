@@ -21,6 +21,21 @@ service Database {
   rpc IteratorRelease(IteratorReleaseRequest) returns (IteratorReleaseResponse);
 }
 
+service Database {
+  rpc Has(HasRequest) returns (HasResponse);
+  rpc Get(GetRequest) returns (GetResponse);
+  rpc Put(PutRequest) returns (PutResponse);
+  rpc Delete(DeleteRequest) returns (DeleteResponse);
+  rpc Compact(CompactRequest) returns (CompactResponse);
+  rpc Close(CloseRequest) returns (CloseResponse);
+  rpc HealthCheck(google.protobuf.Empty) returns (HealthCheckResponse);
+  rpc WriteBatch(WriteBatchRequest) returns (WriteBatchResponse);
+  rpc NewIteratorWithStartAndPrefix(NewIteratorWithStartAndPrefixRequest) returns (NewIteratorWithStartAndPrefixResponse);
+  rpc IteratorNext(IteratorNextRequest) returns (IteratorNextResponse);
+  rpc IteratorError(IteratorErrorRequest) returns (IteratorErrorResponse);
+  rpc IteratorRelease(IteratorReleaseRequest) returns (IteratorReleaseResponse);
+}
+
 message HasRequest {
   bytes key = 1;
 }

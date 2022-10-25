@@ -4,8 +4,8 @@
 package signer
 
 import (
-	"github.com/ava-labs/avalanchego/utils/crypto/bls"
-	"github.com/ava-labs/avalanchego/vms/components/verify"
+	"github.com/MetalBlockchain/metalgo/utils/crypto/bls"
+	"github.com/MetalBlockchain/metalgo/vms/components/verify"
 )
 
 type Signer interface {

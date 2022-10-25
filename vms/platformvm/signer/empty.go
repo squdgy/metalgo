@@ -4,7 +4,7 @@
 package signer
 
 import (
-	"github.com/ava-labs/avalanchego/utils/crypto/bls"
+	"github.com/MetalBlockchain/metalgo/utils/crypto/bls"
 )
 
 var _ Signer = &Empty{}

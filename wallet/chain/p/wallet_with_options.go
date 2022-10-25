@@ -8,6 +8,7 @@ import (
 
 	"github.com/MetalBlockchain/metalgo/ids"
 	"github.com/MetalBlockchain/metalgo/vms/components/avax"
+	"github.com/MetalBlockchain/metalgo/vms/platformvm/signer"
 	"github.com/MetalBlockchain/metalgo/vms/platformvm/txs"
 	"github.com/MetalBlockchain/metalgo/vms/platformvm/validator"
 	"github.com/MetalBlockchain/metalgo/vms/secp256k1fx"
@@ -186,6 +187,7 @@ func (w *walletWithOptions) IssueTransformSubnetTx(
 
 func (w *walletWithOptions) IssueAddPermissionlessValidatorTx(
 	vdr *validator.SubnetValidator,
+	signer signer.Signer,
 	assetID ids.ID,
 	validationRewardsOwner *secp256k1fx.OutputOwners,
 	delegationRewardsOwner *secp256k1fx.OutputOwners,
@@ -194,6 +196,7 @@ func (w *walletWithOptions) IssueAddPermissionlessValidatorTx(
 ) (ids.ID, error) {
 	return w.Wallet.IssueAddPermissionlessValidatorTx(
 		vdr,
+		signer,
 		assetID,
 		validationRewardsOwner,
 		delegationRewardsOwner,

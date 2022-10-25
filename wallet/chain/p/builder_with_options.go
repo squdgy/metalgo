@@ -8,6 +8,7 @@ import (
 
 	"github.com/MetalBlockchain/metalgo/ids"
 	"github.com/MetalBlockchain/metalgo/vms/components/avax"
+	"github.com/MetalBlockchain/metalgo/vms/platformvm/signer"
 	"github.com/MetalBlockchain/metalgo/vms/platformvm/txs"
 	"github.com/MetalBlockchain/metalgo/vms/platformvm/validator"
 	"github.com/MetalBlockchain/metalgo/vms/secp256k1fx"
@@ -191,6 +192,7 @@ func (b *builderWithOptions) NewTransformSubnetTx(
 
 func (b *builderWithOptions) NewAddPermissionlessValidatorTx(
 	vdr *validator.SubnetValidator,
+	signer signer.Signer,
 	assetID ids.ID,
 	validationRewardsOwner *secp256k1fx.OutputOwners,
 	delegationRewardsOwner *secp256k1fx.OutputOwners,
@@ -199,6 +201,7 @@ func (b *builderWithOptions) NewAddPermissionlessValidatorTx(
 ) (*txs.AddPermissionlessValidatorTx, error) {
 	return b.Builder.NewAddPermissionlessValidatorTx(
 		vdr,
+		signer,
 		assetID,
 		validationRewardsOwner,
 		delegationRewardsOwner,

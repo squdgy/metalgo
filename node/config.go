@@ -17,6 +17,7 @@ import (
 	"github.com/MetalBlockchain/metalgo/snow/networking/router"
 	"github.com/MetalBlockchain/metalgo/snow/networking/sender"
 	"github.com/MetalBlockchain/metalgo/snow/networking/tracker"
+	"github.com/MetalBlockchain/metalgo/utils/crypto/bls"
 	"github.com/MetalBlockchain/metalgo/utils/dynamicip"
 	"github.com/MetalBlockchain/metalgo/utils/ips"
 	"github.com/MetalBlockchain/metalgo/utils/logging"
@@ -83,9 +84,11 @@ type StakingConfig struct {
 	genesis.StakingConfig
 	EnableStaking         bool            `json:"enableStaking"`
 	StakingTLSCert        tls.Certificate `json:"-"`
+	StakingSigningKey     *bls.SecretKey  `json:"-"`
 	DisabledStakingWeight uint64          `json:"disabledStakingWeight"`
 	StakingKeyPath        string          `json:"stakingKeyPath"`
 	StakingCertPath       string          `json:"stakingCertPath"`
+	StakingSignerPath     string          `json:"stakingSignerPath"`
 }
 
 type StateSyncConfig struct {

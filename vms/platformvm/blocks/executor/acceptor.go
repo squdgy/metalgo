@@ -8,6 +8,7 @@ import (
 
 	"go.uber.org/zap"
 
+	"github.com/MetalBlockchain/metalgo/ids"
 	"github.com/MetalBlockchain/metalgo/snow/choices"
 	"github.com/MetalBlockchain/metalgo/utils"
 	"github.com/MetalBlockchain/metalgo/utils/window"
@@ -24,7 +25,7 @@ var _ blocks.Visitor = &acceptor{}
 type acceptor struct {
 	*backend
 	metrics          metrics.Metrics
-	recentlyAccepted *window.Window
+	recentlyAccepted window.Window[ids.ID]
 	bootstrapped     *utils.AtomicBool
 }
 

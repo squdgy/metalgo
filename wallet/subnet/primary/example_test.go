@@ -15,6 +15,7 @@ import (
 	"github.com/MetalBlockchain/metalgo/vms/components/avax"
 	"github.com/MetalBlockchain/metalgo/vms/components/verify"
 	"github.com/MetalBlockchain/metalgo/vms/platformvm/reward"
+	"github.com/MetalBlockchain/metalgo/vms/platformvm/signer"
 	"github.com/MetalBlockchain/metalgo/vms/platformvm/validator"
 	"github.com/MetalBlockchain/metalgo/vms/secp256k1fx"
 )
@@ -141,6 +142,7 @@ func ExampleWallet() {
 			},
 			Subnet: createSubnetTxID,
 		},
+		&signer.Empty{},
 		createAssetTxID,
 		&secp256k1fx.OutputOwners{},
 		&secp256k1fx.OutputOwners{},

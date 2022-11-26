@@ -65,7 +65,7 @@ docker image ls
 The image should be tagged as `metalblockchain/metalgo:xxxxxxxx`, where `xxxxxxxx` is the shortened commit of the Metal source it was built from. To run the Metal node, run:
 
 ```sh
-docker run -ti -p 9650:9650 -p 9651:9651 metalblockchain/metalgo:xxxxxxxx /metalgo/build/metalgo
+docker run -ti -p 9650:9650 -p 9651:9651 metalblockchain/metalgo:xxxxxxxx /metalgo/build/metalgo 
 ```
 
 ## Running Metal

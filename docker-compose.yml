@@ -1,0 +1,16 @@
+metal:
+  image: metalblockchain/metalgo:latest
+  command:
+    [
+      "/metalgo/build/metalgo",
+      "--db-dir=/data/metal",
+      "--api-admin-enabled=true",
+      "--http-host=0.0.0.0",
+      "--bootstrap-retry-enabled"
+    ]
+  ports:
+    - 9650:9650
+    - 9651:9651
+  # volumes:
+  #   - ./metal-data:/data/metal
+  restart: unless-stopped

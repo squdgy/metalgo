@@ -4,30 +4,9 @@
 package genesis
 
 import (
-	"math"
-
-	"github.com/MetalBlockchain/metalgo/codec"
-	"github.com/MetalBlockchain/metalgo/codec/linearcodec"
-	"github.com/MetalBlockchain/metalgo/utils/wrappers"
-	"github.com/MetalBlockchain/metalgo/vms/platformvm/txs"
+	"github.com/MetalBlockchain/metalgo/vms/platformvm/blocks"
 )
 
-var Codec codec.Manager
+const Version = blocks.Version
 
-func init() {
-	gc := linearcodec.NewCustomMaxLength(math.MaxInt32)
-	Codec = codec.NewManager(math.MaxInt32)
-
-	// To maintain codec type ordering, skip positions
-	// for Proposal/Abort/Commit/Standard/Atomic blocks
-	gc.SkipRegistrations(5)
-
-	errs := wrappers.Errs{}
-	errs.Add(
-		txs.RegisterUnsignedTxsTypes(gc),
-		Codec.RegisterCodec(txs.Version, gc),
-	)
-	if errs.Errored() {
-		panic(errs.Err)
-	}
-}
+var Codec = blocks.GenesisCodec

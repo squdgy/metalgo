@@ -14,7 +14,6 @@ import (
 	"github.com/MetalBlockchain/metalgo/ids"
 	"github.com/MetalBlockchain/metalgo/utils/crypto"
 	"github.com/MetalBlockchain/metalgo/vms/components/avax"
-	"github.com/MetalBlockchain/metalgo/vms/platformvm/blocks"
 	"github.com/MetalBlockchain/metalgo/vms/platformvm/status"
 	"github.com/MetalBlockchain/metalgo/vms/platformvm/txs"
 	"github.com/MetalBlockchain/metalgo/vms/secp256k1fx"
@@ -53,7 +52,7 @@ func TestAtomicTxImports(t *testing.T) {
 			},
 		},
 	}
-	utxoBytes, err := blocks.Codec.Marshal(txs.Version, utxo)
+	utxoBytes, err := txs.Codec.Marshal(txs.Version, utxo)
 	require.NoError(err)
 
 	inputID := utxo.InputID()

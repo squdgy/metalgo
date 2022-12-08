@@ -9,7 +9,7 @@ module github.com/MetalBlockchain/metalgo
 go 1.18
 
 require (
-	github.com/MetalBlockchain/coreth v0.10.0-rc.1
+	github.com/MetalBlockchain/coreth v0.11.0-rc.4
 	github.com/Microsoft/go-winio v0.5.2
 	github.com/NYTimes/gziphandler v1.1.1
 	github.com/ava-labs/avalanche-network-runner-sdk v0.2.0
@@ -73,7 +73,7 @@ require (
 	github.com/decred/dcrd/crypto/blake256 v1.0.0 // indirect
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.0.1 // indirect
 	github.com/decred/dcrd/lru v1.1.1 // indirect
-	github.com/ethereum/go-ethereum v1.10.23 // indirect
+	github.com/ethereum/go-ethereum v1.10.25 // indirect
 	github.com/fatih/color v1.13.0 // indirect
 	github.com/fjl/memsize v0.0.0-20190710130421-bcb5799ab5e5 // indirect
 	github.com/fsnotify/fsnotify v1.5.4 // indirect

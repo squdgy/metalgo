@@ -16,7 +16,7 @@ import (
 	"github.com/onsi/gomega"
 
 	"github.com/MetalBlockchain/metalgo/tests"
-	runner_sdk "github.com/ava-labs/avalanche-network-runner-sdk"
+	runner_sdk "github.com/MetalBlockchain/metal-network-runner-sdk"
 )
 
 func TestUpgrade(t *testing.T) {

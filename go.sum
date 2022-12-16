@@ -41,8 +41,8 @@ github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03
 github.com/BurntSushi/xgb v0.0.0-20160522181843-27f122750802/go.mod h1:IVnqGOEym/WlBOVXweHU+Q+/VP0lqqI8lqeDx9IjBqo=
 github.com/FactomProject/btcutilecc v0.0.0-20130527213604-d3a63a5752ec h1:1Qb69mGp/UtRPn422BH4/Y4Q3SLUrD9KHuDkm8iodFc=
 github.com/FactomProject/btcutilecc v0.0.0-20130527213604-d3a63a5752ec/go.mod h1:CD8UlnlLDiqb36L110uqiP2iSflVjx9g/3U9hCI4q2U=
-github.com/MetalBlockchain/coreth v0.11.0-rc.8 h1:EuTHKL/LV0+K0kCkXLBNY3+KpWhsa/5q4FNTutb/C2I=
-github.com/MetalBlockchain/coreth v0.11.0-rc.8/go.mod h1:sgm2gKMSARLs22a8E0trNJSpY2EDHcDjBy5gX7ABmo8=
+github.com/MetalBlockchain/coreth v0.11.1-rc.8 h1:OVN5dxUqyhr2Iq6ggnGR8Dbuq2JJIh1N4EKcn9P/Juk=
+github.com/MetalBlockchain/coreth v0.11.1-rc.8/go.mod h1:ddWysXxrSMbFs+TYOvEul3ZY46p3k8sYQv3Qsco/hMw=
 github.com/MetalBlockchain/metal-ledger-go v0.0.10 h1:gGRWeNZ2wfyjw6xaWrFPxgJTAodYmdFSASjzo4bUkl0=
 github.com/MetalBlockchain/metal-ledger-go v0.0.10/go.mod h1:/BHfGq25N19hb2O+bBpkjkjHKZu7JbsxTovd2s3Q+lM=
 github.com/Microsoft/go-winio v0.5.2 h1:a9IhgEQBCUEk6QCdml9CiJGhAws+YwffDHEMp1VMrpA=

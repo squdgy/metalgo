@@ -10,6 +10,7 @@ import (
 	"github.com/MetalBlockchain/metalgo/ids"
 	"github.com/MetalBlockchain/metalgo/snow"
 	"github.com/MetalBlockchain/metalgo/utils/constants"
+	"github.com/MetalBlockchain/metalgo/utils/crypto/bls"
 	"github.com/MetalBlockchain/metalgo/utils/math"
 	"github.com/MetalBlockchain/metalgo/vms/components/avax"
 	"github.com/MetalBlockchain/metalgo/vms/components/verify"
@@ -46,8 +47,13 @@ func (tx *AddPermissionlessDelegatorTx) InitCtx(ctx *snow.Context) {
 	tx.DelegationRewardsOwner.InitCtx(ctx)
 }
 
-func (tx *AddPermissionlessDelegatorTx) SubnetID() ids.ID     { return tx.Subnet }
-func (tx *AddPermissionlessDelegatorTx) NodeID() ids.NodeID   { return tx.Validator.NodeID }
+func (tx *AddPermissionlessDelegatorTx) SubnetID() ids.ID   { return tx.Subnet }
+func (tx *AddPermissionlessDelegatorTx) NodeID() ids.NodeID { return tx.Validator.NodeID }
+
+func (tx *AddPermissionlessDelegatorTx) PublicKey() (*bls.PublicKey, bool, error) {
+	return nil, false, nil
+}
+
 func (tx *AddPermissionlessDelegatorTx) StartTime() time.Time { return tx.Validator.StartTime() }
 func (tx *AddPermissionlessDelegatorTx) EndTime() time.Time   { return tx.Validator.EndTime() }
 func (tx *AddPermissionlessDelegatorTx) Weight() uint64       { return tx.Validator.Wght }

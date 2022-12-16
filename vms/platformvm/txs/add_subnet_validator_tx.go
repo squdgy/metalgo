@@ -10,6 +10,7 @@ import (
 	"github.com/MetalBlockchain/metalgo/ids"
 	"github.com/MetalBlockchain/metalgo/snow"
 	"github.com/MetalBlockchain/metalgo/utils/constants"
+	"github.com/MetalBlockchain/metalgo/utils/crypto/bls"
 	"github.com/MetalBlockchain/metalgo/vms/components/verify"
 	"github.com/MetalBlockchain/metalgo/vms/platformvm/validator"
 )
@@ -30,11 +31,12 @@ type AddSubnetValidatorTx struct {
 	SubnetAuth verify.Verifiable `serialize:"true" json:"subnetAuthorization"`
 }
 
-func (tx *AddSubnetValidatorTx) SubnetID() ids.ID     { return tx.Validator.Subnet }
-func (tx *AddSubnetValidatorTx) NodeID() ids.NodeID   { return tx.Validator.NodeID }
-func (tx *AddSubnetValidatorTx) StartTime() time.Time { return tx.Validator.StartTime() }
-func (tx *AddSubnetValidatorTx) EndTime() time.Time   { return tx.Validator.EndTime() }
-func (tx *AddSubnetValidatorTx) Weight() uint64       { return tx.Validator.Wght }
+func (tx *AddSubnetValidatorTx) SubnetID() ids.ID                         { return tx.Validator.Subnet }
+func (tx *AddSubnetValidatorTx) NodeID() ids.NodeID                       { return tx.Validator.NodeID }
+func (tx *AddSubnetValidatorTx) PublicKey() (*bls.PublicKey, bool, error) { return nil, false, nil }
+func (tx *AddSubnetValidatorTx) StartTime() time.Time                     { return tx.Validator.StartTime() }
+func (tx *AddSubnetValidatorTx) EndTime() time.Time                       { return tx.Validator.EndTime() }
+func (tx *AddSubnetValidatorTx) Weight() uint64                           { return tx.Validator.Wght }
 
 func (tx *AddSubnetValidatorTx) PendingPriority() Priority {
 	return SubnetPermissionedValidatorPendingPriority

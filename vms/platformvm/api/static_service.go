@@ -17,6 +17,7 @@ import (
 	"github.com/MetalBlockchain/metalgo/utils/math"
 	"github.com/MetalBlockchain/metalgo/vms/components/avax"
 	"github.com/MetalBlockchain/metalgo/vms/platformvm/genesis"
+	"github.com/MetalBlockchain/metalgo/vms/platformvm/signer"
 	"github.com/MetalBlockchain/metalgo/vms/platformvm/stakeable"
 	"github.com/MetalBlockchain/metalgo/vms/platformvm/txs"
 	"github.com/MetalBlockchain/metalgo/vms/platformvm/txs/txheap"
@@ -83,13 +84,14 @@ type PermissionlessValidator struct {
 	ValidationRewardOwner *Owner `json:"validationRewardOwner,omitempty"`
 	// The owner of the rewards from delegations during the validation period,
 	// if applicable.
-	DelegationRewardOwner *Owner        `json:"delegationRewardOwner,omitempty"`
-	PotentialReward       *json.Uint64  `json:"potentialReward,omitempty"`
-	DelegationFee         json.Float32  `json:"delegationFee"`
-	ExactDelegationFee    *json.Uint32  `json:"exactDelegationFee,omitempty"`
-	Uptime                *json.Float32 `json:"uptime,omitempty"`
-	Connected             bool          `json:"connected"`
-	Staked                []UTXO        `json:"staked,omitempty"`
+	DelegationRewardOwner *Owner                    `json:"delegationRewardOwner,omitempty"`
+	PotentialReward       *json.Uint64              `json:"potentialReward,omitempty"`
+	DelegationFee         json.Float32              `json:"delegationFee"`
+	ExactDelegationFee    *json.Uint32              `json:"exactDelegationFee,omitempty"`
+	Uptime                *json.Float32             `json:"uptime,omitempty"`
+	Connected             bool                      `json:"connected"`
+	Staked                []UTXO                    `json:"staked,omitempty"`
+	Signer                *signer.ProofOfPossession `json:"signer,omitempty"`
 	// The delegators delegating to this validator
 	Delegators []PrimaryDelegator `json:"delegators"`
 }

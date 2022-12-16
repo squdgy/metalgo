@@ -8,8 +8,9 @@ import (
 	"time"
 
 	"github.com/google/btree"
-	
+
 	"github.com/MetalBlockchain/metalgo/ids"
+	"github.com/MetalBlockchain/metalgo/utils/crypto/bls"
 	"github.com/MetalBlockchain/metalgo/vms/platformvm/txs"
 )
 
@@ -35,6 +36,7 @@ type StakerIterator interface {
 type Staker struct {
 	TxID            ids.ID
 	NodeID          ids.NodeID
+	PublicKey       *bls.PublicKey
 	SubnetID        ids.ID
 	Weight          uint64
 	StartTime       time.Time
@@ -83,11 +85,16 @@ func (s *Staker) Less(thanIntf btree.Item) bool {
 	return bytes.Compare(s.TxID[:], than.TxID[:]) == -1
 }
 
-func NewCurrentStaker(txID ids.ID, staker txs.Staker, potentialReward uint64) *Staker {
+func NewCurrentStaker(txID ids.ID, staker txs.Staker, potentialReward uint64) (*Staker, error) {
+	publicKey, _, err := staker.PublicKey()
+	if err != nil {
+		return nil, err
+	}
 	endTime := staker.EndTime()
 	return &Staker{
 		TxID:            txID,
 		NodeID:          staker.NodeID(),
+		PublicKey:       publicKey,
 		SubnetID:        staker.SubnetID(),
 		Weight:          staker.Weight(),
 		StartTime:       staker.StartTime(),
@@ -95,19 +102,24 @@ func NewCurrentStaker(txID ids.ID, staker txs.Staker, potentialReward uint64) *S
 		PotentialReward: potentialReward,
 		NextTime:        endTime,
 		Priority:        staker.CurrentPriority(),
-	}
+	}, nil
 }
 
-func NewPendingStaker(txID ids.ID, staker txs.Staker) *Staker {
+func NewPendingStaker(txID ids.ID, staker txs.Staker) (*Staker, error) {
+	publicKey, _, err := staker.PublicKey()
+	if err != nil {
+		return nil, err
+	}
 	startTime := staker.StartTime()
 	return &Staker{
 		TxID:      txID,
 		NodeID:    staker.NodeID(),
+		PublicKey: publicKey,
 		SubnetID:  staker.SubnetID(),
 		Weight:    staker.Weight(),
 		StartTime: startTime,
 		EndTime:   staker.EndTime(),
 		NextTime:  startTime,
 		Priority:  staker.PendingPriority(),
-	}
+	}, nil
 }

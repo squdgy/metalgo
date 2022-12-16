@@ -29,6 +29,7 @@ import (
 	"github.com/MetalBlockchain/metalgo/snow/engine/common"
 	"github.com/MetalBlockchain/metalgo/snow/engine/common/appsender"
 	"github.com/MetalBlockchain/metalgo/snow/engine/snowman/block"
+	"github.com/MetalBlockchain/metalgo/snow/validators/gvalidators"
 	"github.com/MetalBlockchain/metalgo/utils/logging"
 	"github.com/MetalBlockchain/metalgo/utils/wrappers"
 	"github.com/MetalBlockchain/metalgo/version"
@@ -45,6 +46,7 @@ import (
 	rpcdbpb "github.com/MetalBlockchain/metalgo/proto/pb/rpcdb"
 	sharedmemorypb "github.com/MetalBlockchain/metalgo/proto/pb/sharedmemory"
 	subnetlookuppb "github.com/MetalBlockchain/metalgo/proto/pb/subnetlookup"
+	validatorstatepb "github.com/MetalBlockchain/metalgo/proto/pb/validatorstate"
 	vmpb "github.com/MetalBlockchain/metalgo/proto/pb/vm"
 )
 
@@ -170,6 +172,7 @@ func (vm *VMServer) Initialize(_ context.Context, req *vmpb.InitializeRequest) (
 	bcLookupClient := galiasreader.NewClient(aliasreaderpb.NewAliasReaderClient(clientConn))
 	snLookupClient := gsubnetlookup.NewClient(subnetlookuppb.NewSubnetLookupClient(clientConn))
 	appSenderClient := appsender.NewClient(appsenderpb.NewAppSenderClient(clientConn))
+	validatorStateClient := gvalidators.NewClient(validatorstatepb.NewValidatorStateClient(clientConn))
 
 	toEngine := make(chan common.Message, 1)
 	vm.closed = make(chan struct{})
@@ -204,7 +207,8 @@ func (vm *VMServer) Initialize(_ context.Context, req *vmpb.InitializeRequest) (
 		SNLookup:     snLookupClient,
 		Metrics:      metrics.NewOptionalGatherer(),
 
-		// TODO: support snowman++ fields
+		ValidatorState: validatorStateClient,
+		// TODO: support remaining snowman++ fields
 	}
 
 	if err := vm.vm.Initialize(vm.ctx, dbManager, req.GenesisBytes, req.UpgradeBytes, req.ConfigBytes, toEngine, nil, appSenderClient); err != nil {

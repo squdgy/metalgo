@@ -10,10 +10,10 @@ import (
 
 	oteltrace "go.opentelemetry.io/otel/trace"
 
-	"github.com/ava-labs/avalanchego/ids"
-	"github.com/ava-labs/avalanchego/snow"
-	"github.com/ava-labs/avalanchego/snow/engine/common"
-	"github.com/ava-labs/avalanchego/trace"
+	"github.com/MetalBlockchain/metalgo/ids"
+	"github.com/MetalBlockchain/metalgo/snow"
+	"github.com/MetalBlockchain/metalgo/snow/engine/common"
+	"github.com/MetalBlockchain/metalgo/trace"
 )
 
 var _ common.Sender = (*tracedSender)(nil)

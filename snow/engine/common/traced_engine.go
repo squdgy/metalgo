@@ -11,10 +11,10 @@ import (
 
 	oteltrace "go.opentelemetry.io/otel/trace"
 
-	"github.com/ava-labs/avalanchego/ids"
-	"github.com/ava-labs/avalanchego/snow"
-	"github.com/ava-labs/avalanchego/trace"
-	"github.com/ava-labs/avalanchego/version"
+	"github.com/MetalBlockchain/metalgo/ids"
+	"github.com/MetalBlockchain/metalgo/snow"
+	"github.com/MetalBlockchain/metalgo/trace"
+	"github.com/MetalBlockchain/metalgo/version"
 )
 
 var _ Engine = (*tracedEngine)(nil)

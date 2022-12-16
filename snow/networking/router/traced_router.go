@@ -9,13 +9,13 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 
-	"github.com/ava-labs/avalanchego/ids"
-	"github.com/ava-labs/avalanchego/message"
-	"github.com/ava-labs/avalanchego/snow/networking/handler"
-	"github.com/ava-labs/avalanchego/snow/networking/timeout"
-	"github.com/ava-labs/avalanchego/trace"
-	"github.com/ava-labs/avalanchego/utils/logging"
-	"github.com/ava-labs/avalanchego/version"
+	"github.com/MetalBlockchain/metalgo/ids"
+	"github.com/MetalBlockchain/metalgo/message"
+	"github.com/MetalBlockchain/metalgo/snow/networking/handler"
+	"github.com/MetalBlockchain/metalgo/snow/networking/timeout"
+	"github.com/MetalBlockchain/metalgo/trace"
+	"github.com/MetalBlockchain/metalgo/utils/logging"
+	"github.com/MetalBlockchain/metalgo/version"
 )
 
 var _ Router = (*tracedRouter)(nil)

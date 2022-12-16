@@ -4,10 +4,10 @@
 package avalanche
 
 import (
-	"github.com/ava-labs/avalanchego/ids"
-	"github.com/ava-labs/avalanchego/snow/consensus/avalanche"
-	"github.com/ava-labs/avalanchego/snow/engine/common"
-	"github.com/ava-labs/avalanchego/trace"
+	"github.com/MetalBlockchain/metalgo/ids"
+	"github.com/MetalBlockchain/metalgo/snow/consensus/avalanche"
+	"github.com/MetalBlockchain/metalgo/snow/engine/common"
+	"github.com/MetalBlockchain/metalgo/trace"
 )
 
 var _ Engine = (*tracedEngine)(nil)

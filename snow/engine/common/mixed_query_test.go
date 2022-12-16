@@ -8,8 +8,9 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/MetalBlockchain/metalgo/ids"
 	"github.com/golang/mock/gomock"
+
+	"github.com/MetalBlockchain/metalgo/ids"
 )
 
 func TestSendMixedQuery(t *testing.T) {

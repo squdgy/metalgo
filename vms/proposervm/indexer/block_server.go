@@ -4,6 +4,8 @@
 package indexer
 
 import (
+	"context"
+
 	"github.com/MetalBlockchain/metalgo/database/versiondb"
 	"github.com/MetalBlockchain/metalgo/ids"
 	"github.com/MetalBlockchain/metalgo/snow/consensus/snowman"
@@ -16,5 +18,5 @@ type BlockServer interface {
 
 	// Note: this is a contention heavy call that should be avoided
 	// for frequent/repeated indexer ops
-	GetFullPostForkBlock(blkID ids.ID) (snowman.Block, error)
+	GetFullPostForkBlock(ctx context.Context, blkID ids.ID) (snowman.Block, error)
 }

@@ -95,28 +95,44 @@ func TestShutdown(t *testing.T) {
 	}
 	bootstrapper.Default(true)
 	bootstrapper.CantGossip = false
-	bootstrapper.ContextF = func() *snow.ConsensusContext { return ctx }
-	bootstrapper.ShutdownF = func() error { shutdownCalled <- struct{}{}; return nil }
-	bootstrapper.ConnectedF = func(nodeID ids.NodeID, nodeVersion *version.Application) error { return nil }
-	bootstrapper.HaltF = func() {}
+	bootstrapper.ContextF = func() *snow.ConsensusContext {
+		return ctx
+	}
+	bootstrapper.ShutdownF = func(context.Context) error {
+		shutdownCalled <- struct{}{}
+		return nil
+	}
+	bootstrapper.ConnectedF = func(context.Context, ids.NodeID, *version.Application) error {
+		return nil
+	}
+	bootstrapper.HaltF = func(context.Context) {}
 	handler.SetBootstrapper(bootstrapper)
 
 	engine := &common.EngineTest{T: t}
 	engine.Default(true)
 	engine.CantGossip = false
-	engine.ContextF = func() *snow.ConsensusContext { return ctx }
-	engine.ShutdownF = func() error { shutdownCalled <- struct{}{}; return nil }
-	engine.ConnectedF = func(nodeID ids.NodeID, nodeVersion *version.Application) error { return nil }
-	engine.HaltF = func() {}
+	engine.ContextF = func() *snow.ConsensusContext {
+		return ctx
+	}
+	engine.ShutdownF = func(context.Context) error {
+		shutdownCalled <- struct{}{}
+		return nil
+	}
+	engine.ConnectedF = func(context.Context, ids.NodeID, *version.Application) error {
+		return nil
+	}
+	engine.HaltF = func(context.Context) {}
 	handler.SetConsensus(engine)
 	ctx.SetState(snow.NormalOp) // assumed bootstrap is done
 
-	chainRouter.AddChain(handler)
+	chainRouter.AddChain(context.Background(), handler)
 
-	bootstrapper.StartF = func(startReqID uint32) error { return nil }
-	handler.Start(false)
+	bootstrapper.StartF = func(context.Context, uint32) error {
+		return nil
+	}
+	handler.Start(context.Background(), false)
 
-	chainRouter.Shutdown()
+	chainRouter.Shutdown(context.Background())
 
 	ticker := time.NewTicker(250 * time.Millisecond)
 	select {
@@ -156,9 +172,6 @@ func TestShutdownTimesOut(t *testing.T) {
 	go tm.Dispatch()
 
 	chainRouter := ChainRouter{}
-
-	mc, err := message.NewCreator(metrics, "dummyNamespace", true, 10*time.Second)
-	require.NoError(t, err)
 
 	err = chainRouter.Initialize(
 		ids.EmptyNodeID,
@@ -203,9 +216,13 @@ func TestShutdownTimesOut(t *testing.T) {
 	}
 	bootstrapper.Default(true)
 	bootstrapper.CantGossip = false
-	bootstrapper.ContextF = func() *snow.ConsensusContext { return ctx }
-	bootstrapper.ConnectedF = func(nodeID ids.NodeID, nodeVersion *version.Application) error { return nil }
-	bootstrapper.HaltF = func() {}
+	bootstrapper.ContextF = func() *snow.ConsensusContext {
+		return ctx
+	}
+	bootstrapper.ConnectedF = func(context.Context, ids.NodeID, *version.Application) error {
+		return nil
+	}
+	bootstrapper.HaltF = func(context.Context) {}
 	bootstrapper.PullQueryF = func(context.Context, ids.NodeID, uint32, ids.ID) error {
 		// Ancestors blocks for two seconds
 		time.Sleep(2 * time.Second)
@@ -216,27 +233,34 @@ func TestShutdownTimesOut(t *testing.T) {
 
 	engine := &common.EngineTest{T: t}
 	engine.Default(false)
-	engine.ContextF = func() *snow.ConsensusContext { return ctx }
+	engine.ContextF = func() *snow.ConsensusContext {
+		return ctx
+	}
 	closed := new(int)
-	engine.ShutdownF = func() error { *closed++; return nil }
+	engine.ShutdownF = func(context.Context) error {
+		*closed++
+		return nil
+	}
 	handler.SetConsensus(engine)
 	ctx.SetState(snow.NormalOp) // assumed bootstrapping is done
 
-	chainRouter.AddChain(handler)
+	chainRouter.AddChain(context.Background(), handler)
 
-	bootstrapper.StartF = func(startReqID uint32) error { return nil }
-	handler.Start(false)
+	bootstrapper.StartF = func(context.Context, uint32) error {
+		return nil
+	}
+	handler.Start(context.Background(), false)
 
 	shutdownFinished := make(chan struct{}, 1)
 
 	go func() {
 		chainID := ids.ID{}
-		msg := mc.InboundPullQuery(chainID, 1, time.Hour, ids.GenerateTestID(), nodeID)
+		msg := message.InboundPullQuery(chainID, 1, time.Hour, ids.GenerateTestID(), nodeID)
 		handler.Push(context.Background(), msg)
 
 		time.Sleep(50 * time.Millisecond) // Pause to ensure message gets processed
 
-		chainRouter.Shutdown()
+		chainRouter.Shutdown(context.Background())
 		shutdownFinished <- struct{}{}
 	}()
 
@@ -329,51 +353,55 @@ func TestRouterTimeout(t *testing.T) {
 	}
 	bootstrapper.Default(true)
 	bootstrapper.CantGossip = false
-	bootstrapper.ContextF = func() *snow.ConsensusContext { return ctx }
-	bootstrapper.ConnectedF = func(nodeID ids.NodeID, nodeVersion *version.Application) error { return nil }
-	bootstrapper.HaltF = func() {}
+	bootstrapper.ContextF = func() *snow.ConsensusContext {
+		return ctx
+	}
+	bootstrapper.ConnectedF = func(context.Context, ids.NodeID, *version.Application) error {
+		return nil
+	}
+	bootstrapper.HaltF = func(context.Context) {}
 
-	bootstrapper.GetStateSummaryFrontierFailedF = func(_ context.Context, nodeID ids.NodeID, requestID uint32) error {
+	bootstrapper.GetStateSummaryFrontierFailedF = func(context.Context, ids.NodeID, uint32) error {
 		defer wg.Done()
 		calledGetStateSummaryFrontierFailed = true
 		return nil
 	}
-	bootstrapper.GetAcceptedStateSummaryFailedF = func(_ context.Context, nodeID ids.NodeID, requestID uint32) error {
+	bootstrapper.GetAcceptedStateSummaryFailedF = func(context.Context, ids.NodeID, uint32) error {
 		defer wg.Done()
 		calledGetAcceptedStateSummaryFailed = true
 		return nil
 	}
-	bootstrapper.GetAcceptedFrontierFailedF = func(_ context.Context, nodeID ids.NodeID, requestID uint32) error {
+	bootstrapper.GetAcceptedFrontierFailedF = func(context.Context, ids.NodeID, uint32) error {
 		defer wg.Done()
 		calledGetAcceptedFrontierFailed = true
 		return nil
 	}
-	bootstrapper.GetAncestorsFailedF = func(_ context.Context, nodeID ids.NodeID, requestID uint32) error {
+	bootstrapper.GetAncestorsFailedF = func(context.Context, ids.NodeID, uint32) error {
 		defer wg.Done()
 		calledGetAncestorsFailed = true
 		return nil
 	}
-	bootstrapper.GetAcceptedFailedF = func(ctx context.Context, nodeID ids.NodeID, requestID uint32) error {
+	bootstrapper.GetAcceptedFailedF = func(context.Context, ids.NodeID, uint32) error {
 		defer wg.Done()
 		calledGetAcceptedFailed = true
 		return nil
 	}
-	bootstrapper.GetFailedF = func(_ context.Context, nodeID ids.NodeID, requestID uint32) error {
+	bootstrapper.GetFailedF = func(context.Context, ids.NodeID, uint32) error {
 		defer wg.Done()
 		calledGetFailed = true
 		return nil
 	}
-	bootstrapper.QueryFailedF = func(_ context.Context, nodeID ids.NodeID, requestID uint32) error {
+	bootstrapper.QueryFailedF = func(context.Context, ids.NodeID, uint32) error {
 		defer wg.Done()
 		calledQueryFailed = true
 		return nil
 	}
-	bootstrapper.AppRequestFailedF = func(_ context.Context, nodeID ids.NodeID, requestID uint32) error {
+	bootstrapper.AppRequestFailedF = func(context.Context, ids.NodeID, uint32) error {
 		defer wg.Done()
 		calledAppRequestFailed = true
 		return nil
 	}
-	bootstrapper.CrossChainAppRequestFailedF = func(_ context.Context, chainID ids.ID, requestID uint32) error {
+	bootstrapper.CrossChainAppRequestFailedF = func(context.Context, ids.ID, uint32) error {
 		defer wg.Done()
 		calledCrossChainAppRequestFailed = true
 		return nil
@@ -381,10 +409,12 @@ func TestRouterTimeout(t *testing.T) {
 	handler.SetBootstrapper(bootstrapper)
 	ctx.SetState(snow.Bootstrapping) // assumed bootstrapping is ongoing
 
-	chainRouter.AddChain(handler)
+	chainRouter.AddChain(context.Background(), handler)
 
-	bootstrapper.StartF = func(startReqID uint32) error { return nil }
-	handler.Start(false)
+	bootstrapper.StartF = func(context.Context, uint32) error {
+		return nil
+	}
+	handler.Start(context.Background(), false)
 
 	nodeID := ids.GenerateTestNodeID()
 	requestID := uint32(0)
@@ -585,11 +615,6 @@ func TestRouterClearTimeouts(t *testing.T) {
 
 	// Create a router
 	chainRouter := ChainRouter{}
-
-	metrics := prometheus.NewRegistry()
-	mc, err := message.NewCreator(metrics, "dummyNamespace", true, 10*time.Second)
-	require.NoError(t, err)
-
 	err = chainRouter.Initialize(
 		ids.EmptyNodeID,
 		logging.NoLog{},
@@ -636,19 +661,25 @@ func TestRouterClearTimeouts(t *testing.T) {
 		},
 	}
 	bootstrapper.Default(false)
-	bootstrapper.ContextF = func() *snow.ConsensusContext { return ctx }
+	bootstrapper.ContextF = func() *snow.ConsensusContext {
+		return ctx
+	}
 	handler.SetBootstrapper(bootstrapper)
 
 	engine := &common.EngineTest{T: t}
 	engine.Default(false)
-	engine.ContextF = func() *snow.ConsensusContext { return ctx }
+	engine.ContextF = func() *snow.ConsensusContext {
+		return ctx
+	}
 	handler.SetConsensus(engine)
 	ctx.SetState(snow.NormalOp) // assumed bootstrapping is done
 
-	chainRouter.AddChain(handler)
+	chainRouter.AddChain(context.Background(), handler)
 
-	bootstrapper.StartF = func(startReqID uint32) error { return nil }
-	handler.Start(false)
+	bootstrapper.StartF = func(context.Context, uint32) error {
+		return nil
+	}
+	handler.Start(context.Background(), false)
 
 	nodeID := ids.GenerateTestNodeID()
 	requestID := uint32(0)
@@ -666,7 +697,7 @@ func TestRouterClearTimeouts(t *testing.T) {
 				requestID,
 			),
 		)
-		msg := mc.InboundStateSummaryFrontier(
+		msg := message.InboundStateSummaryFrontier(
 			ctx.ChainID,
 			requestID,
 			nil,
@@ -690,7 +721,7 @@ func TestRouterClearTimeouts(t *testing.T) {
 				requestID,
 			),
 		)
-		msg := mc.InboundAcceptedStateSummary(
+		msg := message.InboundAcceptedStateSummary(
 			ctx.ChainID,
 			requestID,
 			nil,
@@ -714,7 +745,7 @@ func TestRouterClearTimeouts(t *testing.T) {
 				requestID,
 			),
 		)
-		msg := mc.InboundAcceptedFrontier(
+		msg := message.InboundAcceptedFrontier(
 			ctx.ChainID,
 			requestID,
 			nil,
@@ -738,7 +769,7 @@ func TestRouterClearTimeouts(t *testing.T) {
 				requestID,
 			),
 		)
-		msg := mc.InboundAccepted(
+		msg := message.InboundAccepted(
 			ctx.ChainID,
 			requestID,
 			nil,
@@ -762,7 +793,7 @@ func TestRouterClearTimeouts(t *testing.T) {
 				requestID,
 			),
 		)
-		msg := mc.InboundChits(
+		msg := message.InboundChits(
 			ctx.ChainID,
 			requestID,
 			nil,
@@ -786,7 +817,7 @@ func TestRouterClearTimeouts(t *testing.T) {
 				requestID,
 			),
 		)
-		msg := mc.InboundAppResponse(
+		msg := message.InboundAppResponse(
 			ctx.ChainID,
 			requestID,
 			nil,
@@ -844,11 +875,6 @@ func TestValidatorOnlyMessageDrops(t *testing.T) {
 
 	// Create a router
 	chainRouter := ChainRouter{}
-
-	metrics := prometheus.NewRegistry()
-	mc, err := message.NewCreator(metrics, "dummyNamespace", true, 10*time.Second)
-	require.NoError(t, err)
-
 	err = chainRouter.Initialize(
 		ids.EmptyNodeID,
 		logging.NoLog{},
@@ -899,8 +925,10 @@ func TestValidatorOnlyMessageDrops(t *testing.T) {
 		},
 	}
 	bootstrapper.Default(false)
-	bootstrapper.ContextF = func() *snow.ConsensusContext { return ctx }
-	bootstrapper.PullQueryF = func(ctx context.Context, nodeID ids.NodeID, requestID uint32, containerID ids.ID) error {
+	bootstrapper.ContextF = func() *snow.ConsensusContext {
+		return ctx
+	}
+	bootstrapper.PullQueryF = func(context.Context, ids.NodeID, uint32, ids.ID) error {
 		defer wg.Done()
 		calledF = true
 		return nil
@@ -909,14 +937,18 @@ func TestValidatorOnlyMessageDrops(t *testing.T) {
 	ctx.SetState(snow.Bootstrapping) // assumed bootstrapping is ongoing
 
 	engine := &common.EngineTest{T: t}
-	engine.ContextF = func() *snow.ConsensusContext { return ctx }
+	engine.ContextF = func() *snow.ConsensusContext {
+		return ctx
+	}
 	engine.Default(false)
 	handler.SetConsensus(engine)
 
-	chainRouter.AddChain(handler)
+	chainRouter.AddChain(context.Background(), handler)
 
-	bootstrapper.StartF = func(startReqID uint32) error { return nil }
-	handler.Start(false)
+	bootstrapper.StartF = func(context.Context, uint32) error {
+		return nil
+	}
+	handler.Start(context.Background(), false)
 
 	var inMsg message.InboundMessage
 	dummyContainerID := ids.GenerateTestID()
@@ -926,7 +958,7 @@ func TestValidatorOnlyMessageDrops(t *testing.T) {
 	nID := ids.GenerateTestNodeID()
 
 	calledF = false
-	inMsg = mc.InboundPullQuery(ctx.ChainID, reqID, time.Hour, dummyContainerID,
+	inMsg = message.InboundPullQuery(ctx.ChainID, reqID, time.Hour, dummyContainerID,
 		nID,
 	)
 	chainRouter.HandleInbound(context.Background(), inMsg)
@@ -936,7 +968,7 @@ func TestValidatorOnlyMessageDrops(t *testing.T) {
 	// Validator case
 	calledF = false
 	reqID++
-	inMsg = mc.InboundPullQuery(ctx.ChainID, reqID, time.Hour, dummyContainerID,
+	inMsg = message.InboundPullQuery(ctx.ChainID, reqID, time.Hour, dummyContainerID,
 		vID,
 	)
 	wg.Add(1)
@@ -962,7 +994,7 @@ func TestValidatorOnlyMessageDrops(t *testing.T) {
 	err = vdrs.Set(validators.NewSet().List())
 	require.NoError(t, err)
 
-	inMsg = mc.InboundChits(ctx.ChainID, reqID, nil, nID)
+	inMsg = message.InboundChits(ctx.ChainID, reqID, nil, nID)
 	chainRouter.HandleInbound(context.Background(), inMsg)
 
 	// shouldn't clear out timed request, as the request should be cleared when
@@ -1053,8 +1085,8 @@ func TestRouterCrossChainMessages(t *testing.T) {
 	requester.SetState(snow.NormalOp)
 
 	// router tracks two chains - one will send a message to the other
-	chainRouter.AddChain(requesterHandler)
-	chainRouter.AddChain(responderHandler)
+	chainRouter.AddChain(context.Background(), requesterHandler)
+	chainRouter.AddChain(context.Background(), responderHandler)
 
 	// Each chain should start off with a connected message
 	require.Equal(t, 1, chainRouter.chains[requester.ChainID].Len())

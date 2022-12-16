@@ -2,6 +2,7 @@ github.com/ava-labs/avalanchego/api/server=Server=api/server/mock_server.go
 github.com/ava-labs/avalanchego/chains/atomic=SharedMemory=chains/atomic/mock_shared_memory.go
 github.com/ava-labs/avalanchego/database=Batch=database/mock_batch.go
 github.com/ava-labs/avalanchego/message=OutboundMessage=message/mock_message.go
+github.com/ava-labs/avalanchego/network/peer=GossipTracker=network/peer/mock_gossip_tracker.go
 github.com/ava-labs/avalanchego/snow/consensus/snowman=Block=snow/consensus/snowman/mock_block.go
 github.com/ava-labs/avalanchego/snow/engine/avalanche=Engine=snow/engine/avalanche/mock_engine.go
 github.com/ava-labs/avalanchego/snow/engine/avalanche/vertex=DAGVM=snow/engine/avalanche/vertex/mock_vm.go
@@ -18,6 +19,7 @@ github.com/ava-labs/avalanchego/utils/hashing=Hasher=utils/hashing/mock_hasher.g
 github.com/ava-labs/avalanchego/utils/logging=Logger=utils/logging/mock_logger.go
 github.com/ava-labs/avalanchego/utils/resource=User=utils/resource/mock_user.go
 github.com/ava-labs/avalanchego/vms/components/avax=TransferableOut=vms/components/avax/mock_transferable_out.go
+github.com/ava-labs/avalanchego/vms/components/avax=TransferableIn=vms/components/avax/mock_transferable_in.go
 github.com/ava-labs/avalanchego/vms/components/verify=Verifiable=vms/components/verify/mock_verifiable.go
 github.com/ava-labs/avalanchego/vms/platformvm/blocks=Block=vms/platformvm/blocks/mock_block.go
 github.com/ava-labs/avalanchego/vms/platformvm/fx=Fx,Owner=vms/platformvm/fx/mock_fx.go

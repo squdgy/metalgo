@@ -16,7 +16,6 @@ import (
 
 	"github.com/MetalBlockchain/metalgo/ids"
 	"github.com/MetalBlockchain/metalgo/snow/networking/tracker"
-	"github.com/MetalBlockchain/metalgo/snow/validators"
 	"github.com/MetalBlockchain/metalgo/utils/math/meter"
 	"github.com/MetalBlockchain/metalgo/utils/resource"
 	"github.com/MetalBlockchain/metalgo/utils/timer/mockable"
@@ -30,7 +29,6 @@ func TestNewSystemThrottler(t *testing.T) {
 	reg := prometheus.NewRegistry()
 	clock := mockable.Clock{}
 	clock.Set(time.Now())
-	vdrs := validators.NewSet()
 	resourceTracker, err := tracker.NewResourceTracker(reg, resource.NoUsage, meter.ContinuousFactory{}, time.Second)
 	require.NoError(err)
 	cpuTracker := resourceTracker.CPUTracker()
@@ -40,7 +38,7 @@ func TestNewSystemThrottler(t *testing.T) {
 		MaxRecheckDelay: time.Second,
 	}
 	targeter := tracker.NewMockTargeter(ctrl)
-	throttlerIntf, err := NewSystemThrottler("", reg, config, vdrs, cpuTracker, targeter)
+	throttlerIntf, err := NewSystemThrottler("", reg, config, cpuTracker, targeter)
 	require.NoError(err)
 	throttler, ok := throttlerIntf.(*systemThrottler)
 	require.True(ok)
@@ -62,12 +60,9 @@ func TestSystemThrottler(t *testing.T) {
 	config := SystemThrottlerConfig{
 		MaxRecheckDelay: maxRecheckDelay,
 	}
-	vdrs := validators.NewSet()
 	vdrID, nonVdrID := ids.GenerateTestNodeID(), ids.GenerateTestNodeID()
-	err := vdrs.AddWeight(vdrID, 1)
-	require.NoError(err)
 	targeter := tracker.NewMockTargeter(ctrl)
-	throttler, err := NewSystemThrottler("", prometheus.NewRegistry(), config, vdrs, mockTracker, targeter)
+	throttler, err := NewSystemThrottler("", prometheus.NewRegistry(), config, mockTracker, targeter)
 	require.NoError(err)
 
 	// Case: Actual usage <= target usage; should return immediately
@@ -148,12 +143,9 @@ func TestSystemThrottlerContextCancel(t *testing.T) {
 	config := SystemThrottlerConfig{
 		MaxRecheckDelay: maxRecheckDelay,
 	}
-	vdrs := validators.NewSet()
 	vdrID := ids.GenerateTestNodeID()
-	err := vdrs.AddWeight(vdrID, 1)
-	require.NoError(err)
 	targeter := tracker.NewMockTargeter(ctrl)
-	throttler, err := NewSystemThrottler("", prometheus.NewRegistry(), config, vdrs, mockTracker, targeter)
+	throttler, err := NewSystemThrottler("", prometheus.NewRegistry(), config, mockTracker, targeter)
 	require.NoError(err)
 
 	// Case: Actual usage > target usage; we should wait.

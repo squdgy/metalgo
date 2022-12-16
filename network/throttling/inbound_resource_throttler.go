@@ -4,16 +4,14 @@
 package throttling
 
 import (
+	"context"
 	"fmt"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 
-	"golang.org/x/net/context"
-
 	"github.com/MetalBlockchain/metalgo/ids"
 	"github.com/MetalBlockchain/metalgo/snow/networking/tracker"
-	"github.com/MetalBlockchain/metalgo/snow/validators"
 	"github.com/MetalBlockchain/metalgo/utils/timer/mockable"
 	"github.com/MetalBlockchain/metalgo/utils/wrappers"
 )
@@ -92,7 +90,6 @@ func NewSystemThrottler(
 	namespace string,
 	reg prometheus.Registerer,
 	config SystemThrottlerConfig,
-	vdrs validators.Set,
 	tracker tracker.Tracker,
 	targeter tracker.Targeter,
 ) (SystemThrottler, error) {

@@ -171,7 +171,7 @@ func bech32ToID(addrStr string) (ids.ShortID, error) {
 }
 
 // BuildGenesis build the genesis state of the Platform Chain (and thereby the Avalanche network.)
-func (ss *StaticService) BuildGenesis(_ *http.Request, args *BuildGenesisArgs, reply *BuildGenesisReply) error {
+func (*StaticService) BuildGenesis(_ *http.Request, args *BuildGenesisArgs, reply *BuildGenesisReply) error {
 	// Specify the UTXOs on the Platform chain that exist at genesis.
 	utxos := make([]*genesis.UTXO, 0, len(args.UTXOs))
 	for i, apiUTXO := range args.UTXOs {
@@ -378,7 +378,14 @@ func (s innerSortUTXO) Less(i, j int) bool {
 	return bytes.Compare(iAddrID.Bytes(), jAddrID.Bytes()) == -1
 }
 
-func (s innerSortUTXO) Len() int      { return len(s) }
-func (s innerSortUTXO) Swap(i, j int) { s[j], s[i] = s[i], s[j] }
+func (s innerSortUTXO) Len() int {
+	return len(s)
+}
 
-func sortUTXOs(utxos []UTXO) { sort.Sort(innerSortUTXO(utxos)) }
+func (s innerSortUTXO) Swap(i, j int) {
+	s[j], s[i] = s[i], s[j]
+}
+
+func sortUTXOs(utxos []UTXO) {
+	sort.Sort(innerSortUTXO(utxos))
+}

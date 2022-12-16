@@ -11,8 +11,6 @@ import (
 	"github.com/MetalBlockchain/metalgo/ids"
 )
 
-func TestFlatParams(t *testing.T) { ParamsTest(t, FlatFactory{}) }
-
 func TestFlat(t *testing.T) {
 	require := require.New(t)
 

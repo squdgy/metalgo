@@ -32,6 +32,7 @@ import (
 	"github.com/MetalBlockchain/metalgo/snow/engine/common"
 	"github.com/MetalBlockchain/metalgo/utils/crypto"
 	"github.com/MetalBlockchain/metalgo/utils/json"
+	"github.com/MetalBlockchain/metalgo/utils/set"
 	"github.com/MetalBlockchain/metalgo/utils/timer"
 	"github.com/MetalBlockchain/metalgo/utils/timer/mockable"
 	"github.com/MetalBlockchain/metalgo/version"
@@ -663,7 +664,7 @@ func (vm *VM) verifyOperation(tx *txs.OperationTx, op *txs.Operation, cred verif
 func (vm *VM) LoadUser(
 	username string,
 	password string,
-	addrsToUse ids.ShortSet,
+	addrsToUse set.Set[ids.ShortID],
 ) (
 	[]*avax.UTXO,
 	*secp256k1fx.Keychain,

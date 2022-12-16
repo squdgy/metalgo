@@ -11,6 +11,7 @@ import (
 	stdjson "encoding/json"
 
 	"github.com/MetalBlockchain/metalgo/ids"
+	"github.com/MetalBlockchain/metalgo/utils"
 	"github.com/MetalBlockchain/metalgo/utils/formatting"
 	"github.com/MetalBlockchain/metalgo/utils/formatting/address"
 	"github.com/MetalBlockchain/metalgo/utils/json"
@@ -175,10 +176,10 @@ func (*StaticService) BuildGenesis(_ *http.Request, args *BuildGenesisArgs, repl
 			initialState.Sort(genesisCodec)
 			asset.States = append(asset.States, initialState)
 		}
-		asset.Sort()
+		utils.Sort(asset.States)
 		g.Txs = append(g.Txs, &asset)
 	}
-	g.Sort()
+	utils.Sort(g.Txs)
 
 	b, err := genesisCodec.Marshal(txs.CodecVersion, &g)
 	if err != nil {

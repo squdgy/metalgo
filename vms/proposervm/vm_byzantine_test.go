@@ -15,6 +15,7 @@ import (
 	"github.com/MetalBlockchain/metalgo/ids"
 	"github.com/MetalBlockchain/metalgo/snow/choices"
 	"github.com/MetalBlockchain/metalgo/snow/consensus/snowman"
+	"github.com/MetalBlockchain/metalgo/snow/validators"
 	"github.com/MetalBlockchain/metalgo/vms/proposervm/block"
 	"github.com/MetalBlockchain/metalgo/vms/proposervm/proposer"
 )
@@ -22,6 +23,7 @@ import (
 // Ensure that a byzantine node issuing an invalid PreForkBlock (Y) when the
 // parent block (X) is issued into a PostForkBlock (A) will be marked as invalid
 // correctly.
+//
 //     G
 //   / |
 // A - X
@@ -507,7 +509,7 @@ func TestBlockVerify_InvalidPostForkOption(t *testing.T) {
 		},
 	}
 
-	if err = bBlock.Verify(context.Background()); err != nil {
+	if err := bBlock.Verify(context.Background()); err != nil {
 		t.Fatal(err)
 	}
 
@@ -641,10 +643,13 @@ func TestGetBlock_MutatedSignature(t *testing.T) {
 	coreVM, valState, proVM, coreGenBlk, _ := initTestProposerVM(t, time.Time{}, 0)
 
 	// Make sure that we will be sampled to perform the proposals.
-	valState.GetValidatorSetF = func(context.Context, uint64, ids.ID) (map[ids.NodeID]uint64, error) {
-		res := make(map[ids.NodeID]uint64)
-		res[proVM.ctx.NodeID] = uint64(10)
-		return res, nil
+	valState.GetValidatorSetF = func(context.Context, uint64, ids.ID) (map[ids.NodeID]*validators.GetValidatorOutput, error) {
+		return map[ids.NodeID]*validators.GetValidatorOutput{
+			proVM.ctx.NodeID: {
+				NodeID: proVM.ctx.NodeID,
+				Weight: 10,
+			},
+		}, nil
 	}
 
 	proVM.Set(coreGenBlk.Timestamp())

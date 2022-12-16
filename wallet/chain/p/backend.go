@@ -11,6 +11,7 @@ import (
 	"github.com/MetalBlockchain/metalgo/database"
 	"github.com/MetalBlockchain/metalgo/ids"
 	"github.com/MetalBlockchain/metalgo/utils/constants"
+	"github.com/MetalBlockchain/metalgo/utils/set"
 	"github.com/MetalBlockchain/metalgo/vms/components/avax"
 	"github.com/MetalBlockchain/metalgo/vms/platformvm/txs"
 )
@@ -84,7 +85,7 @@ func (b *backend) addUTXOs(ctx stdcontext.Context, destinationChainID ids.ID, ut
 	return nil
 }
 
-func (b *backend) removeUTXOs(ctx stdcontext.Context, sourceChain ids.ID, utxoIDs ids.Set) error {
+func (b *backend) removeUTXOs(ctx stdcontext.Context, sourceChain ids.ID, utxoIDs set.Set[ids.ID]) error {
 	for utxoID := range utxoIDs {
 		if err := b.RemoveUTXO(ctx, sourceChain, utxoID); err != nil {
 			return err

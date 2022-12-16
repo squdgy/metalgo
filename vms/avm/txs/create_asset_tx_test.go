@@ -10,6 +10,7 @@ import (
 	"github.com/MetalBlockchain/metalgo/codec"
 	"github.com/MetalBlockchain/metalgo/ids"
 	"github.com/MetalBlockchain/metalgo/snow"
+	"github.com/MetalBlockchain/metalgo/utils"
 	"github.com/MetalBlockchain/metalgo/utils/units"
 	"github.com/MetalBlockchain/metalgo/vms/avm/fxs"
 	"github.com/MetalBlockchain/metalgo/vms/components/avax"
@@ -923,7 +924,7 @@ func TestCreateAssetTxSyntacticVerifyInitialStates(t *testing.T) {
 		},
 	}
 
-	SortInitialStates(uniqueStates)
+	utils.Sort(uniqueStates)
 
 	// Put states in unsorted order
 	tx.States = []*InitialState{

@@ -23,6 +23,7 @@ import (
 	"github.com/MetalBlockchain/metalgo/utils/ips"
 	"github.com/MetalBlockchain/metalgo/utils/logging"
 	"github.com/MetalBlockchain/metalgo/utils/profiler"
+	"github.com/MetalBlockchain/metalgo/utils/set"
 	"github.com/MetalBlockchain/metalgo/utils/timer"
 	"github.com/MetalBlockchain/metalgo/vms"
 )
@@ -189,7 +190,7 @@ type Config struct {
 	ConsensusGossipFrequency time.Duration `json:"consensusGossipFreq"`
 
 	// Subnet Whitelist
-	WhitelistedSubnets ids.Set `json:"whitelistedSubnets"`
+	WhitelistedSubnets set.Set[ids.ID] `json:"whitelistedSubnets"`
 
 	// SubnetConfigs
 	SubnetConfigs map[ids.ID]chains.SubnetConfig `json:"subnetConfigs"`
@@ -235,4 +236,8 @@ type Config struct {
 
 	// ProvidedFlags contains all the flags set by the user
 	ProvidedFlags map[string]interface{} `json:"-"`
+
+	// ChainDataDir is the root path for per-chain directories where VMs can
+	// write arbitrary data.
+	ChainDataDir string `json:"chainDataDir"`
 }

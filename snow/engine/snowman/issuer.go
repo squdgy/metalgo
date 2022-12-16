@@ -8,6 +8,7 @@ import (
 
 	"github.com/MetalBlockchain/metalgo/ids"
 	"github.com/MetalBlockchain/metalgo/snow/consensus/snowman"
+	"github.com/MetalBlockchain/metalgo/utils/set"
 )
 
 // issuer issues [blk] into to consensus after its dependencies are met.
@@ -15,10 +16,10 @@ type issuer struct {
 	t         *Transitive
 	blk       snowman.Block
 	abandoned bool
-	deps      ids.Set
+	deps      set.Set[ids.ID]
 }
 
-func (i *issuer) Dependencies() ids.Set {
+func (i *issuer) Dependencies() set.Set[ids.ID] {
 	return i.deps
 }
 

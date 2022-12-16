@@ -9,8 +9,10 @@ import (
 
 	"github.com/MetalBlockchain/metalgo/ids"
 	"github.com/MetalBlockchain/metalgo/snow"
+	"github.com/MetalBlockchain/metalgo/utils"
 	"github.com/MetalBlockchain/metalgo/utils/constants"
 	"github.com/MetalBlockchain/metalgo/utils/formatting/address"
+	"github.com/MetalBlockchain/metalgo/utils/set"
 	"github.com/MetalBlockchain/metalgo/vms/components/verify"
 )
 
@@ -95,8 +97,8 @@ func (out *OutputOwners) Addresses() [][]byte {
 }
 
 // AddressesSet returns addresses as a set
-func (out *OutputOwners) AddressesSet() ids.ShortSet {
-	set := ids.NewShortSet(len(out.Addrs))
+func (out *OutputOwners) AddressesSet() set.Set[ids.ShortID] {
+	set := set.NewSet[ids.ShortID](len(out.Addrs))
 	set.Add(out.Addrs...)
 	return set
 }
@@ -126,7 +128,7 @@ func (out *OutputOwners) Verify() error {
 		return errOutputUnspendable
 	case out.Threshold == 0 && len(out.Addrs) > 0:
 		return errOutputUnoptimized
-	case !ids.IsSortedAndUniqueShortIDs(out.Addrs):
+	case !utils.IsSortedAndUniqueSortable(out.Addrs):
 		return errAddrsNotSortedUnique
 	default:
 		return nil
@@ -138,7 +140,7 @@ func (out *OutputOwners) VerifyState() error {
 }
 
 func (out *OutputOwners) Sort() {
-	ids.SortShortIDs(out.Addrs)
+	utils.Sort(out.Addrs)
 }
 
 // formatAddress formats a given [addr] into human readable format using

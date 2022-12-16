@@ -12,6 +12,7 @@ import (
 	"github.com/MetalBlockchain/metalgo/tests"
 	"github.com/MetalBlockchain/metalgo/tests/e2e"
 	"github.com/MetalBlockchain/metalgo/utils/constants"
+	"github.com/MetalBlockchain/metalgo/utils/set"
 	"github.com/MetalBlockchain/metalgo/vms/avm"
 	"github.com/MetalBlockchain/metalgo/vms/components/avax"
 	"github.com/MetalBlockchain/metalgo/vms/secp256k1fx"
@@ -66,7 +67,7 @@ var _ = e2e.DescribeXChain("[WhitelistTx]", func() {
 			for i := range wallets {
 				wallets[i] = primary.NewWalletWithOptions(
 					baseWallet,
-					common.WithCustomAddresses(ids.ShortSet{
+					common.WithCustomAddresses(set.Set[ids.ShortID]{
 						testKeys[i].PublicKey().Address(): struct{}{},
 					}),
 				)

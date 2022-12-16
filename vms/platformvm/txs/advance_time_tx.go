@@ -8,6 +8,7 @@ import (
 
 	"github.com/MetalBlockchain/metalgo/ids"
 	"github.com/MetalBlockchain/metalgo/snow"
+	"github.com/MetalBlockchain/metalgo/utils/set"
 	"github.com/MetalBlockchain/metalgo/vms/components/avax"
 )
 
@@ -41,7 +42,7 @@ func (tx *AdvanceTimeTx) Timestamp() time.Time {
 	return time.Unix(int64(tx.Time), 0)
 }
 
-func (*AdvanceTimeTx) InputIDs() ids.Set {
+func (*AdvanceTimeTx) InputIDs() set.Set[ids.ID] {
 	return nil
 }
 

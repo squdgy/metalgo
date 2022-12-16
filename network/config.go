@@ -10,11 +10,13 @@ import (
 
 	"github.com/MetalBlockchain/metalgo/ids"
 	"github.com/MetalBlockchain/metalgo/network/dialer"
+	"github.com/MetalBlockchain/metalgo/network/peer"
 	"github.com/MetalBlockchain/metalgo/network/throttling"
 	"github.com/MetalBlockchain/metalgo/snow/networking/tracker"
 	"github.com/MetalBlockchain/metalgo/snow/uptime"
 	"github.com/MetalBlockchain/metalgo/snow/validators"
 	"github.com/MetalBlockchain/metalgo/utils/ips"
+	"github.com/MetalBlockchain/metalgo/utils/set"
 )
 
 // HealthConfig describes parameters for network layer health checks.
@@ -125,8 +127,8 @@ type Config struct {
 	TLSKey crypto.Signer `json:"-"`
 
 	// WhitelistedSubnets of the node.
-	WhitelistedSubnets ids.Set        `json:"-"`
-	Beacons            validators.Set `json:"-"`
+	WhitelistedSubnets set.Set[ids.ID] `json:"-"`
+	Beacons            validators.Set  `json:"-"`
 
 	// Validators are the current validators in the Avalanche network
 	Validators validators.Manager `json:"-"`
@@ -170,4 +172,7 @@ type Config struct {
 	// Specifies how much disk usage each peer can cause before
 	// we rate-limit them.
 	DiskTargeter tracker.Targeter `json:"-"`
+
+	// Tracks which validators have been sent to which peers
+	GossipTracker peer.GossipTracker `json:"-"`
 }

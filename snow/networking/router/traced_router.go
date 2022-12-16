@@ -19,6 +19,7 @@ import (
 	"github.com/MetalBlockchain/metalgo/snow/networking/timeout"
 	"github.com/MetalBlockchain/metalgo/trace"
 	"github.com/MetalBlockchain/metalgo/utils/logging"
+	"github.com/MetalBlockchain/metalgo/utils/set"
 	"github.com/MetalBlockchain/metalgo/version"
 )
 
@@ -41,8 +42,8 @@ func (r *tracedRouter) Initialize(
 	log logging.Logger,
 	timeoutManager timeout.Manager,
 	closeTimeout time.Duration,
-	criticalChains ids.Set,
-	whitelistedSubnets ids.Set,
+	criticalChains set.Set[ids.ID],
+	whitelistedSubnets set.Set[ids.ID],
 	onFatal func(exitCode int),
 	healthConfig HealthConfig,
 	metricsNamespace string,

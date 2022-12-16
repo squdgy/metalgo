@@ -12,6 +12,7 @@ import (
 	"github.com/MetalBlockchain/metalgo/database/encdb"
 	"github.com/MetalBlockchain/metalgo/ids"
 	"github.com/MetalBlockchain/metalgo/utils/crypto"
+	"github.com/MetalBlockchain/metalgo/utils/set"
 	"github.com/MetalBlockchain/metalgo/vms/secp256k1fx"
 )
 
@@ -172,7 +173,7 @@ func NewKeys(u User, numKeys int) ([]*crypto.PrivateKeySECP256K1R, error) {
 // is missing, it will be ignored.
 // If [addresses] is empty, then it will create a keychain using every address
 // in the provided [user].
-func GetKeychain(u User, addresses ids.ShortSet) (*secp256k1fx.Keychain, error) {
+func GetKeychain(u User, addresses set.Set[ids.ShortID]) (*secp256k1fx.Keychain, error) {
 	addrsList := addresses.List()
 	if len(addrsList) == 0 {
 		var err error

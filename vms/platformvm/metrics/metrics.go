@@ -10,6 +10,7 @@ import (
 
 	"github.com/MetalBlockchain/metalgo/ids"
 	"github.com/MetalBlockchain/metalgo/utils/metric"
+	"github.com/MetalBlockchain/metalgo/utils/set"
 	"github.com/MetalBlockchain/metalgo/utils/wrappers"
 	"github.com/MetalBlockchain/metalgo/vms/platformvm/blocks"
 )
@@ -52,7 +53,7 @@ type Metrics interface {
 func New(
 	namespace string,
 	registerer prometheus.Registerer,
-	whitelistedSubnets ids.Set,
+	whitelistedSubnets set.Set[ids.ID],
 ) (Metrics, error) {
 	blockMetrics, err := newBlockMetrics(namespace, registerer)
 	m := &metrics{

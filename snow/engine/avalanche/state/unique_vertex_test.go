@@ -16,6 +16,7 @@ import (
 	"github.com/MetalBlockchain/metalgo/snow/choices"
 	"github.com/MetalBlockchain/metalgo/snow/consensus/snowstorm"
 	"github.com/MetalBlockchain/metalgo/snow/engine/avalanche/vertex"
+	"github.com/MetalBlockchain/metalgo/utils/compare"
 	"github.com/MetalBlockchain/metalgo/utils/hashing"
 	"github.com/MetalBlockchain/metalgo/version"
 )
@@ -444,7 +445,7 @@ func TestStopVertexWhitelistWithParents(t *testing.T) {
 		uvtx4.ID(),
 		svtx5.ID(),
 	}
-	if !ids.UnsortedEquals(whitelist.List(), expectedWhitelist) {
+	if !compare.UnsortedEquals(whitelist.List(), expectedWhitelist) {
 		t.Fatalf("whitelist expected %v, got %v", expectedWhitelist, whitelist)
 	}
 }
@@ -486,7 +487,7 @@ func TestStopVertexWhitelistWithLinearChain(t *testing.T) {
 		uvtx3.ID(),
 		uvtx4.ID(),
 	}
-	if !ids.UnsortedEquals(whitelist.List(), expectedWhitelist) {
+	if !compare.UnsortedEquals(whitelist.List(), expectedWhitelist) {
 		t.Fatalf("whitelist expected %v, got %v", expectedWhitelist, whitelist)
 	}
 }

@@ -25,13 +25,15 @@ import (
 	"github.com/MetalBlockchain/metalgo/network/dialer"
 	"github.com/MetalBlockchain/metalgo/network/peer"
 	"github.com/MetalBlockchain/metalgo/network/throttling"
-	"github.com/MetalBlockchain/metalgo/snow/engine/common"
 	"github.com/MetalBlockchain/metalgo/snow/networking/router"
 	"github.com/MetalBlockchain/metalgo/snow/networking/sender"
+	"github.com/MetalBlockchain/metalgo/snow/validators"
 	"github.com/MetalBlockchain/metalgo/utils/constants"
 	"github.com/MetalBlockchain/metalgo/utils/ips"
 	"github.com/MetalBlockchain/metalgo/utils/logging"
 	"github.com/MetalBlockchain/metalgo/utils/math"
+	"github.com/MetalBlockchain/metalgo/utils/sampler"
+	"github.com/MetalBlockchain/metalgo/utils/set"
 	"github.com/MetalBlockchain/metalgo/utils/wrappers"
 	"github.com/MetalBlockchain/metalgo/version"
 )
@@ -44,9 +46,13 @@ const (
 )
 
 var (
-	_                      sender.ExternalSender = (*network)(nil)
-	_                      Network               = (*network)(nil)
-	errNoPrimaryValidators                       = errors.New("no default subnet validators")
+	_ sender.ExternalSender = (*network)(nil)
+	_ Network               = (*network)(nil)
+
+	errMissingPrimaryValidators = errors.New("missing primary validator set")
+	errNotValidator             = errors.New("node is not a validator")
+	errNotWhiteListed           = errors.New("subnet is not whitelisted")
+	errSubnetNotExist           = errors.New("subnet does not exist")
 )
 
 // Network defines the functionality of the networking library.
@@ -59,7 +65,6 @@ type Network interface {
 	health.Checker
 
 	peer.Network
-	common.SubnetTracker
 
 	// StartClose this network and all existing connections it has. Calling
 	// StartClose multiple times is handled gracefully.
@@ -84,21 +89,31 @@ type Network interface {
 	// info about the peers in [nodeIDs] that have finished the handshake.
 	PeerInfo(nodeIDs []ids.NodeID) []peer.Info
 
-	NodeUptime() (UptimeResult, bool)
+	// NodeUptime returns given node's [subnetID] UptimeResults in the view of
+	// this node's peer validators.
+	NodeUptime(subnetID ids.ID) (UptimeResult, error)
 }
 
 type UptimeResult struct {
+	// RewardingStakePercentage shows what percent of network stake thinks we're
+	// above the uptime requirement.
+	RewardingStakePercentage float64
+
+	// WeightedAveragePercentage is the average perceived uptime of this node,
+	// weighted by stake.
+	// Note that this is different from RewardingStakePercentage, which shows
+	// the percent of the network stake that thinks this node is above the
+	// uptime requirement. WeightedAveragePercentage is weighted by uptime.
+	// i.e If uptime requirement is 85 and a peer reports 40 percent it will be
+	// counted (40*weight) in WeightedAveragePercentage but not in
+	// RewardingStakePercentage since 40 < 85
 	WeightedAveragePercentage float64
-	RewardingStakePercentage  float64
 }
 
 type network struct {
 	config     *Config
 	peerConfig *peer.Config
 	metrics    *metrics
-	// Signs my IP so I can send my signed IP address to other nodes in Version
-	// messages
-	ipSigner *ipSigner
 
 	outboundMsgThrottler throttling.OutboundMsgThrottler
 
@@ -122,13 +137,15 @@ type network struct {
 
 	sendFailRateCalculator math.Averager
 
-	peersLock sync.RWMutex
+	// Tracks which peers know about which peers
+	gossipTracker peer.GossipTracker
+	peersLock     sync.RWMutex
 	// trackedIPs contains the set of IPs that we are currently attempting to
 	// connect to. An entry is added to this set when we first start attempting
 	// to connect to the peer. An entry is deleted from this set once we have
 	// finished the handshake.
 	trackedIPs         map[ids.NodeID]*trackedIP
-	manuallyTrackedIDs ids.NodeIDSet
+	manuallyTrackedIDs set.Set[ids.NodeID]
 	connectingPeers    peer.Set
 	connectedPeers     peer.Set
 	closing            bool
@@ -159,9 +176,9 @@ func NewNetwork(
 	dialer dialer.Dialer,
 	router router.ExternalHandler,
 ) (Network, error) {
-	primaryNetworkValidators, ok := config.Validators.GetValidators(constants.PrimaryNetworkID)
+	primaryNetworkValidators, ok := config.Validators.Get(constants.PrimaryNetworkID)
 	if !ok {
-		return nil, errNoPrimaryValidators
+		return nil, errMissingPrimaryValidators
 	}
 
 	inboundMsgThrottler, err := throttling.NewInboundMsgThrottler(
@@ -217,6 +234,9 @@ func NewNetwork(
 		PongTimeout:          config.PingPongTimeout,
 		MaxClockDifference:   config.MaxClockDifference,
 		ResourceTracker:      config.ResourceTracker,
+		GossipTracker:        config.GossipTracker,
+		UptimeCalculator:     config.UptimeCalculator,
+		IPSigner:             peer.NewIPSigner(config.MyIPPort, config.TLSKey),
 	}
 
 	onCloseCtx, cancel := context.WithCancel(context.Background())
@@ -224,7 +244,6 @@ func NewNetwork(
 		config:               config,
 		peerConfig:           peerConfig,
 		metrics:              metrics,
-		ipSigner:             newIPSigner(config.MyIPPort, &peerConfig.Clock, config.TLSKey),
 		outboundMsgThrottler: outboundMsgThrottler,
 
 		inboundConnUpgradeThrottler: throttling.NewInboundConnUpgradeThrottler(log, config.ThrottlerConfig.InboundConnUpgradeThrottlerConfig),
@@ -243,6 +262,7 @@ func NewNetwork(
 		)),
 
 		trackedIPs:      make(map[ids.NodeID]*trackedIP),
+		gossipTracker:   config.GossipTracker,
 		connectingPeers: peer.NewSet(),
 		connectedPeers:  peer.NewSet(),
 		router:          router,
@@ -251,7 +271,7 @@ func NewNetwork(
 	return n, nil
 }
 
-func (n *network) Send(msg message.OutboundMessage, nodeIDs ids.NodeIDSet, subnetID ids.ID, validatorOnly bool) ids.NodeIDSet {
+func (n *network) Send(msg message.OutboundMessage, nodeIDs set.Set[ids.NodeID], subnetID ids.ID, validatorOnly bool) set.Set[ids.NodeID] {
 	peers := n.getPeers(nodeIDs, subnetID, validatorOnly)
 	n.peerConfig.Metrics.MultipleSendsFailed(
 		msg.Op(),
@@ -267,7 +287,7 @@ func (n *network) Gossip(
 	numValidatorsToSend int,
 	numNonValidatorsToSend int,
 	numPeersToSend int,
-) ids.NodeIDSet {
+) set.Set[ids.NodeID] {
 	peers := n.samplePeers(subnetID, validatorOnly, numValidatorsToSend, numNonValidatorsToSend, numPeersToSend)
 	return n.send(msg, peers)
 }
@@ -372,7 +392,7 @@ func (n *network) Connected(nodeID ids.NodeID) {
 // peer is a validator/beacon.
 func (n *network) AllowConnection(nodeID ids.NodeID) bool {
 	return !n.config.RequireValidatorToConnect ||
-		n.config.Validators.Contains(constants.PrimaryNetworkID, n.config.MyNodeID) ||
+		validators.Contains(n.config.Validators, constants.PrimaryNetworkID, n.config.MyNodeID) ||
 		n.WantsConnection(nodeID)
 }
 
@@ -461,35 +481,57 @@ func (n *network) Disconnected(nodeID ids.NodeID) {
 	}
 }
 
-func (n *network) Version() (message.OutboundMessage, error) {
-	mySignedIP, err := n.ipSigner.getSignedIP()
-	if err != nil {
+func (n *network) Peers(peerID ids.NodeID) ([]ips.ClaimedIPPort, error) {
+	// Only select validators that we haven't already sent to this peer
+	unknownValidators, ok := n.gossipTracker.GetUnknown(peerID)
+	if !ok {
+		n.peerConfig.Log.Debug(
+			"unable to find peer to gossip to",
+			zap.Stringer("nodeID", peerID),
+		)
+		return nil, nil
+	}
+
+	// We select a random sample of validators to gossip to avoid starving out a
+	// validator from being gossiped for an extended period of time.
+	s := sampler.NewUniform()
+	if err := s.Initialize(uint64(len(unknownValidators))); err != nil {
 		return nil, err
 	}
-	return n.peerConfig.MessageCreator.Version(
-		n.peerConfig.NetworkID,
-		n.peerConfig.Clock.Unix(),
-		mySignedIP.IP.IP,
-		n.peerConfig.VersionCompatibility.Version().String(),
-		mySignedIP.IP.Timestamp,
-		mySignedIP.Signature,
-		n.peerConfig.MySubnets.List(),
-	)
-}
 
-func (n *network) Peers() (message.OutboundMessage, error) {
-	peers := n.sampleValidatorIPs()
-	return n.peerConfig.MessageCreator.PeerList(peers, true)
-}
+	// Calculate the unknown information we need to send to this peer.
+	validatorIPs := make([]ips.ClaimedIPPort, 0, int(n.config.PeerListNumValidatorIPs))
+	for i := 0; i < len(unknownValidators) && len(validatorIPs) < int(n.config.PeerListNumValidatorIPs); i++ {
+		drawn, err := s.Next()
+		if err != nil {
+			return nil, err
+		}
 
-func (n *network) Pong(nodeID ids.NodeID) (message.OutboundMessage, error) {
-	uptimePercentFloat, err := n.config.UptimeCalculator.CalculateUptimePercent(nodeID)
-	if err != nil {
-		uptimePercentFloat = 0
+		validator := unknownValidators[drawn]
+		n.peersLock.RLock()
+		p, ok := n.connectedPeers.GetByID(validator.NodeID)
+		n.peersLock.RUnlock()
+		if !ok {
+			n.peerConfig.Log.Debug(
+				"unable to find validator in connected peers",
+				zap.Stringer("nodeID", validator.NodeID),
+			)
+			continue
+		}
+
+		peerIP := p.IP()
+		validatorIPs = append(validatorIPs,
+			ips.ClaimedIPPort{
+				Cert:      p.Cert(),
+				IPPort:    peerIP.IP.IP,
+				Timestamp: peerIP.IP.Timestamp,
+				Signature: peerIP.Signature,
+				TxID:      validator.TxID,
+			},
+		)
 	}
 
-	uptimePercentInt := uint8(uptimePercentFloat * 100)
-	return n.peerConfig.MessageCreator.Pong(uptimePercentInt)
+	return validatorIPs, nil
 }
 
 // Dispatch starts accepting connections from other nodes attempting to connect
@@ -568,7 +610,7 @@ func (n *network) WantsConnection(nodeID ids.NodeID) bool {
 }
 
 func (n *network) wantsConnection(nodeID ids.NodeID) bool {
-	return n.config.Validators.Contains(constants.PrimaryNetworkID, nodeID) ||
+	return validators.Contains(n.config.Validators, constants.PrimaryNetworkID, nodeID) ||
 		n.manuallyTrackedIDs.Contains(nodeID)
 }
 
@@ -597,46 +639,6 @@ func (n *network) ManuallyTrack(nodeID ids.NodeID, ip ips.IPPort) {
 	}
 }
 
-func (n *network) TracksSubnet(nodeID ids.NodeID, subnetID ids.ID) bool {
-	if n.config.MyNodeID == nodeID {
-		return subnetID == constants.PrimaryNetworkID || n.config.WhitelistedSubnets.Contains(subnetID)
-	}
-
-	n.peersLock.RLock()
-	defer n.peersLock.RUnlock()
-
-	peer, connected := n.connectedPeers.GetByID(nodeID)
-	if !connected {
-		return false
-	}
-	trackedSubnets := peer.TrackedSubnets()
-	return subnetID == constants.PrimaryNetworkID || trackedSubnets.Contains(subnetID)
-}
-
-func (n *network) sampleValidatorIPs() []ips.ClaimedIPPort {
-	n.peersLock.RLock()
-	peers := n.connectedPeers.Sample(
-		int(n.config.PeerListNumValidatorIPs),
-		func(p peer.Peer) bool {
-			// Only sample validators
-			return n.config.Validators.Contains(constants.PrimaryNetworkID, p.ID())
-		},
-	)
-	n.peersLock.RUnlock()
-
-	sampledIPs := make([]ips.ClaimedIPPort, len(peers))
-	for i, peer := range peers {
-		peerIP := peer.IP()
-		sampledIPs[i] = ips.ClaimedIPPort{
-			Cert:      peer.Cert(),
-			IPPort:    peerIP.IP.IP,
-			Timestamp: peerIP.IP.Timestamp,
-			Signature: peerIP.Signature,
-		}
-	}
-	return sampledIPs
-}
-
 // getPeers returns a slice of connected peers from a set of [nodeIDs].
 //
 // - [nodeIDs] the IDs of the peers that should be returned if they are
@@ -646,7 +648,7 @@ func (n *network) sampleValidatorIPs() []ips.ClaimedIPPort {
 // - [validatorOnly] is the flag to drop any nodes from [nodeIDs] that are not
 //   validators in [subnetID].
 func (n *network) getPeers(
-	nodeIDs ids.NodeIDSet,
+	nodeIDs set.Set[ids.NodeID],
 	subnetID ids.ID,
 	validatorOnly bool,
 ) []peer.Peer {
@@ -666,7 +668,7 @@ func (n *network) getPeers(
 			continue
 		}
 
-		if validatorOnly && !n.config.Validators.Contains(subnetID, nodeID) {
+		if validatorOnly && !validators.Contains(n.config.Validators, subnetID, nodeID) {
 			continue
 		}
 
@@ -706,7 +708,7 @@ func (n *network) samplePeers(
 				return true
 			}
 
-			if n.config.Validators.Contains(subnetID, p.ID()) {
+			if validators.Contains(n.config.Validators, subnetID, p.ID()) {
 				numValidatorsToSample--
 				return numValidatorsToSample >= 0
 			}
@@ -722,8 +724,8 @@ func (n *network) samplePeers(
 // send takes ownership of the provided message reference. So, the provided
 // message should only be inspected if the reference has been externally
 // increased.
-func (n *network) send(msg message.OutboundMessage, peers []peer.Peer) ids.NodeIDSet {
-	sentTo := ids.NewNodeIDSet(len(peers))
+func (n *network) send(msg message.OutboundMessage, peers []peer.Peer) set.Set[ids.NodeID] {
+	sentTo := set.NewSet[ids.NodeID](len(peers))
 	now := n.peerConfig.Clock.Time()
 
 	// send to peer and update metrics
@@ -1061,19 +1063,23 @@ func (n *network) StartClose() {
 	})
 }
 
-func (n *network) NodeUptime() (UptimeResult, bool) {
-	primaryValidators, ok := n.config.Validators.GetValidators(constants.PrimaryNetworkID)
-	if !ok {
-		return UptimeResult{}, false
+func (n *network) NodeUptime(subnetID ids.ID) (UptimeResult, error) {
+	if subnetID != constants.PrimaryNetworkID && !n.config.WhitelistedSubnets.Contains(subnetID) {
+		return UptimeResult{}, errNotWhiteListed
 	}
 
-	myStake, isValidator := primaryValidators.GetWeight(n.config.MyNodeID)
-	if !isValidator {
-		return UptimeResult{}, false
+	validators, ok := n.config.Validators.Get(subnetID)
+	if !ok {
+		return UptimeResult{}, errSubnetNotExist
+	}
+
+	myStake := validators.GetWeight(n.config.MyNodeID)
+	if myStake == 0 {
+		return UptimeResult{}, errNotValidator
 	}
 
 	var (
-		totalWeight          = float64(primaryValidators.Weight())
+		totalWeight          = float64(validators.Weight())
 		totalWeightedPercent = 100 * float64(myStake)
 		rewardingStake       = float64(myStake)
 	)
@@ -1085,18 +1091,22 @@ func (n *network) NodeUptime() (UptimeResult, bool) {
 		peer, _ := n.connectedPeers.GetByIndex(i)
 
 		nodeID := peer.ID()
-		weight, ok := primaryValidators.GetWeight(nodeID)
-		if !ok {
+		weight := validators.GetWeight(nodeID)
+		if weight == 0 {
 			// this is not a validator skip it.
 			continue
 		}
 
-		observedUptime := peer.ObservedUptime()
+		observedUptime, exist := peer.ObservedUptime(subnetID)
+		if !exist {
+			observedUptime = 0
+		}
 		percent := float64(observedUptime)
 		weightFloat := float64(weight)
 		totalWeightedPercent += percent * weightFloat
 
 		// if this peer thinks we're above requirement add the weight
+		// TODO: use subnet-specific uptime requirements
 		if percent/100 >= n.config.UptimeRequirement {
 			rewardingStake += weightFloat
 		}
@@ -1105,7 +1115,7 @@ func (n *network) NodeUptime() (UptimeResult, bool) {
 	return UptimeResult{
 		WeightedAveragePercentage: gomath.Abs(totalWeightedPercent / totalWeight),
 		RewardingStakePercentage:  gomath.Abs(100 * rewardingStake / totalWeight),
-	}, true
+	}, nil
 }
 
 func (n *network) runTimers() {
@@ -1121,36 +1131,44 @@ func (n *network) runTimers() {
 		case <-n.onCloseCtx.Done():
 			return
 		case <-gossipPeerlists.C:
-			validatorIPs := n.sampleValidatorIPs()
-			if len(validatorIPs) == 0 {
-				n.peerConfig.Log.Debug("skipping validator IP gossiping as no IPs are connected")
-				continue
-			}
-
-			msg, err := n.peerConfig.MessageCreator.PeerList(validatorIPs, false)
+			n.gossipPeerLists()
+		case <-updateUptimes.C:
+			primaryUptime, err := n.NodeUptime(constants.PrimaryNetworkID)
 			if err != nil {
-				n.peerConfig.Log.Error(
-					"failed to gossip",
-					zap.Int("peerListLen", len(validatorIPs)),
+				n.peerConfig.Log.Debug("failed to get primary network uptime",
 					zap.Error(err),
 				)
-				continue
 			}
+			n.metrics.nodeUptimeWeightedAverage.Set(primaryUptime.WeightedAveragePercentage)
+			n.metrics.nodeUptimeRewardingStake.Set(primaryUptime.RewardingStakePercentage)
 
-			n.Gossip(
-				msg,
-				constants.PrimaryNetworkID,
-				false,
-				int(n.config.PeerListValidatorGossipSize),
-				int(n.config.PeerListNonValidatorGossipSize),
-				int(n.config.PeerListPeersGossipSize),
-			)
-
-		case <-updateUptimes.C:
-
-			result, _ := n.NodeUptime()
-			n.metrics.nodeUptimeWeightedAverage.Set(result.WeightedAveragePercentage)
-			n.metrics.nodeUptimeRewardingStake.Set(result.RewardingStakePercentage)
+			for subnetID := range n.config.WhitelistedSubnets {
+				result, err := n.NodeUptime(subnetID)
+				if err != nil {
+					n.peerConfig.Log.Debug("failed to get subnet uptime",
+						zap.Stringer("subnetID", subnetID),
+						zap.Error(err),
+					)
+				}
+				subnetIDStr := subnetID.String()
+				n.metrics.nodeSubnetUptimeWeightedAverage.WithLabelValues(subnetIDStr).Set(result.WeightedAveragePercentage)
+				n.metrics.nodeSubnetUptimeRewardingStake.WithLabelValues(subnetIDStr).Set(result.RewardingStakePercentage)
+			}
 		}
+	}
+}
+
+// gossipPeerLists gossips validators to peers in the network
+func (n *network) gossipPeerLists() {
+	peers := n.samplePeers(
+		constants.PrimaryNetworkID,
+		false,
+		int(n.config.PeerListValidatorGossipSize),
+		int(n.config.PeerListNonValidatorGossipSize),
+		int(n.config.PeerListPeersGossipSize),
+	)
+
+	for _, p := range peers {
+		p.StartSendPeerList()
 	}
 }

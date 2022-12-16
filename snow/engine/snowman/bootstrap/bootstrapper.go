@@ -19,6 +19,7 @@ import (
 	"github.com/MetalBlockchain/metalgo/snow/consensus/snowman"
 	"github.com/MetalBlockchain/metalgo/snow/engine/common"
 	"github.com/MetalBlockchain/metalgo/snow/engine/snowman/block"
+	"github.com/MetalBlockchain/metalgo/utils/set"
 	"github.com/MetalBlockchain/metalgo/utils/timer"
 	"github.com/MetalBlockchain/metalgo/version"
 )
@@ -72,7 +73,7 @@ type bootstrapper struct {
 	// nodeID will be added back to [fetchFrom] unless the Ancestors message is
 	// empty. This is to attempt to prevent requesting containers from that peer
 	// again.
-	fetchFrom ids.NodeIDSet
+	fetchFrom set.Set[ids.NodeID]
 
 	// bootstrappedOnce ensures that the [Bootstrapped] callback is only invoked
 	// once, even if bootstrapping is retried.

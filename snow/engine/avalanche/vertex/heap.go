@@ -8,6 +8,7 @@ import (
 
 	"github.com/MetalBlockchain/metalgo/ids"
 	"github.com/MetalBlockchain/metalgo/snow/consensus/avalanche"
+	"github.com/MetalBlockchain/metalgo/utils/set"
 )
 
 var (
@@ -95,7 +96,7 @@ func NewHeap() Heap {
 
 type maxHeightVertexHeap struct {
 	heap       priorityQueue
-	elementIDs ids.Set
+	elementIDs set.Set[ids.ID]
 }
 
 func (vh *maxHeightVertexHeap) Clear() {

@@ -6,6 +6,7 @@ package executor
 import (
 	"github.com/MetalBlockchain/metalgo/chains/atomic"
 	"github.com/MetalBlockchain/metalgo/ids"
+	"github.com/MetalBlockchain/metalgo/utils/set"
 	"github.com/MetalBlockchain/metalgo/vms/platformvm/state"
 	"github.com/MetalBlockchain/metalgo/vms/platformvm/txs"
 )
@@ -23,7 +24,7 @@ type AtomicTxExecutor struct {
 
 	// outputs of visitor execution
 	OnAccept       state.Diff
-	Inputs         ids.Set
+	Inputs         set.Set[ids.ID]
 	AtomicRequests map[ids.ID]*atomic.Requests
 }
 

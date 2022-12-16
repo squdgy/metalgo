@@ -9,6 +9,7 @@ import (
 	"github.com/MetalBlockchain/metalgo/ids"
 	"github.com/MetalBlockchain/metalgo/snow/choices"
 	"github.com/MetalBlockchain/metalgo/snow/consensus/snowstorm"
+	"github.com/MetalBlockchain/metalgo/utils/set"
 )
 
 var _ snowstorm.Tx = (*transactionVertex)(nil)
@@ -94,6 +95,6 @@ func (tv *transactionVertex) HasWhitelist() bool {
 	return tv.vtx.HasWhitelist()
 }
 
-func (tv *transactionVertex) Whitelist(ctx context.Context) (ids.Set, error) {
+func (tv *transactionVertex) Whitelist(ctx context.Context) (set.Set[ids.ID], error) {
 	return tv.vtx.Whitelist(ctx)
 }

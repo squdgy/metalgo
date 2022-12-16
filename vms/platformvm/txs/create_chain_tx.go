@@ -9,6 +9,7 @@ import (
 
 	"github.com/MetalBlockchain/metalgo/ids"
 	"github.com/MetalBlockchain/metalgo/snow"
+	"github.com/MetalBlockchain/metalgo/utils"
 	"github.com/MetalBlockchain/metalgo/utils/constants"
 	"github.com/MetalBlockchain/metalgo/utils/units"
 	"github.com/MetalBlockchain/metalgo/vms/components/verify"
@@ -61,7 +62,7 @@ func (tx *CreateChainTx) SyntacticVerify(ctx *snow.Context) error {
 		return errNameTooLong
 	case tx.VMID == ids.Empty:
 		return errInvalidVMID
-	case !ids.IsSortedAndUniqueIDs(tx.FxIDs):
+	case !utils.IsSortedAndUniqueSortable(tx.FxIDs):
 		return errFxIDsNotSortedAndUnique
 	case len(tx.GenesisData) > MaxGenesisLen:
 		return errGenesisTooLong

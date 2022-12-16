@@ -7,6 +7,7 @@ import (
 	"github.com/MetalBlockchain/metalgo/database"
 	"github.com/MetalBlockchain/metalgo/database/versiondb"
 	"github.com/MetalBlockchain/metalgo/ids"
+	"github.com/MetalBlockchain/metalgo/utils"
 )
 
 var _ SharedMemory = (*sharedMemory)(nil)
@@ -123,7 +124,7 @@ func (sm *sharedMemory) Apply(requests map[ids.ID]*Requests, batches ...database
 		request.peerChainID = peerChainID
 		sharedOperations[sharedID] = request
 	}
-	ids.SortIDs(sharedIDs)
+	utils.Sort(sharedIDs)
 
 	// Make sure all operations are committed atomically
 	vdb := versiondb.New(sm.m.db)

@@ -5,11 +5,11 @@ package proposer
 
 import (
 	"context"
-	"sort"
 	"time"
 
 	"github.com/MetalBlockchain/metalgo/ids"
 	"github.com/MetalBlockchain/metalgo/snow/validators"
+	"github.com/MetalBlockchain/metalgo/utils"
 	"github.com/MetalBlockchain/metalgo/utils/math"
 	"github.com/MetalBlockchain/metalgo/utils/sampler"
 	"github.com/MetalBlockchain/metalgo/utils/wrappers"
@@ -64,14 +64,14 @@ func (w *windower) Delay(ctx context.Context, chainHeight, pChainHeight uint64, 
 	}
 
 	// convert the map of validators to a slice
-	validators := make(validatorsSlice, 0, len(validatorsMap))
+	validators := make([]validatorData, 0, len(validatorsMap))
 	weight := uint64(0)
 	for k, v := range validatorsMap {
 		validators = append(validators, validatorData{
 			id:     k,
-			weight: v,
+			weight: v.Weight,
 		})
-		newWeight, err := math.Add64(weight, v)
+		newWeight, err := math.Add64(weight, v.Weight)
 		if err != nil {
 			return 0, err
 		}
@@ -81,7 +81,7 @@ func (w *windower) Delay(ctx context.Context, chainHeight, pChainHeight uint64, 
 	// canonically sort validators
 	// Note: validators are sorted by ID, sorting by weight would not create a
 	// canonically sorted list
-	sort.Sort(validators)
+	utils.Sort(validators)
 
 	// convert the slice of validators to a slice of weights
 	validatorWeights := make([]uint64, len(validators))

@@ -20,6 +20,7 @@ import (
 	"github.com/MetalBlockchain/metalgo/snow/engine/avalanche/vertex"
 	"github.com/MetalBlockchain/metalgo/utils/logging"
 	"github.com/MetalBlockchain/metalgo/utils/math"
+	"github.com/MetalBlockchain/metalgo/utils/set"
 )
 
 const (
@@ -39,7 +40,7 @@ type Serializer struct {
 	SerializerConfig
 	versionDB *versiondb.Database
 	state     *prefixedState
-	edge      ids.Set
+	edge      set.Set[ids.ID]
 }
 
 type SerializerConfig struct {

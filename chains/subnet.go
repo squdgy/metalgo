@@ -11,6 +11,7 @@ import (
 	"github.com/MetalBlockchain/metalgo/snow/consensus/avalanche"
 	"github.com/MetalBlockchain/metalgo/snow/engine/common"
 	"github.com/MetalBlockchain/metalgo/snow/networking/sender"
+	"github.com/MetalBlockchain/metalgo/utils/set"
 )
 
 var _ Subnet = (*subnet)(nil)
@@ -41,8 +42,8 @@ type SubnetConfig struct {
 
 type subnet struct {
 	lock             sync.RWMutex
-	bootstrapping    ids.Set
-	bootstrapped     ids.Set
+	bootstrapping    set.Set[ids.ID]
+	bootstrapped     set.Set[ids.ID]
 	once             sync.Once
 	bootstrappedSema chan struct{}
 }

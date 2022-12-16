@@ -8,6 +8,7 @@ import (
 	"sync"
 
 	"github.com/MetalBlockchain/metalgo/ids"
+	"github.com/MetalBlockchain/metalgo/utils/crypto/bls"
 	"github.com/MetalBlockchain/metalgo/version"
 )
 
@@ -35,11 +36,11 @@ func NewStartup(peers Peers, startupWeight uint64) Startup {
 	}
 }
 
-func (s *startup) OnValidatorAdded(nodeID ids.NodeID, weight uint64) {
+func (s *startup) OnValidatorAdded(nodeID ids.NodeID, pk *bls.PublicKey, txID ids.ID, weight uint64) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
-	s.Peers.OnValidatorAdded(nodeID, weight)
+	s.Peers.OnValidatorAdded(nodeID, pk, txID, weight)
 	s.shouldStart = s.shouldStart || s.Peers.ConnectedWeight() >= s.startupWeight
 }
 

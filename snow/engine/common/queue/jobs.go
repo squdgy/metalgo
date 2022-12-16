@@ -17,6 +17,7 @@ import (
 	"github.com/MetalBlockchain/metalgo/ids"
 	"github.com/MetalBlockchain/metalgo/snow"
 	"github.com/MetalBlockchain/metalgo/snow/engine/common"
+	"github.com/MetalBlockchain/metalgo/utils/set"
 	"github.com/MetalBlockchain/metalgo/utils/timer"
 	"github.com/MetalBlockchain/metalgo/utils/wrappers"
 )
@@ -245,8 +246,8 @@ type JobsWithMissing struct {
 
 	// keep the missing ID set in memory to avoid unnecessary database reads and
 	// writes.
-	missingIDs                            ids.Set
-	removeFromMissingIDs, addToMissingIDs ids.Set
+	missingIDs                            set.Set[ids.ID]
+	removeFromMissingIDs, addToMissingIDs set.Set[ids.ID]
 }
 
 func NewWithMissing(

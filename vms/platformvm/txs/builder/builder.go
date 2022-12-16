@@ -10,6 +10,7 @@ import (
 
 	"github.com/MetalBlockchain/metalgo/ids"
 	"github.com/MetalBlockchain/metalgo/snow"
+	"github.com/MetalBlockchain/metalgo/utils"
 	"github.com/MetalBlockchain/metalgo/utils/crypto"
 	"github.com/MetalBlockchain/metalgo/utils/math"
 	"github.com/MetalBlockchain/metalgo/utils/timer/mockable"
@@ -365,7 +366,7 @@ func (b *builder) NewCreateChainTx(
 	signers = append(signers, subnetSigners)
 
 	// Sort the provided fxIDs
-	ids.SortIDs(fxIDs)
+	utils.Sort(fxIDs)
 
 	// Create the tx
 	utx := &txs.CreateChainTx{
@@ -403,7 +404,7 @@ func (b *builder) NewCreateSubnetTx(
 	}
 
 	// Sort control addresses
-	ids.SortShortIDs(ownerAddrs)
+	utils.Sort(ownerAddrs)
 
 	// Create the tx
 	utx := &txs.CreateSubnetTx{

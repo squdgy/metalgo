@@ -13,6 +13,7 @@ import (
 	"github.com/MetalBlockchain/metalgo/database"
 	"github.com/MetalBlockchain/metalgo/database/nodb"
 	"github.com/MetalBlockchain/metalgo/utils"
+	"github.com/MetalBlockchain/metalgo/utils/set"
 	"github.com/MetalBlockchain/metalgo/utils/units"
 	"github.com/MetalBlockchain/metalgo/utils/wrappers"
 
@@ -188,14 +189,14 @@ func (b *batch) Write() error {
 		Continues: true,
 	}
 	currentSize := 0
-	keySet := make(map[string]struct{}, len(b.writes))
+	keySet := set.NewSet[string](len(b.writes))
 	for i := len(b.writes) - 1; i >= 0; i-- {
 		kv := b.writes[i]
 		key := string(kv.key)
-		if _, overwritten := keySet[key]; overwritten {
+		if keySet.Contains(key) {
 			continue
 		}
-		keySet[key] = struct{}{}
+		keySet.Add(key)
 
 		sizeChange := baseElementSize + len(kv.key) + len(kv.value)
 		if newSize := currentSize + sizeChange; newSize > maxBatchSize {

@@ -9,6 +9,7 @@ import (
 	"github.com/MetalBlockchain/metalgo/codec"
 	"github.com/MetalBlockchain/metalgo/ids"
 	"github.com/MetalBlockchain/metalgo/snow"
+	"github.com/MetalBlockchain/metalgo/utils/set"
 	"github.com/MetalBlockchain/metalgo/vms/components/avax"
 	"github.com/MetalBlockchain/metalgo/vms/secp256k1fx"
 )
@@ -42,7 +43,7 @@ func (t *ImportTx) InputUTXOs() []*avax.UTXOID {
 }
 
 // ConsumedAssetIDs returns the IDs of the assets this transaction consumes
-func (t *ImportTx) ConsumedAssetIDs() ids.Set {
+func (t *ImportTx) ConsumedAssetIDs() set.Set[ids.ID] {
 	assets := t.BaseTx.AssetIDs()
 	for _, in := range t.ImportedIns {
 		assets.Add(in.AssetID())
@@ -51,7 +52,7 @@ func (t *ImportTx) ConsumedAssetIDs() ids.Set {
 }
 
 // AssetIDs returns the IDs of the assets this transaction depends on
-func (t *ImportTx) AssetIDs() ids.Set {
+func (t *ImportTx) AssetIDs() set.Set[ids.ID] {
 	assets := t.BaseTx.AssetIDs()
 	for _, in := range t.ImportedIns {
 		assets.Add(in.AssetID())

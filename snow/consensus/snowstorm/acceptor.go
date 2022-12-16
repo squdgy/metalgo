@@ -8,6 +8,7 @@ import (
 
 	"github.com/MetalBlockchain/metalgo/ids"
 	"github.com/MetalBlockchain/metalgo/snow/events"
+	"github.com/MetalBlockchain/metalgo/utils/set"
 	"github.com/MetalBlockchain/metalgo/utils/wrappers"
 )
 
@@ -16,12 +17,12 @@ var _ events.Blockable = (*acceptor)(nil)
 type acceptor struct {
 	g        *Directed
 	errs     *wrappers.Errs
-	deps     ids.Set
+	deps     set.Set[ids.ID]
 	rejected bool
 	txID     ids.ID
 }
 
-func (a *acceptor) Dependencies() ids.Set {
+func (a *acceptor) Dependencies() set.Set[ids.ID] {
 	return a.deps
 }
 

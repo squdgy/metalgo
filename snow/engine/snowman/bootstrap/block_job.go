@@ -18,6 +18,7 @@ import (
 	"github.com/MetalBlockchain/metalgo/snow/engine/common/queue"
 	"github.com/MetalBlockchain/metalgo/snow/engine/snowman/block"
 	"github.com/MetalBlockchain/metalgo/utils/logging"
+	"github.com/MetalBlockchain/metalgo/utils/set"
 )
 
 var errMissingDependenciesOnAccept = errors.New("attempting to accept a block with missing dependencies")
@@ -55,8 +56,8 @@ func (b *blockJob) ID() ids.ID {
 	return b.blk.ID()
 }
 
-func (b *blockJob) MissingDependencies(ctx context.Context) (ids.Set, error) {
-	missing := ids.Set{}
+func (b *blockJob) MissingDependencies(ctx context.Context) (set.Set[ids.ID], error) {
+	missing := set.Set[ids.ID]{}
 	parentID := b.blk.Parent()
 	if parent, err := b.vm.GetBlock(ctx, parentID); err != nil || parent.Status() != choices.Accepted {
 		missing.Add(parentID)

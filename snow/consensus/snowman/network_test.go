@@ -11,6 +11,7 @@ import (
 	"github.com/MetalBlockchain/metalgo/snow"
 	"github.com/MetalBlockchain/metalgo/snow/choices"
 	"github.com/MetalBlockchain/metalgo/snow/consensus/snowball"
+	"github.com/MetalBlockchain/metalgo/utils"
 	"github.com/MetalBlockchain/metalgo/utils/sampler"
 )
 
@@ -29,7 +30,7 @@ func (n *Network) shuffleColors() {
 		colors = append(colors, n.colors[int(index)])
 	}
 	n.colors = colors
-	SortTestBlocks(n.colors)
+	utils.Sort(n.colors)
 }
 
 func (n *Network) Initialize(params snowball.Parameters, numColors int) {

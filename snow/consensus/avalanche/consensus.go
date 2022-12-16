@@ -10,6 +10,7 @@ import (
 	"github.com/MetalBlockchain/metalgo/ids"
 	"github.com/MetalBlockchain/metalgo/snow"
 	"github.com/MetalBlockchain/metalgo/snow/consensus/snowstorm"
+	"github.com/MetalBlockchain/metalgo/utils/set"
 )
 
 // TODO: Implement pruning of accepted decisions.
@@ -50,13 +51,13 @@ type Consensus interface {
 
 	// Returns the set of transaction IDs that are virtuous but not contained in
 	// any preferred vertices.
-	Orphans() ids.Set
+	Orphans() set.Set[ids.ID]
 
 	// Returns a set of vertex IDs that were virtuous at the last update.
-	Virtuous() ids.Set
+	Virtuous() set.Set[ids.ID]
 
 	// Returns a set of vertex IDs that are preferred
-	Preferences() ids.Set
+	Preferences() set.Set[ids.ID]
 
 	// RecordPoll collects the results of a network poll. If a result has not
 	// been added, the result is dropped. Returns if a critical error has

@@ -9,6 +9,8 @@ import (
 
 	"github.com/MetalBlockchain/metalgo/ids"
 	"github.com/MetalBlockchain/metalgo/snow"
+	"github.com/MetalBlockchain/metalgo/utils"
+	"github.com/MetalBlockchain/metalgo/utils/set"
 	"github.com/MetalBlockchain/metalgo/vms/components/avax"
 	"github.com/MetalBlockchain/metalgo/vms/secp256k1fx"
 )
@@ -39,8 +41,8 @@ func (tx *BaseTx) Bytes() []byte {
 	return tx.unsignedBytes
 }
 
-func (tx *BaseTx) InputIDs() ids.Set {
-	inputIDs := ids.NewSet(len(tx.Ins))
+func (tx *BaseTx) InputIDs() set.Set[ids.ID] {
+	inputIDs := set.NewSet[ids.ID](len(tx.Ins))
 	for _, in := range tx.Ins {
 		inputIDs.Add(in.InputID())
 	}
@@ -88,7 +90,7 @@ func (tx *BaseTx) SyntacticVerify(ctx *snow.Context) error {
 	switch {
 	case !avax.IsSortedTransferableOutputs(tx.Outs, Codec):
 		return errOutputsNotSorted
-	case !avax.IsSortedAndUniqueTransferableInputs(tx.Ins):
+	case !utils.IsSortedAndUniqueSortable(tx.Ins):
 		return errInputsNotSortedUnique
 	default:
 		return nil

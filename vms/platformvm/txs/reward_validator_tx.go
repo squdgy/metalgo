@@ -6,6 +6,7 @@ package txs
 import (
 	"github.com/MetalBlockchain/metalgo/ids"
 	"github.com/MetalBlockchain/metalgo/snow"
+	"github.com/MetalBlockchain/metalgo/utils/set"
 	"github.com/MetalBlockchain/metalgo/vms/components/avax"
 )
 
@@ -41,7 +42,7 @@ func (tx *RewardValidatorTx) Bytes() []byte {
 	return tx.unsignedBytes
 }
 
-func (*RewardValidatorTx) InputIDs() ids.Set {
+func (*RewardValidatorTx) InputIDs() set.Set[ids.ID] {
 	return nil
 }
 

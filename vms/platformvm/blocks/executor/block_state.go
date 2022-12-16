@@ -8,13 +8,14 @@ import (
 
 	"github.com/MetalBlockchain/metalgo/chains/atomic"
 	"github.com/MetalBlockchain/metalgo/ids"
+	"github.com/MetalBlockchain/metalgo/utils/set"
 	"github.com/MetalBlockchain/metalgo/vms/platformvm/blocks"
 	"github.com/MetalBlockchain/metalgo/vms/platformvm/state"
 )
 
 type standardBlockState struct {
 	onAcceptFunc func()
-	inputs       ids.Set
+	inputs       set.Set[ids.ID]
 }
 
 type proposalBlockState struct {

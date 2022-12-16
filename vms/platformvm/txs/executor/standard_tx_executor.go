@@ -10,6 +10,7 @@ import (
 
 	"github.com/MetalBlockchain/metalgo/chains/atomic"
 	"github.com/MetalBlockchain/metalgo/ids"
+	"github.com/MetalBlockchain/metalgo/utils/set"
 	"github.com/MetalBlockchain/metalgo/vms/components/avax"
 	"github.com/MetalBlockchain/metalgo/vms/components/verify"
 	"github.com/MetalBlockchain/metalgo/vms/platformvm/state"
@@ -32,7 +33,7 @@ type StandardTxExecutor struct {
 
 	// outputs of visitor execution
 	OnAccept       func() // may be nil
-	Inputs         ids.Set
+	Inputs         set.Set[ids.ID]
 	AtomicRequests map[ids.ID]*atomic.Requests // may be nil
 }
 
@@ -125,7 +126,7 @@ func (e *StandardTxExecutor) ImportTx(tx *txs.ImportTx) error {
 		return err
 	}
 
-	e.Inputs = ids.NewSet(len(tx.ImportedInputs))
+	e.Inputs = set.NewSet[ids.ID](len(tx.ImportedInputs))
 	utxoIDs := make([][]byte, len(tx.ImportedInputs))
 	for i, in := range tx.ImportedInputs {
 		utxoID := in.UTXOID.InputID()

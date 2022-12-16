@@ -12,6 +12,7 @@ import (
 	"github.com/MetalBlockchain/metalgo/snow"
 	"github.com/MetalBlockchain/metalgo/utils/crypto"
 	"github.com/MetalBlockchain/metalgo/utils/hashing"
+	"github.com/MetalBlockchain/metalgo/utils/set"
 	"github.com/MetalBlockchain/metalgo/vms/avm/fxs"
 	"github.com/MetalBlockchain/metalgo/vms/components/avax"
 	"github.com/MetalBlockchain/metalgo/vms/nftfx"
@@ -27,8 +28,8 @@ type UnsignedTx interface {
 	Initialize(unsignedBytes []byte)
 	Bytes() []byte
 
-	ConsumedAssetIDs() ids.Set
-	AssetIDs() ids.Set
+	ConsumedAssetIDs() set.Set[ids.ID]
+	AssetIDs() set.Set[ids.ID]
 
 	NumCredentials() int
 	InputUTXOs() []*avax.UTXOID

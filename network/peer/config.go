@@ -11,8 +11,10 @@ import (
 	"github.com/MetalBlockchain/metalgo/network/throttling"
 	"github.com/MetalBlockchain/metalgo/snow/networking/router"
 	"github.com/MetalBlockchain/metalgo/snow/networking/tracker"
+	"github.com/MetalBlockchain/metalgo/snow/uptime"
 	"github.com/MetalBlockchain/metalgo/snow/validators"
 	"github.com/MetalBlockchain/metalgo/utils/logging"
+	"github.com/MetalBlockchain/metalgo/utils/set"
 	"github.com/MetalBlockchain/metalgo/utils/timer/mockable"
 	"github.com/MetalBlockchain/metalgo/version"
 )
@@ -31,7 +33,7 @@ type Config struct {
 	Network              Network
 	Router               router.InboundHandler
 	VersionCompatibility version.Compatibility
-	MySubnets            ids.Set
+	MySubnets            set.Set[ids.ID]
 	Beacons              validators.Set
 	NetworkID            uint32
 	PingFrequency        time.Duration
@@ -44,4 +46,13 @@ type Config struct {
 
 	// Tracks CPU/disk usage caused by each peer.
 	ResourceTracker tracker.ResourceTracker
+
+	// Tracks which peer knows about which peers
+	GossipTracker GossipTracker
+
+	// Calculates uptime of peers
+	UptimeCalculator uptime.Calculator
+
+	// Signs my IP so I can send my signed IP address in the Version message
+	IPSigner *IPSigner
 }

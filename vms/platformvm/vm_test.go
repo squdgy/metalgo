@@ -11,6 +11,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/golang/mock/gomock"
+
 	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/stretchr/testify/require"
@@ -38,13 +40,16 @@ import (
 	"github.com/MetalBlockchain/metalgo/snow/validators"
 	"github.com/MetalBlockchain/metalgo/utils/constants"
 	"github.com/MetalBlockchain/metalgo/utils/crypto"
+	"github.com/MetalBlockchain/metalgo/utils/crypto/bls"
 	"github.com/MetalBlockchain/metalgo/utils/formatting"
 	"github.com/MetalBlockchain/metalgo/utils/formatting/address"
 	"github.com/MetalBlockchain/metalgo/utils/json"
 	"github.com/MetalBlockchain/metalgo/utils/logging"
 	"github.com/MetalBlockchain/metalgo/utils/math/meter"
 	"github.com/MetalBlockchain/metalgo/utils/resource"
+	"github.com/MetalBlockchain/metalgo/utils/set"
 	"github.com/MetalBlockchain/metalgo/utils/timer"
+	"github.com/MetalBlockchain/metalgo/utils/timer/mockable"
 	"github.com/MetalBlockchain/metalgo/utils/units"
 	"github.com/MetalBlockchain/metalgo/utils/wrappers"
 	"github.com/MetalBlockchain/metalgo/version"
@@ -53,6 +58,7 @@ import (
 	"github.com/MetalBlockchain/metalgo/vms/platformvm/blocks"
 	"github.com/MetalBlockchain/metalgo/vms/platformvm/config"
 	"github.com/MetalBlockchain/metalgo/vms/platformvm/reward"
+	"github.com/MetalBlockchain/metalgo/vms/platformvm/state"
 	"github.com/MetalBlockchain/metalgo/vms/platformvm/status"
 	"github.com/MetalBlockchain/metalgo/vms/platformvm/txs"
 	"github.com/MetalBlockchain/metalgo/vms/secp256k1fx"
@@ -141,6 +147,7 @@ func defaultContext() *snow.Context {
 	ctx := snow.DefaultContextTest()
 	ctx.NetworkID = testNetworkID
 	ctx.XChainID = xChainID
+	ctx.CChainID = cChainID
 	ctx.AVAXAssetID = avaxAssetID
 	aliaser := ids.NewAliaser()
 
@@ -316,11 +323,14 @@ func BuildGenesisTestWithArgs(t *testing.T, args *api.BuildGenesisArgs) (*api.Bu
 }
 
 func defaultVM() (*VM, database.Database, *mutableSharedMemory) {
+	vdrs := validators.NewManager()
+	primaryVdrs := validators.NewSet()
+	_ = vdrs.Add(constants.PrimaryNetworkID, primaryVdrs)
 	vm := &VM{Factory: Factory{
 		Config: config.Config{
 			Chains:                 chains.MockManager{},
 			UptimeLockedCalculator: uptime.NewLockedCalculator(),
-			Validators:             validators.NewManager(),
+			Validators:             vdrs,
 			TxFee:                  defaultTxFee,
 			CreateSubnetTxFee:      100 * defaultTxFee,
 			TransformSubnetTxFee:   100 * defaultTxFee,
@@ -416,10 +426,13 @@ func GenesisVMWithArgs(t *testing.T, args *api.BuildGenesisArgs) ([]byte, chan c
 		_, genesisBytes = BuildGenesisTest(t)
 	}
 
+	vdrs := validators.NewManager()
+	primaryVdrs := validators.NewSet()
+	_ = vdrs.Add(constants.PrimaryNetworkID, primaryVdrs)
 	vm := &VM{Factory: Factory{
 		Config: config.Config{
 			Chains:                 chains.MockManager{},
-			Validators:             validators.NewManager(),
+			Validators:             vdrs,
 			UptimeLockedCalculator: uptime.NewLockedCalculator(),
 			TxFee:                  defaultTxFee,
 			MinValidatorStake:      defaultMinValidatorStake,
@@ -527,7 +540,7 @@ func TestGenesis(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		addrs := ids.ShortSet{}
+		addrs := set.Set[ids.ShortID]{}
 		addrs.Add(addr)
 		utxos, err := avax.GetAllUTXOs(vm.state, addrs)
 		if err != nil {
@@ -554,7 +567,7 @@ func TestGenesis(t *testing.T) {
 	}
 
 	// Ensure current validator set of primary network is correct
-	vdrSet, ok := vm.Validators.GetValidators(constants.PrimaryNetworkID)
+	vdrSet, ok := vm.Validators.Get(constants.PrimaryNetworkID)
 	if !ok {
 		t.Fatalf("Missing the primary network validator set")
 	}
@@ -1506,10 +1519,13 @@ func TestRestartFullyAccepted(t *testing.T) {
 	db := manager.NewMemDB(version.Semantic1_0_0)
 
 	firstDB := db.NewPrefixDBManager([]byte{})
+	firstVdrs := validators.NewManager()
+	firstPrimaryVdrs := validators.NewSet()
+	_ = firstVdrs.Add(constants.PrimaryNetworkID, firstPrimaryVdrs)
 	firstVM := &VM{Factory: Factory{
 		Config: config.Config{
 			Chains:                 chains.MockManager{},
-			Validators:             validators.NewManager(),
+			Validators:             firstVdrs,
 			UptimeLockedCalculator: uptime.NewLockedCalculator(),
 			MinStakeDuration:       defaultMinStakingDuration,
 			MaxStakeDuration:       defaultMaxStakingDuration,
@@ -1594,10 +1610,13 @@ func TestRestartFullyAccepted(t *testing.T) {
 	require.NoError(firstVM.Shutdown(context.Background()))
 	firstCtx.Lock.Unlock()
 
+	secondVdrs := validators.NewManager()
+	secondPrimaryVdrs := validators.NewSet()
+	_ = secondVdrs.Add(constants.PrimaryNetworkID, secondPrimaryVdrs)
 	secondVM := &VM{Factory: Factory{
 		Config: config.Config{
 			Chains:                 chains.MockManager{},
-			Validators:             validators.NewManager(),
+			Validators:             secondVdrs,
 			UptimeLockedCalculator: uptime.NewLockedCalculator(),
 			MinStakeDuration:       defaultMinStakingDuration,
 			MaxStakeDuration:       defaultMaxStakingDuration,
@@ -1650,10 +1669,13 @@ func TestBootstrapPartiallyAccepted(t *testing.T) {
 	blocked, err := queue.NewWithMissing(bootstrappingDB, "", prometheus.NewRegistry())
 	require.NoError(err)
 
+	vdrs := validators.NewManager()
+	primaryVdrs := validators.NewSet()
+	_ = vdrs.Add(constants.PrimaryNetworkID, primaryVdrs)
 	vm := &VM{Factory: Factory{
 		Config: config.Config{
 			Chains:                 chains.MockManager{},
-			Validators:             validators.NewManager(),
+			Validators:             vdrs,
 			UptimeLockedCalculator: uptime.NewLockedCalculator(),
 			MinStakeDuration:       defaultMinStakingDuration,
 			MaxStakeDuration:       defaultMaxStakingDuration,
@@ -1733,9 +1755,8 @@ func TestBootstrapPartiallyAccepted(t *testing.T) {
 	advanceTimeBlkBytes := advanceTimeBlk.Bytes()
 
 	peerID := ids.NodeID{1, 2, 3, 4, 5, 4, 3, 2, 1}
-	vdrs := validators.NewSet()
-	require.NoError(vdrs.AddWeight(peerID, 1))
-	beacons := vdrs
+	beacons := validators.NewSet()
+	require.NoError(beacons.Add(peerID, nil, ids.Empty, 1))
 
 	benchlist := benchlist.NewNoBenchlist()
 	timeoutManager, err := timeout.NewManager(
@@ -1765,8 +1786,8 @@ func TestBootstrapPartiallyAccepted(t *testing.T) {
 		logging.NoLog{},
 		timeoutManager,
 		time.Second,
-		ids.Set{},
-		ids.Set{},
+		set.Set[ids.ID]{},
+		set.Set[ids.ID]{},
 		nil,
 		router.HealthConfig{},
 		"",
@@ -1794,7 +1815,7 @@ func TestBootstrapPartiallyAccepted(t *testing.T) {
 	require.NoError(err)
 
 	var reqID uint32
-	externalSender.SendF = func(msg message.OutboundMessage, nodeIDs ids.NodeIDSet, _ ids.ID, _ bool) ids.NodeIDSet {
+	externalSender.SendF = func(msg message.OutboundMessage, nodeIDs set.Set[ids.NodeID], _ ids.ID, _ bool) set.Set[ids.NodeID] {
 		inMsg, err := mc.Parse(msg.Bytes(), ctx.NodeID, func() {})
 		require.NoError(err)
 		require.Equal(message.GetAcceptedFrontierOp, inMsg.Op())
@@ -1825,7 +1846,7 @@ func TestBootstrapPartiallyAccepted(t *testing.T) {
 	consensus := &smcon.Topological{}
 	commonCfg := common.Config{
 		Ctx:                            consensusCtx,
-		Validators:                     vdrs,
+		Validators:                     beacons,
 		Beacons:                        beacons,
 		SampleK:                        beacons.Len(),
 		StartupTracker:                 startup,
@@ -1858,11 +1879,12 @@ func TestBootstrapPartiallyAccepted(t *testing.T) {
 
 	handler, err := handler.New(
 		bootstrapConfig.Ctx,
-		vdrs,
+		beacons,
 		msgChan,
 		nil,
 		time.Hour,
 		cpuTracker,
+		vm,
 	)
 	require.NoError(err)
 
@@ -1871,7 +1893,7 @@ func TestBootstrapPartiallyAccepted(t *testing.T) {
 		AllGetsServer: snowGetHandler,
 		VM:            bootstrapConfig.VM,
 		Sender:        bootstrapConfig.Sender,
-		Validators:    vdrs,
+		Validators:    beacons,
 		Params: snowball.Parameters{
 			K:                     1,
 			Alpha:                 1,
@@ -1909,7 +1931,7 @@ func TestBootstrapPartiallyAccepted(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	externalSender.SendF = func(msg message.OutboundMessage, nodeIDs ids.NodeIDSet, _ ids.ID, _ bool) ids.NodeIDSet {
+	externalSender.SendF = func(msg message.OutboundMessage, nodeIDs set.Set[ids.NodeID], _ ids.ID, _ bool) set.Set[ids.NodeID] {
 		inMsgIntf, err := mc.Parse(msg.Bytes(), ctx.NodeID, func() {})
 		require.NoError(err)
 		require.Equal(message.GetAcceptedOp, inMsgIntf.Op())
@@ -1924,7 +1946,7 @@ func TestBootstrapPartiallyAccepted(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	externalSender.SendF = func(msg message.OutboundMessage, nodeIDs ids.NodeIDSet, _ ids.ID, _ bool) ids.NodeIDSet {
+	externalSender.SendF = func(msg message.OutboundMessage, nodeIDs set.Set[ids.NodeID], _ ids.ID, _ bool) set.Set[ids.NodeID] {
 		inMsgIntf, err := mc.Parse(msg.Bytes(), ctx.NodeID, func() {})
 		require.NoError(err)
 		require.Equal(message.GetAncestorsOp, inMsgIntf.Op())
@@ -1967,10 +1989,13 @@ func TestUnverifiedParent(t *testing.T) {
 	_, genesisBytes := defaultGenesis()
 	dbManager := manager.NewMemDB(version.Semantic1_0_0)
 
+	vdrs := validators.NewManager()
+	primaryVdrs := validators.NewSet()
+	_ = vdrs.Add(constants.PrimaryNetworkID, primaryVdrs)
 	vm := &VM{Factory: Factory{
 		Config: config.Config{
 			Chains:                 chains.MockManager{},
-			Validators:             validators.NewManager(),
+			Validators:             vdrs,
 			UptimeLockedCalculator: uptime.NewLockedCalculator(),
 			MinStakeDuration:       defaultMinStakingDuration,
 			MaxStakeDuration:       defaultMaxStakingDuration,
@@ -2131,12 +2156,15 @@ func TestUptimeDisallowedWithRestart(t *testing.T) {
 	db := manager.NewMemDB(version.Semantic1_0_0)
 
 	firstDB := db.NewPrefixDBManager([]byte{})
+	firstVdrs := validators.NewManager()
+	firstPrimaryVdrs := validators.NewSet()
+	_ = firstVdrs.Add(constants.PrimaryNetworkID, firstPrimaryVdrs)
 	firstVM := &VM{Factory: Factory{
 		Config: config.Config{
 			Chains:                 chains.MockManager{},
 			UptimePercentage:       .2,
 			RewardConfig:           defaultRewardConfig,
-			Validators:             validators.NewManager(),
+			Validators:             firstVdrs,
 			UptimeLockedCalculator: uptime.NewLockedCalculator(),
 			BanffTime:              banffForkTime,
 		},
@@ -2173,11 +2201,14 @@ func TestUptimeDisallowedWithRestart(t *testing.T) {
 	firstCtx.Lock.Unlock()
 
 	secondDB := db.NewPrefixDBManager([]byte{})
+	secondVdrs := validators.NewManager()
+	secondPrimaryVdrs := validators.NewSet()
+	_ = secondVdrs.Add(constants.PrimaryNetworkID, secondPrimaryVdrs)
 	secondVM := &VM{Factory: Factory{
 		Config: config.Config{
 			Chains:                 chains.MockManager{},
 			UptimePercentage:       .21,
-			Validators:             validators.NewManager(),
+			Validators:             secondVdrs,
 			UptimeLockedCalculator: uptime.NewLockedCalculator(),
 			BanffTime:              banffForkTime,
 		},
@@ -2308,12 +2339,15 @@ func TestUptimeDisallowedAfterNeverConnecting(t *testing.T) {
 	_, genesisBytes := defaultGenesis()
 	db := manager.NewMemDB(version.Semantic1_0_0)
 
+	vdrs := validators.NewManager()
+	primaryVdrs := validators.NewSet()
+	_ = vdrs.Add(constants.PrimaryNetworkID, primaryVdrs)
 	vm := &VM{Factory: Factory{
 		Config: config.Config{
 			Chains:                 chains.MockManager{},
 			UptimePercentage:       .2,
 			RewardConfig:           defaultRewardConfig,
-			Validators:             validators.NewManager(),
+			Validators:             vdrs,
 			UptimeLockedCalculator: uptime.NewLockedCalculator(),
 			BanffTime:              banffForkTime,
 		},
@@ -2410,4 +2444,415 @@ func TestUptimeDisallowedAfterNeverConnecting(t *testing.T) {
 		ids.NodeID(keys[1].PublicKey().Address()),
 	)
 	require.ErrorIs(err, database.ErrNotFound)
+}
+
+func TestVM_GetValidatorSet(t *testing.T) {
+	r := require.New(t)
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	// Setup VM
+	_, genesisBytes := defaultGenesis()
+	db := manager.NewMemDB(version.Semantic1_0_0)
+
+	vdrManager := validators.NewManager()
+	primaryVdrs := validators.NewSet()
+	_ = vdrManager.Add(constants.PrimaryNetworkID, primaryVdrs)
+
+	vm := &VM{Factory: Factory{
+		Config: config.Config{
+			Chains:                 chains.MockManager{},
+			UptimePercentage:       .2,
+			RewardConfig:           defaultRewardConfig,
+			Validators:             vdrManager,
+			UptimeLockedCalculator: uptime.NewLockedCalculator(),
+			BanffTime:              mockable.MaxTime,
+		},
+	}}
+
+	ctx := defaultContext()
+	ctx.Lock.Lock()
+
+	msgChan := make(chan common.Message, 1)
+	appSender := &common.SenderTest{T: t}
+	r.NoError(vm.Initialize(context.Background(), ctx, db, genesisBytes, nil, nil, msgChan, nil, appSender))
+	defer func() {
+		r.NoError(vm.Shutdown(context.Background()))
+		ctx.Lock.Unlock()
+	}()
+
+	vm.clock.Set(defaultGenesisTime)
+	vm.uptimeManager.(uptime.TestManager).SetTime(defaultGenesisTime)
+
+	r.NoError(vm.SetState(context.Background(), snow.Bootstrapping))
+	r.NoError(vm.SetState(context.Background(), snow.NormalOp))
+
+	var (
+		oldVdrs       = vm.Validators
+		oldState      = vm.state
+		numVdrs       = 4
+		vdrBaseWeight = uint64(1_000)
+		vdrs          []*validators.Validator
+	)
+	// Populate the validator set to use below
+	for i := 0; i < numVdrs; i++ {
+		sk, err := bls.NewSecretKey()
+		r.NoError(err)
+
+		vdrs = append(vdrs, &validators.Validator{
+			NodeID:    ids.GenerateTestNodeID(),
+			PublicKey: bls.PublicFromSecretKey(sk),
+			Weight:    vdrBaseWeight + uint64(i),
+		})
+	}
+
+	type test struct {
+		name string
+		// Height we're getting the diff at
+		height             uint64
+		lastAcceptedHeight uint64
+		subnetID           ids.ID
+		// Validator sets at tip
+		currentPrimaryNetworkValidators []*validators.Validator
+		currentSubnetValidators         []*validators.Validator
+		// Diff at tip, block before tip, etc.
+		// This must have [height] - [lastAcceptedHeight] elements
+		weightDiffs []map[ids.NodeID]*state.ValidatorWeightDiff
+		// Diff at tip, block before tip, etc.
+		// This must have [height] - [lastAcceptedHeight] elements
+		pkDiffs        []map[ids.NodeID]*bls.PublicKey
+		expectedVdrSet map[ids.NodeID]*validators.GetValidatorOutput
+		expectedErr    error
+	}
+
+	tests := []test{
+		{
+			name:               "after tip",
+			height:             1,
+			lastAcceptedHeight: 0,
+			expectedVdrSet:     map[ids.NodeID]*validators.GetValidatorOutput{},
+			expectedErr:        database.ErrNotFound,
+		},
+		{
+			name:               "at tip",
+			height:             1,
+			lastAcceptedHeight: 1,
+			currentPrimaryNetworkValidators: []*validators.Validator{
+				copyPrimaryValidator(vdrs[0]),
+			},
+			currentSubnetValidators: []*validators.Validator{
+				copySubnetValidator(vdrs[0]),
+			},
+			expectedVdrSet: map[ids.NodeID]*validators.GetValidatorOutput{
+				vdrs[0].NodeID: {
+					NodeID:    vdrs[0].NodeID,
+					PublicKey: vdrs[0].PublicKey,
+					Weight:    vdrs[0].Weight,
+				},
+			},
+			expectedErr: nil,
+		},
+		{
+			name:               "1 before tip",
+			height:             2,
+			lastAcceptedHeight: 3,
+			currentPrimaryNetworkValidators: []*validators.Validator{
+				copyPrimaryValidator(vdrs[0]),
+				copyPrimaryValidator(vdrs[1]),
+			},
+			currentSubnetValidators: []*validators.Validator{
+				// At tip we have these 2 validators
+				copySubnetValidator(vdrs[0]),
+				copySubnetValidator(vdrs[1]),
+			},
+			weightDiffs: []map[ids.NodeID]*state.ValidatorWeightDiff{
+				{
+					// At the tip block vdrs[0] lost weight, vdrs[1] gained weight,
+					// and vdrs[2] left
+					vdrs[0].NodeID: {
+						Decrease: true,
+						Amount:   1,
+					},
+					vdrs[1].NodeID: {
+						Decrease: false,
+						Amount:   1,
+					},
+					vdrs[2].NodeID: {
+						Decrease: true,
+						Amount:   vdrs[2].Weight,
+					},
+				},
+			},
+			pkDiffs: []map[ids.NodeID]*bls.PublicKey{
+				{
+					vdrs[2].NodeID: vdrs[2].PublicKey,
+				},
+			},
+			expectedVdrSet: map[ids.NodeID]*validators.GetValidatorOutput{
+				vdrs[0].NodeID: {
+					NodeID:    vdrs[0].NodeID,
+					PublicKey: vdrs[0].PublicKey,
+					Weight:    vdrs[0].Weight + 1,
+				},
+				vdrs[1].NodeID: {
+					NodeID:    vdrs[1].NodeID,
+					PublicKey: vdrs[1].PublicKey,
+					Weight:    vdrs[1].Weight - 1,
+				},
+				vdrs[2].NodeID: {
+					NodeID:    vdrs[2].NodeID,
+					PublicKey: vdrs[2].PublicKey,
+					Weight:    vdrs[2].Weight,
+				},
+			},
+			expectedErr: nil,
+		},
+		{
+			name:               "2 before tip",
+			height:             3,
+			lastAcceptedHeight: 5,
+			currentPrimaryNetworkValidators: []*validators.Validator{
+				copyPrimaryValidator(vdrs[0]),
+				copyPrimaryValidator(vdrs[1]),
+			},
+			currentSubnetValidators: []*validators.Validator{
+				// At tip we have these 2 validators
+				copySubnetValidator(vdrs[0]),
+				copySubnetValidator(vdrs[1]),
+			},
+			weightDiffs: []map[ids.NodeID]*state.ValidatorWeightDiff{
+				{
+					// At the tip block vdrs[0] lost weight, vdrs[1] gained weight,
+					// and vdrs[2] left
+					vdrs[0].NodeID: {
+						Decrease: true,
+						Amount:   1,
+					},
+					vdrs[1].NodeID: {
+						Decrease: false,
+						Amount:   1,
+					},
+					vdrs[2].NodeID: {
+						Decrease: true,
+						Amount:   vdrs[2].Weight,
+					},
+				},
+				{
+					// At the block before tip vdrs[0] lost weight, vdrs[1] gained weight,
+					// vdrs[2] joined
+					vdrs[0].NodeID: {
+						Decrease: true,
+						Amount:   1,
+					},
+					vdrs[1].NodeID: {
+						Decrease: false,
+						Amount:   1,
+					},
+					vdrs[2].NodeID: {
+						Decrease: false,
+						Amount:   vdrs[2].Weight,
+					},
+				},
+			},
+			pkDiffs: []map[ids.NodeID]*bls.PublicKey{
+				{
+					vdrs[2].NodeID: vdrs[2].PublicKey,
+				},
+				{},
+			},
+			expectedVdrSet: map[ids.NodeID]*validators.GetValidatorOutput{
+				vdrs[0].NodeID: {
+					NodeID:    vdrs[0].NodeID,
+					PublicKey: vdrs[0].PublicKey,
+					Weight:    vdrs[0].Weight + 2,
+				},
+				vdrs[1].NodeID: {
+					NodeID:    vdrs[1].NodeID,
+					PublicKey: vdrs[1].PublicKey,
+					Weight:    vdrs[1].Weight - 2,
+				},
+			},
+			expectedErr: nil,
+		},
+		{
+			name:               "1 before tip; nil public key",
+			height:             4,
+			lastAcceptedHeight: 5,
+			currentPrimaryNetworkValidators: []*validators.Validator{
+				copyPrimaryValidator(vdrs[0]),
+				copyPrimaryValidator(vdrs[1]),
+			},
+			currentSubnetValidators: []*validators.Validator{
+				// At tip we have these 2 validators
+				copySubnetValidator(vdrs[0]),
+				copySubnetValidator(vdrs[1]),
+			},
+			weightDiffs: []map[ids.NodeID]*state.ValidatorWeightDiff{
+				{
+					// At the tip block vdrs[0] lost weight, vdrs[1] gained weight,
+					// and vdrs[2] left
+					vdrs[0].NodeID: {
+						Decrease: true,
+						Amount:   1,
+					},
+					vdrs[1].NodeID: {
+						Decrease: false,
+						Amount:   1,
+					},
+					vdrs[2].NodeID: {
+						Decrease: true,
+						Amount:   vdrs[2].Weight,
+					},
+				},
+			},
+			pkDiffs: []map[ids.NodeID]*bls.PublicKey{
+				{},
+			},
+			expectedVdrSet: map[ids.NodeID]*validators.GetValidatorOutput{
+				vdrs[0].NodeID: {
+					NodeID:    vdrs[0].NodeID,
+					PublicKey: vdrs[0].PublicKey,
+					Weight:    vdrs[0].Weight + 1,
+				},
+				vdrs[1].NodeID: {
+					NodeID:    vdrs[1].NodeID,
+					PublicKey: vdrs[1].PublicKey,
+					Weight:    vdrs[1].Weight - 1,
+				},
+				vdrs[2].NodeID: {
+					NodeID: vdrs[2].NodeID,
+					Weight: vdrs[2].Weight,
+				},
+			},
+			expectedErr: nil,
+		},
+		{
+			name:               "1 before tip; subnet",
+			height:             5,
+			lastAcceptedHeight: 6,
+			subnetID:           ids.GenerateTestID(),
+			currentPrimaryNetworkValidators: []*validators.Validator{
+				copyPrimaryValidator(vdrs[0]),
+				copyPrimaryValidator(vdrs[1]),
+				copyPrimaryValidator(vdrs[3]),
+			},
+			currentSubnetValidators: []*validators.Validator{
+				// At tip we have these 2 validators
+				copySubnetValidator(vdrs[0]),
+				copySubnetValidator(vdrs[1]),
+			},
+			weightDiffs: []map[ids.NodeID]*state.ValidatorWeightDiff{
+				{
+					// At the tip block vdrs[0] lost weight, vdrs[1] gained weight,
+					// and vdrs[2] left
+					vdrs[0].NodeID: {
+						Decrease: true,
+						Amount:   1,
+					},
+					vdrs[1].NodeID: {
+						Decrease: false,
+						Amount:   1,
+					},
+					vdrs[2].NodeID: {
+						Decrease: true,
+						Amount:   vdrs[2].Weight,
+					},
+				},
+			},
+			pkDiffs: []map[ids.NodeID]*bls.PublicKey{
+				{},
+			},
+			expectedVdrSet: map[ids.NodeID]*validators.GetValidatorOutput{
+				vdrs[0].NodeID: {
+					NodeID:    vdrs[0].NodeID,
+					PublicKey: vdrs[0].PublicKey,
+					Weight:    vdrs[0].Weight + 1,
+				},
+				vdrs[1].NodeID: {
+					NodeID:    vdrs[1].NodeID,
+					PublicKey: vdrs[1].PublicKey,
+					Weight:    vdrs[1].Weight - 1,
+				},
+				vdrs[2].NodeID: {
+					NodeID: vdrs[2].NodeID,
+					Weight: vdrs[2].Weight,
+				},
+			},
+			expectedErr: nil,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			require := require.New(t)
+
+			// Mock the VM's validators
+			vdrs := validators.NewMockManager(ctrl)
+			vm.Validators = vdrs
+			mockSubnetVdrSet := validators.NewMockSet(ctrl)
+			mockSubnetVdrSet.EXPECT().List().Return(tt.currentSubnetValidators).AnyTimes()
+			vdrs.EXPECT().Get(tt.subnetID).Return(mockSubnetVdrSet, true).AnyTimes()
+
+			mockPrimaryVdrSet := mockSubnetVdrSet
+			if tt.subnetID != constants.PrimaryNetworkID {
+				mockPrimaryVdrSet = validators.NewMockSet(ctrl)
+				vdrs.EXPECT().Get(constants.PrimaryNetworkID).Return(mockPrimaryVdrSet, true).AnyTimes()
+			}
+			for _, vdr := range tt.currentPrimaryNetworkValidators {
+				mockPrimaryVdrSet.EXPECT().Get(vdr.NodeID).Return(vdr, true).AnyTimes()
+			}
+
+			// Mock the block manager
+			mockManager := blockexecutor.NewMockManager(ctrl)
+			vm.manager = mockManager
+
+			// Mock the VM's state
+			mockState := state.NewMockState(ctrl)
+			vm.state = mockState
+
+			// Tell state what diffs to report
+			for _, weightDiff := range tt.weightDiffs {
+				mockState.EXPECT().GetValidatorWeightDiffs(gomock.Any(), gomock.Any()).Return(weightDiff, nil)
+			}
+
+			for _, pkDiff := range tt.pkDiffs {
+				mockState.EXPECT().GetValidatorPublicKeyDiffs(gomock.Any()).Return(pkDiff, nil)
+			}
+
+			// Tell state last accepted block to report
+			mockTip := smcon.NewMockBlock(ctrl)
+			mockTip.EXPECT().Height().Return(tt.lastAcceptedHeight)
+			mockTipID := ids.GenerateTestID()
+			mockState.EXPECT().GetLastAccepted().Return(mockTipID)
+			mockManager.EXPECT().GetBlock(mockTipID).Return(mockTip, nil)
+
+			// Compute validator set at previous height
+			gotVdrSet, err := vm.GetValidatorSet(context.Background(), tt.height, tt.subnetID)
+			require.ErrorIs(err, tt.expectedErr)
+			if tt.expectedErr != nil {
+				return
+			}
+			require.Equal(len(tt.expectedVdrSet), len(gotVdrSet))
+			for nodeID, vdr := range tt.expectedVdrSet {
+				otherVdr, ok := gotVdrSet[nodeID]
+				require.True(ok)
+				require.Equal(vdr, otherVdr)
+			}
+		})
+	}
+
+	// Put these back so we don't need to mock calls made on Shutdown
+	vm.Validators = oldVdrs
+	vm.state = oldState
+}
+
+func copyPrimaryValidator(vdr *validators.Validator) *validators.Validator {
+	newVdr := *vdr
+	return &newVdr
+}
+
+func copySubnetValidator(vdr *validators.Validator) *validators.Validator {
+	newVdr := *vdr
+	newVdr.PublicKey = nil
+	return &newVdr
 }

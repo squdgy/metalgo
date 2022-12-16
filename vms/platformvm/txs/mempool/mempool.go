@@ -11,6 +11,7 @@ import (
 
 	"github.com/MetalBlockchain/metalgo/cache"
 	"github.com/MetalBlockchain/metalgo/ids"
+	"github.com/MetalBlockchain/metalgo/utils/set"
 	"github.com/MetalBlockchain/metalgo/utils/units"
 	"github.com/MetalBlockchain/metalgo/vms/platformvm/txs"
 	"github.com/MetalBlockchain/metalgo/vms/platformvm/txs/txheap"
@@ -92,7 +93,7 @@ type mempool struct {
 	// Value: String repr. of the verification error
 	droppedTxIDs *cache.LRU
 
-	consumedUTXOs ids.Set
+	consumedUTXOs set.Set[ids.ID]
 
 	blkTimer BlockTimer
 }
@@ -136,7 +137,7 @@ func NewMempool(
 		unissuedDecisionTxs:  unissuedDecisionTxs,
 		unissuedStakerTxs:    unissuedStakerTxs,
 		droppedTxIDs:         &cache.LRU{Size: droppedTxIDsCacheSize},
-		consumedUTXOs:        ids.NewSet(initialConsumedUTXOsSize),
+		consumedUTXOs:        set.NewSet[ids.ID](initialConsumedUTXOsSize),
 		dropIncoming:         false, // enable tx adding by default
 		blkTimer:             blkTimer,
 	}, nil

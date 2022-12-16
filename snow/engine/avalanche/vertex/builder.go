@@ -9,6 +9,7 @@ import (
 	"github.com/MetalBlockchain/metalgo/ids"
 	"github.com/MetalBlockchain/metalgo/snow/consensus/avalanche"
 	"github.com/MetalBlockchain/metalgo/snow/consensus/snowstorm"
+	"github.com/MetalBlockchain/metalgo/utils"
 	"github.com/MetalBlockchain/metalgo/utils/hashing"
 )
 
@@ -61,8 +62,8 @@ func buildVtx(
 	verifyFunc func(innerStatelessVertex) error,
 	stopVertex bool,
 ) (StatelessVertex, error) {
-	ids.SortIDs(parentIDs)
-	SortHashOf(txs)
+	utils.Sort(parentIDs)
+	utils.SortByHash(txs)
 
 	codecVer := codecVersion
 	if stopVertex {

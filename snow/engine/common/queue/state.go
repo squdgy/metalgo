@@ -15,6 +15,7 @@ import (
 	"github.com/MetalBlockchain/metalgo/database/linkeddb"
 	"github.com/MetalBlockchain/metalgo/database/prefixdb"
 	"github.com/MetalBlockchain/metalgo/ids"
+	"github.com/MetalBlockchain/metalgo/utils/set"
 	"github.com/MetalBlockchain/metalgo/utils/wrappers"
 )
 
@@ -275,7 +276,7 @@ func (s *state) DisableCaching() {
 	s.cachingEnabled = false
 }
 
-func (s *state) AddMissingJobIDs(missingIDs ids.Set) error {
+func (s *state) AddMissingJobIDs(missingIDs set.Set[ids.ID]) error {
 	for missingID := range missingIDs {
 		missingID := missingID
 		if err := s.missingJobIDs.Put(missingID[:], nil); err != nil {
@@ -285,7 +286,7 @@ func (s *state) AddMissingJobIDs(missingIDs ids.Set) error {
 	return nil
 }
 
-func (s *state) RemoveMissingJobIDs(missingIDs ids.Set) error {
+func (s *state) RemoveMissingJobIDs(missingIDs set.Set[ids.ID]) error {
 	for missingID := range missingIDs {
 		missingID := missingID
 		if err := s.missingJobIDs.Delete(missingID[:]); err != nil {

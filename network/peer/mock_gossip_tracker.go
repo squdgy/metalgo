@@ -38,11 +38,12 @@ func (m *MockGossipTracker) EXPECT() *MockGossipTrackerMockRecorder {
 }
 
 // AddKnown mocks base method.
-func (m *MockGossipTracker) AddKnown(arg0 ids.NodeID, arg1 []ids.NodeID) bool {
+func (m *MockGossipTracker) AddKnown(arg0 ids.NodeID, arg1 []ids.ID) ([]ids.ID, bool) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AddKnown", arg0, arg1)
-	ret0, _ := ret[0].(bool)
-	return ret0
+	ret0, _ := ret[0].([]ids.ID)
+	ret1, _ := ret[1].(bool)
+	return ret0, ret1
 }
 
 // AddKnown indicates an expected call of AddKnown.
@@ -52,7 +53,7 @@ func (mr *MockGossipTrackerMockRecorder) AddKnown(arg0, arg1 interface{}) *gomoc
 }
 
 // AddValidator mocks base method.
-func (m *MockGossipTracker) AddValidator(arg0 ids.NodeID) bool {
+func (m *MockGossipTracker) AddValidator(arg0 ValidatorID) bool {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AddValidator", arg0)
 	ret0, _ := ret[0].(bool)
@@ -66,19 +67,18 @@ func (mr *MockGossipTrackerMockRecorder) AddValidator(arg0 interface{}) *gomock.
 }
 
 // GetUnknown mocks base method.
-func (m *MockGossipTracker) GetUnknown(arg0 ids.NodeID, arg1 int) ([]ids.NodeID, bool, error) {
+func (m *MockGossipTracker) GetUnknown(arg0 ids.NodeID) ([]ValidatorID, bool) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetUnknown", arg0, arg1)
-	ret0, _ := ret[0].([]ids.NodeID)
+	ret := m.ctrl.Call(m, "GetUnknown", arg0)
+	ret0, _ := ret[0].([]ValidatorID)
 	ret1, _ := ret[1].(bool)
-	ret2, _ := ret[2].(error)
-	return ret0, ret1, ret2
+	return ret0, ret1
 }
 
 // GetUnknown indicates an expected call of GetUnknown.
-func (mr *MockGossipTrackerMockRecorder) GetUnknown(arg0, arg1 interface{}) *gomock.Call {
+func (mr *MockGossipTrackerMockRecorder) GetUnknown(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetUnknown", reflect.TypeOf((*MockGossipTracker)(nil).GetUnknown), arg0, arg1)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetUnknown", reflect.TypeOf((*MockGossipTracker)(nil).GetUnknown), arg0)
 }
 
 // RemoveValidator mocks base method.

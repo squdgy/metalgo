@@ -5,6 +5,7 @@ package common
 
 import (
 	"github.com/MetalBlockchain/metalgo/ids"
+	"github.com/MetalBlockchain/metalgo/utils/set"
 	"github.com/MetalBlockchain/metalgo/vms/secp256k1fx"
 )
 
@@ -12,7 +13,7 @@ import (
 // threshold.
 func MatchOwners(
 	owners *secp256k1fx.OutputOwners,
-	addrs ids.ShortSet,
+	addrs set.Set[ids.ShortID],
 	minIssuanceTime uint64,
 ) ([]uint32, bool) {
 	if owners.Locktime > minIssuanceTime {

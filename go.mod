@@ -9,14 +9,11 @@ module github.com/MetalBlockchain/metalgo
 go 1.18
 
 require (
-	github.com/MetalBlockchain/coreth v0.11.1-rc.8
-	github.com/MetalBlockchain/metal-ledger-go v0.0.10
+	github.com/MetalBlockchain/coreth v0.11.2-rc.1
+	github.com/MetalBlockchain/metal-ledger-go v0.0.11
 	github.com/MetalBlockchain/metal-network-runner-sdk v0.2.0
 	github.com/Microsoft/go-winio v0.5.2
 	github.com/NYTimes/gziphandler v1.1.1
-	github.com/ava-labs/avalanche-ledger-go v0.0.11
-	github.com/ava-labs/avalanche-network-runner-sdk v0.2.0
-	github.com/ava-labs/coreth v0.11.2-rc.0
 	github.com/btcsuite/btcd v0.23.1
 	github.com/btcsuite/btcd/btcutil v1.1.1
 	github.com/decred/dcrd/dcrec/secp256k1/v3 v3.0.0-20200627015759-01fd2de07837

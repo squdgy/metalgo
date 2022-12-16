@@ -16,11 +16,11 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/test/bufconn"
 
-	"github.com/ava-labs/avalanchego/ids"
-	"github.com/ava-labs/avalanchego/snow/validators"
-	"github.com/ava-labs/avalanchego/vms/rpcchainvm/grpcutils"
+	"github.com/MetalBlockchain/metalgo/ids"
+	"github.com/MetalBlockchain/metalgo/snow/validators"
+	"github.com/MetalBlockchain/metalgo/vms/rpcchainvm/grpcutils"
 
-	pb "github.com/ava-labs/avalanchego/proto/pb/validatorstate"
+	pb "github.com/MetalBlockchain/metalgo/proto/pb/validatorstate"
 )
 
 const bufSize = 1024 * 1024

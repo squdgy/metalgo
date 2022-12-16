@@ -7,10 +7,10 @@ import (
 	"errors"
 	"time"
 
-	"github.com/ava-labs/avalanchego/ids"
-	"github.com/ava-labs/avalanchego/utils/constants"
+	"github.com/MetalBlockchain/metalgo/ids"
+	"github.com/MetalBlockchain/metalgo/utils/constants"
 
-	p2ppb "github.com/ava-labs/avalanchego/proto/pb/p2p"
+	p2ppb "github.com/MetalBlockchain/metalgo/proto/pb/p2p"
 )
 
 var errMissingField = errors.New("message missing field")

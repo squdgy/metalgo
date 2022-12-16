@@ -7,7 +7,7 @@ import (
 	"errors"
 	"fmt"
 
-	p2ppb "github.com/ava-labs/avalanchego/proto/pb/p2p"
+	p2ppb "github.com/MetalBlockchain/metalgo/proto/pb/p2p"
 )
 
 // Op is an opcode

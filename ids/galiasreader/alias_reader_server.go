@@ -11,7 +11,7 @@ import (
 	aliasreaderpb "github.com/MetalBlockchain/metalgo/proto/pb/aliasreader"
 )
 
-var _ aliasreaderpb.AliasReaderServer = &Server{}
+var _ aliasreaderpb.AliasReaderServer = (*Server)(nil)
 
 // Server enables alias lookups over RPC.
 type Server struct {

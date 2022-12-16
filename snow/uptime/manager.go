@@ -11,7 +11,7 @@ import (
 	"github.com/MetalBlockchain/metalgo/utils/timer/mockable"
 )
 
-var _ TestManager = &manager{}
+var _ TestManager = (*manager)(nil)
 
 type Manager interface {
 	Tracker

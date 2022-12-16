@@ -11,7 +11,7 @@ import (
 	"github.com/MetalBlockchain/metalgo/vms/avm"
 )
 
-var _ Context = &context{}
+var _ Context = (*context)(nil)
 
 type Context interface {
 	NetworkID() uint32

@@ -9,7 +9,7 @@ import (
 	"github.com/MetalBlockchain/metalgo/ids"
 )
 
-var _ State = &lockedState{}
+var _ State = (*lockedState)(nil)
 
 // State allows the lookup of validator sets on specified subnets at the
 // requested P-chain height.

@@ -9,7 +9,7 @@ import (
 	safemath "github.com/MetalBlockchain/metalgo/utils/math"
 )
 
-var _ Weighted = &weightedLinear{}
+var _ Weighted = (*weightedLinear)(nil)
 
 type weightedLinearElement struct {
 	cumulativeWeight uint64

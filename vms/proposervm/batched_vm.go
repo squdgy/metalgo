@@ -16,7 +16,7 @@ import (
 	statelessblock "github.com/MetalBlockchain/metalgo/vms/proposervm/block"
 )
 
-var _ block.BatchedChainVM = &VM{}
+var _ block.BatchedChainVM = (*VM)(nil)
 
 func (vm *VM) GetAncestors(
 	blkID ids.ID,
@@ -92,16 +92,11 @@ func (vm *VM) BatchedParseBlock(blks [][]byte) ([]snowman.Block, error) {
 		innerBlocksIndex    int
 		statelessBlockDescs = make([]partialData, 0, len(blks))
 		innerBlockBytes     = make([][]byte, 0, len(blks))
-		banffActivated      = vm.Clock.Time().After(vm.activationTimeBanff)
 	)
 	for ; blocksIndex < len(blks); blocksIndex++ {
 		blkBytes := blks[blocksIndex]
-		statelessBlock, requireBanff, err := statelessblock.Parse(blkBytes)
+		statelessBlock, err := statelessblock.Parse(blkBytes)
 		if err != nil {
-			break
-		}
-
-		if requireBanff && !banffActivated {
 			break
 		}
 

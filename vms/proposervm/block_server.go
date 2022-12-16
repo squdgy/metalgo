@@ -9,7 +9,7 @@ import (
 	"github.com/MetalBlockchain/metalgo/vms/proposervm/indexer"
 )
 
-var _ indexer.BlockServer = &VM{}
+var _ indexer.BlockServer = (*VM)(nil)
 
 // Note: this is a contention heavy call that should be avoided
 // for frequent/repeated indexer ops

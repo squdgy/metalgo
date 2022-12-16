@@ -10,7 +10,7 @@ import (
 	"github.com/MetalBlockchain/metalgo/version"
 )
 
-var _ Startup = &startup{}
+var _ Startup = (*startup)(nil)
 
 type Startup interface {
 	Peers

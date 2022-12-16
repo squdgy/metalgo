@@ -19,6 +19,7 @@ import (
 	"github.com/MetalBlockchain/metalgo/database/leveldb"
 	"github.com/MetalBlockchain/metalgo/database/memdb"
 	"github.com/MetalBlockchain/metalgo/genesis"
+	"github.com/MetalBlockchain/metalgo/trace"
 	"github.com/MetalBlockchain/metalgo/utils/constants"
 	"github.com/MetalBlockchain/metalgo/utils/ulimit"
 	"github.com/MetalBlockchain/metalgo/utils/units"
@@ -144,8 +145,6 @@ func addNodeFlags(fs *flag.FlagSet) {
 
 	// Public IP Resolution
 	fs.String(PublicIPKey, "", "Public IP of this node for P2P communication. If empty, try to discover with NAT. Ignored if dynamic-public-ip is non-empty")
-	fs.Duration(DynamicUpdateDurationKey, 5*time.Minute, "Dynamic IP and NAT traversal update duration")                                                        // Deprecated
-	fs.String(DynamicPublicIPResolverKey, "", "'ifconfigco' (alias 'ifconfig') or 'opendns' or 'ifconfigme'. By default does not do dynamic public IP updates") // Deprecated
 	fs.Duration(PublicIPResolutionFreqKey, 5*time.Minute, "Frequency at which this node resolves/updates its public IP and renew NAT mappings, if applicable")
 	fs.String(PublicIPResolutionServiceKey, "", "Only acceptable values are 'ifconfigco', 'opendns' or 'ifconfigme'. When provided, the node will use that service to periodically resolve/update its public IP")
 
@@ -356,6 +355,14 @@ func addNodeFlags(fs *flag.FlagSet) {
 	fs.Float64(DiskVdrAllocKey, 1000*units.GiB, "Maximum number of disk reads/writes per second to allocate for use by validators. Must be > 0")
 	fs.Float64(DiskMaxNonVdrUsageKey, 1000*units.GiB, "Number of disk reads/writes per second that, if fully utilized, will rate limit all non-validators. Must be >= 0")
 	fs.Float64(DiskMaxNonVdrNodeUsageKey, 1000*units.GiB, "Maximum number of disk reads/writes per second that a non-validator can utilize. Must be >= 0")
+
+	// Opentelemetry tracing
+	fs.Bool(TracingEnabledKey, false, "If true, enable opentelemetry tracing")
+	fs.String(TracingExporterTypeKey, trace.GRPC.String(), fmt.Sprintf("Type of exporter to use for tracing. Options are [%s, %s]", trace.GRPC, trace.HTTP))
+	fs.String(TracingEndpointKey, "localhost:4317", "The endpoint to send trace data to")
+	fs.Bool(TracingInsecureKey, true, "If true, don't use TLS when sending trace data")
+	fs.Float64(TracingSampleRateKey, 0.1, "The fraction of traces to sample. If >= 1, always sample. If <= 0, never sample")
+	// TODO add flag to take in headers to send from exporter
 }
 
 // BuildFlagSet returns a complete set of flags for avalanchego

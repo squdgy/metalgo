@@ -9,7 +9,7 @@ import (
 	"github.com/MetalBlockchain/metalgo/utils/rpc"
 )
 
-var _ StaticClient = &staticClient{}
+var _ StaticClient = (*staticClient)(nil)
 
 // StaticClient for interacting with the AVM static api
 type StaticClient interface {
@@ -25,13 +25,12 @@ type staticClient struct {
 // NewClient returns an AVM client for interacting with the avm static api
 func NewStaticClient(uri string) StaticClient {
 	return &staticClient{requester: rpc.NewEndpointRequester(
-		uri+"/ext/vm/avm",
-		"avm",
+		uri + "/ext/vm/avm",
 	)}
 }
 
 func (c *staticClient) BuildGenesis(ctx context.Context, args *BuildGenesisArgs, options ...rpc.Option) (resp *BuildGenesisReply, err error) {
 	resp = &BuildGenesisReply{}
-	err = c.requester.SendRequest(ctx, "buildGenesis", args, resp, options...)
+	err = c.requester.SendRequest(ctx, "avm.buildGenesis", args, resp, options...)
 	return resp, err
 }

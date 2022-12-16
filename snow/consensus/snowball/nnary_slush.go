@@ -9,7 +9,7 @@ import (
 	"github.com/MetalBlockchain/metalgo/ids"
 )
 
-var _ NnarySlush = &nnarySlush{}
+var _ NnarySlush = (*nnarySlush)(nil)
 
 // nnarySlush is the implementation of a slush instance with an unbounded number
 // of choices

@@ -12,8 +12,8 @@ import (
 )
 
 var (
-	_ BanffBlock = &BanffAbortBlock{}
-	_ Block      = &ApricotAbortBlock{}
+	_ BanffBlock = (*BanffAbortBlock)(nil)
+	_ Block      = (*ApricotAbortBlock)(nil)
 )
 
 type BanffAbortBlock struct {
@@ -55,6 +55,9 @@ func (*ApricotAbortBlock) InitCtx(ctx *snow.Context) {}
 func (*ApricotAbortBlock) Txs() []*txs.Tx          { return nil }
 func (b *ApricotAbortBlock) Visit(v Visitor) error { return v.ApricotAbortBlock(b) }
 
+// NewApricotAbortBlock is kept for testing purposes only.
+// Following Banff activation and subsequent code cleanup, Apricot Abort blocks
+// should be only verified (upon bootstrap), never created anymore
 func NewApricotAbortBlock(
 	parentID ids.ID,
 	height uint64,

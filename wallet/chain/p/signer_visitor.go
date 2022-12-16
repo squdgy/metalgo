@@ -13,6 +13,7 @@ import (
 	"github.com/MetalBlockchain/metalgo/ids"
 	"github.com/MetalBlockchain/metalgo/utils/constants"
 	"github.com/MetalBlockchain/metalgo/utils/crypto"
+	"github.com/MetalBlockchain/metalgo/utils/crypto/keychain"
 	"github.com/MetalBlockchain/metalgo/utils/hashing"
 	"github.com/MetalBlockchain/metalgo/vms/components/avax"
 	"github.com/MetalBlockchain/metalgo/vms/components/verify"
@@ -22,7 +23,7 @@ import (
 )
 
 var (
-	_ txs.Visitor = &signerVisitor{}
+	_ txs.Visitor = (*signerVisitor)(nil)
 
 	errUnsupportedTxType     = errors.New("unsupported tx type")
 	errUnknownInputType      = errors.New("unknown input type")
@@ -36,7 +37,7 @@ var (
 
 // signerVisitor handles signing transactions for the signer
 type signerVisitor struct {
-	kc      *secp256k1fx.Keychain
+	kc      keychain.Keychain
 	backend SignerBackend
 	ctx     stdcontext.Context
 	tx      *txs.Tx
@@ -158,8 +159,8 @@ func (s *signerVisitor) AddPermissionlessDelegatorTx(tx *txs.AddPermissionlessDe
 	return s.sign(s.tx, txSigners)
 }
 
-func (s *signerVisitor) getSigners(sourceChainID ids.ID, ins []*avax.TransferableInput) ([][]*crypto.PrivateKeySECP256K1R, error) {
-	txSigners := make([][]*crypto.PrivateKeySECP256K1R, len(ins))
+func (s *signerVisitor) getSigners(sourceChainID ids.ID, ins []*avax.TransferableInput) ([][]keychain.Signer, error) {
+	txSigners := make([][]keychain.Signer, len(ins))
 	for credIndex, transferInput := range ins {
 		inIntf := transferInput.In
 		if stakeableIn, ok := inIntf.(*stakeable.LockIn); ok {
@@ -171,7 +172,7 @@ func (s *signerVisitor) getSigners(sourceChainID ids.ID, ins []*avax.Transferabl
 			return nil, errUnknownInputType
 		}
 
-		inputSigners := make([]*crypto.PrivateKeySECP256K1R, len(input.SigIndices))
+		inputSigners := make([]keychain.Signer, len(input.SigIndices))
 		txSigners[credIndex] = inputSigners
 
 		utxoID := transferInput.InputID()
@@ -213,7 +214,7 @@ func (s *signerVisitor) getSigners(sourceChainID ids.ID, ins []*avax.Transferabl
 	return txSigners, nil
 }
 
-func (s *signerVisitor) getSubnetSigners(subnetID ids.ID, subnetAuth verify.Verifiable) ([]*crypto.PrivateKeySECP256K1R, error) {
+func (s *signerVisitor) getSubnetSigners(subnetID ids.ID, subnetAuth verify.Verifiable) ([]keychain.Signer, error) {
 	subnetInput, ok := subnetAuth.(*secp256k1fx.Input)
 	if !ok {
 		return nil, errUnknownSubnetAuthType
@@ -237,7 +238,7 @@ func (s *signerVisitor) getSubnetSigners(subnetID ids.ID, subnetAuth verify.Veri
 		return nil, errUnknownOwnerType
 	}
 
-	authSigners := make([]*crypto.PrivateKeySECP256K1R, len(subnetInput.SigIndices))
+	authSigners := make([]keychain.Signer, len(subnetInput.SigIndices))
 	for sigIndex, addrIndex := range subnetInput.SigIndices {
 		if addrIndex >= uint32(len(owner.Addrs)) {
 			return nil, errInvalidUTXOSigIndex
@@ -255,7 +256,7 @@ func (s *signerVisitor) getSubnetSigners(subnetID ids.ID, subnetAuth verify.Veri
 	return authSigners, nil
 }
 
-func (s *signerVisitor) sign(tx *txs.Tx, txSigners [][]*crypto.PrivateKeySECP256K1R) error {
+func (s *signerVisitor) sign(tx *txs.Tx, txSigners [][]keychain.Signer) error {
 	unsignedBytes, err := txs.Codec.Marshal(txs.Version, &tx.Unsigned)
 	if err != nil {
 		return fmt.Errorf("couldn't marshal unsigned tx: %w", err)
@@ -288,7 +289,7 @@ func (s *signerVisitor) sign(tx *txs.Tx, txSigners [][]*crypto.PrivateKeySECP256
 				// transaction. However, we can attempt to partially sign it.
 				continue
 			}
-			addr := signer.PublicKey().Address()
+			addr := signer.Address()
 			if sig := cred.Sigs[sigIndex]; sig != emptySig {
 				// If this signature has already been populated, we can just
 				// copy the needed signature for the future.

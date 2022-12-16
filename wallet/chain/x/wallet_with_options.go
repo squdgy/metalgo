@@ -12,7 +12,7 @@ import (
 	"github.com/MetalBlockchain/metalgo/wallet/subnet/primary/common"
 )
 
-var _ Wallet = &walletWithOptions{}
+var _ Wallet = (*walletWithOptions)(nil)
 
 func NewWalletWithOptions(
 	wallet Wallet,

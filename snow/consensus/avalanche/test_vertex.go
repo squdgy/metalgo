@@ -9,7 +9,7 @@ import (
 	"github.com/MetalBlockchain/metalgo/snow/consensus/snowstorm"
 )
 
-var _ Vertex = &TestVertex{}
+var _ Vertex = (*TestVertex)(nil)
 
 // TestVertex is a useful test vertex
 type TestVertex struct {

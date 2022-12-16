@@ -14,7 +14,7 @@ import (
 	"github.com/MetalBlockchain/metalgo/vms/platformvm/blocks"
 )
 
-var _ Metrics = &metrics{}
+var _ Metrics = (*metrics)(nil)
 
 type Metrics interface {
 	metric.APIInterceptor

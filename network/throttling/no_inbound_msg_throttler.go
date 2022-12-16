@@ -9,7 +9,7 @@ import (
 	"github.com/MetalBlockchain/metalgo/ids"
 )
 
-var _ InboundMsgThrottler = &noInboundMsgThrottler{}
+var _ InboundMsgThrottler = (*noInboundMsgThrottler)(nil)
 
 // Returns an InboundMsgThrottler where Acquire() always returns immediately.
 func NewNoInboundThrottler() InboundMsgThrottler {

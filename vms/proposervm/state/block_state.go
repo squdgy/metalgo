@@ -22,7 +22,7 @@ const blockCacheSize = 8192
 var (
 	errBlockWrongVersion = errors.New("wrong version")
 
-	_ BlockState = &blockState{}
+	_ BlockState = (*blockState)(nil)
 )
 
 type BlockState interface {
@@ -96,7 +96,7 @@ func (s *blockState) GetBlock(blkID ids.ID) (block.Block, choices.Status, error)
 	}
 
 	// The key was in the database
-	blk, _, err := block.Parse(blkWrapper.Block)
+	blk, err := block.Parse(blkWrapper.Block)
 	if err != nil {
 		return nil, choices.Unknown, err
 	}

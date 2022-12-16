@@ -14,7 +14,7 @@ import (
 	"github.com/MetalBlockchain/metalgo/vms/proposervm/block"
 )
 
-var _ Block = &preForkBlock{}
+var _ Block = (*preForkBlock)(nil)
 
 type preForkBlock struct {
 	snowman.Block
@@ -200,7 +200,7 @@ func (b *preForkBlock) buildChild() (Block, error) {
 		return nil, err
 	}
 
-	statelessBlock, err := block.BuildUnsignedApricot(
+	statelessBlock, err := block.BuildUnsigned(
 		parentID,
 		newTimestamp,
 		pChainHeight,

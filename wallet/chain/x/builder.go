@@ -24,7 +24,7 @@ var (
 	errNoChangeAddress   = errors.New("no possible change address")
 	errInsufficientFunds = errors.New("insufficient funds")
 
-	_ Builder = &builder{}
+	_ Builder = (*builder)(nil)
 )
 
 // Builder provides a convenient interface for building unsigned X-chain
@@ -585,7 +585,7 @@ func (b *builder) spend(
 		})
 
 		// Burn any value that should be burned
-		amountToBurn := math.Min64(
+		amountToBurn := math.Min(
 			remainingAmountToBurn, // Amount we still need to burn
 			out.Amt,               // Amount available to burn
 		)

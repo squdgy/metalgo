@@ -9,7 +9,7 @@ import (
 	"github.com/MetalBlockchain/metalgo/ids"
 )
 
-var _ NnarySnowflake = &nnarySnowflake{}
+var _ NnarySnowflake = (*nnarySnowflake)(nil)
 
 // nnarySnowflake is the implementation of a snowflake instance with an
 // unbounded number of choices

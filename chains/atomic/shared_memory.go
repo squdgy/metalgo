@@ -9,7 +9,7 @@ import (
 	"github.com/MetalBlockchain/metalgo/ids"
 )
 
-var _ SharedMemory = &sharedMemory{}
+var _ SharedMemory = (*sharedMemory)(nil)
 
 type Requests struct {
 	RemoveRequests [][]byte   `serialize:"true"`

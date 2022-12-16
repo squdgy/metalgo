@@ -19,15 +19,14 @@ import (
 
 var (
 	errAssetIDMismatch = errors.New("asset IDs in the input don't match the utxo")
-	errWrongAssetID    = errors.New("asset ID must be AVAX in the atomic tx")
 	errMissingUTXO     = errors.New("missing utxo")
 	errUnknownTx       = errors.New("transaction is unknown")
 	errRejectedTx      = errors.New("transaction is rejected")
 )
 
 var (
-	_ snowstorm.Tx    = &UniqueTx{}
-	_ cache.Evictable = &UniqueTx{}
+	_ snowstorm.Tx    = (*UniqueTx)(nil)
+	_ cache.Evictable = (*UniqueTx)(nil)
 )
 
 // UniqueTx provides a de-duplication service for txs. This only provides a

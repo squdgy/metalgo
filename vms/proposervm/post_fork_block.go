@@ -10,7 +10,7 @@ import (
 	"github.com/MetalBlockchain/metalgo/vms/proposervm/block"
 )
 
-var _ PostForkBlock = &postForkBlock{}
+var _ PostForkBlock = (*postForkBlock)(nil)
 
 type postForkBlock struct {
 	block.SignedBlock

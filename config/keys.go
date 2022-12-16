@@ -38,8 +38,6 @@ const (
 	DBConfigFileKey                                    = "db-config-file"
 	DBConfigContentKey                                 = "db-config-file-content"
 	PublicIPKey                                        = "public-ip"
-	DynamicUpdateDurationKey                           = "dynamic-update-duration"
-	DynamicPublicIPResolverKey                         = "dynamic-public-ip"
 	PublicIPResolutionFreqKey                          = "public-ip-resolution-frequency"
 	PublicIPResolutionServiceKey                       = "public-ip-resolution-service"
 	InboundConnUpgradeThrottlerCooldownKey             = "inbound-connection-throttling-cooldown"
@@ -197,4 +195,9 @@ const (
 	UptimeMetricFreqKey                                = "uptime-metric-freq"
 	VMAliasesFileKey                                   = "vm-aliases-file"
 	VMAliasesContentKey                                = "vm-aliases-file-content"
+	TracingEnabledKey                                  = "tracing-enabled"
+	TracingEndpointKey                                 = "tracing-endpoint"
+	TracingInsecureKey                                 = "tracing-insecure"
+	TracingSampleRateKey                               = "tracing-sample-rate"
+	TracingExporterTypeKey                             = "tracing-exporter-type"
 )

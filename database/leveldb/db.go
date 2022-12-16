@@ -63,9 +63,9 @@ const (
 )
 
 var (
-	_ database.Database = &Database{}
-	_ database.Batch    = &batch{}
-	_ database.Iterator = &iter{}
+	_ database.Database = (*Database)(nil)
+	_ database.Batch    = (*batch)(nil)
+	_ database.Iterator = (*iter)(nil)
 )
 
 // Database is a persistent key-value store. Apart from basic data storage
@@ -199,7 +199,7 @@ func New(file string, configBytes []byte, log logging.Logger, namespace string, 
 		}
 	}
 
-	log.Info("creating new leveldb",
+	log.Info("creating leveldb",
 		zap.Reflect("config", parsedConfig),
 	)
 

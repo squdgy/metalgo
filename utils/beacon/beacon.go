@@ -8,7 +8,7 @@ import (
 	"github.com/MetalBlockchain/metalgo/utils/ips"
 )
 
-var _ Beacon = &beacon{}
+var _ Beacon = (*beacon)(nil)
 
 type Beacon interface {
 	ID() ids.NodeID

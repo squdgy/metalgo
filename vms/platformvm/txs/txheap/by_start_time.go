@@ -9,7 +9,7 @@ import (
 	"github.com/MetalBlockchain/metalgo/vms/platformvm/txs"
 )
 
-var _ TimedHeap = &byStartTime{}
+var _ TimedHeap = (*byStartTime)(nil)
 
 type TimedHeap interface {
 	Heap

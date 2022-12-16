@@ -4,6 +4,7 @@
 package snowstorm
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -21,8 +22,8 @@ import (
 )
 
 var (
-	_ Factory   = &DirectedFactory{}
-	_ Consensus = &Directed{}
+	_ Factory   = (*DirectedFactory)(nil)
+	_ Consensus = (*Directed)(nil)
 )
 
 // DirectedFactory implements Factory by returning a directed struct
@@ -215,10 +216,12 @@ func (dg *Directed) shouldVote(tx Tx) (bool, error) {
 
 	// Notify those listening for accepted txs if the transaction has a binary
 	// format.
-	if bytes := tx.Bytes(); len(bytes) > 0 {
+	txBytes := tx.Bytes()
+	txBytesLen := len(txBytes)
+	if txBytesLen > 0 {
 		// Note that DecisionAcceptor.Accept must be called before tx.Accept to
 		// honor Acceptor.Accept's invariant.
-		if err := dg.ctx.DecisionAcceptor.Accept(dg.ctx, txID, bytes); err != nil {
+		if err := dg.ctx.DecisionAcceptor.Accept(dg.ctx, txID, txBytes); err != nil {
 			return false, err
 		}
 	}
@@ -228,7 +231,7 @@ func (dg *Directed) shouldVote(tx Tx) (bool, error) {
 	}
 
 	// Notify the metrics that this transaction was accepted.
-	dg.Latency.Accepted(txID, dg.pollNumber)
+	dg.Latency.Accepted(txID, dg.pollNumber, txBytesLen)
 	return false, nil
 }
 
@@ -656,10 +659,12 @@ func (dg *Directed) acceptTx(tx Tx) error {
 
 	// Notify those listening that this tx has been accepted if the transaction
 	// has a binary format.
-	if bytes := tx.Bytes(); len(bytes) > 0 {
+	txBytes := tx.Bytes()
+	txBytesLen := len(txBytes)
+	if txBytesLen > 0 {
 		// Note that DecisionAcceptor.Accept must be called before tx.Accept to
 		// honor Acceptor.Accept's invariant.
-		if err := dg.ctx.DecisionAcceptor.Accept(dg.ctx, txID, bytes); err != nil {
+		if err := dg.ctx.DecisionAcceptor.Accept(dg.ctx, txID, txBytes); err != nil {
 			return err
 		}
 	}
@@ -673,18 +678,18 @@ func (dg *Directed) acceptTx(tx Tx) error {
 		dg.ctx.Log.Info("whitelist tx accepted",
 			zap.Stringer("txID", txID),
 		)
-		dg.whitelistTxLatency.Accepted(txID, dg.pollNumber)
+		dg.whitelistTxLatency.Accepted(txID, dg.pollNumber, txBytesLen)
 	} else {
 		// just regular tx
-		dg.Latency.Accepted(txID, dg.pollNumber)
+		dg.Latency.Accepted(txID, dg.pollNumber, txBytesLen)
 	}
 
 	// If there is a tx that was accepted pending on this tx, the ancestor
 	// should be notified that it doesn't need to block on this tx anymore.
-	dg.pendingAccept.Fulfill(txID)
+	dg.pendingAccept.Fulfill(context.TODO(), txID)
 	// If there is a tx that was issued pending on this tx, the ancestor tx
 	// doesn't need to be rejected because of this tx.
-	dg.pendingReject.Abandon(txID)
+	dg.pendingReject.Abandon(context.TODO(), txID)
 
 	return nil
 }
@@ -708,17 +713,17 @@ func (dg *Directed) rejectTx(tx Tx) error {
 		dg.ctx.Log.Info("whitelist tx rejected",
 			zap.Stringer("txID", txID),
 		)
-		dg.whitelistTxLatency.Rejected(txID, dg.pollNumber)
+		dg.whitelistTxLatency.Rejected(txID, dg.pollNumber, len(tx.Bytes()))
 	} else {
-		dg.Latency.Rejected(txID, dg.pollNumber)
+		dg.Latency.Rejected(txID, dg.pollNumber, len(tx.Bytes()))
 	}
 
 	// If there is a tx that was accepted pending on this tx, the ancestor tx
 	// can't be accepted.
-	dg.pendingAccept.Abandon(txID)
+	dg.pendingAccept.Abandon(context.TODO(), txID)
 	// If there is a tx that was issued pending on this tx, the ancestor tx must
 	// be rejected.
-	dg.pendingReject.Fulfill(txID)
+	dg.pendingReject.Fulfill(context.TODO(), txID)
 	return nil
 }
 
@@ -752,7 +757,7 @@ func (dg *Directed) registerAcceptor(tx Tx) error {
 	// This ensures that virtuous txs built on top of rogue txs don't force the
 	// node to treat the rogue tx as virtuous.
 	dg.virtuousVoting.Remove(txID)
-	dg.pendingAccept.Register(toAccept)
+	dg.pendingAccept.Register(context.TODO(), toAccept)
 	return nil
 }
 
@@ -782,6 +787,6 @@ func (dg *Directed) registerRejector(tx Tx) error {
 	}
 
 	// Register these dependencies
-	dg.pendingReject.Register(toReject)
+	dg.pendingReject.Register(context.TODO(), toReject)
 	return nil
 }

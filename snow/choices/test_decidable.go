@@ -9,7 +9,7 @@ import (
 	"github.com/MetalBlockchain/metalgo/ids"
 )
 
-var _ Decidable = &TestDecidable{}
+var _ Decidable = (*TestDecidable)(nil)
 
 // TestDecidable is a test Decidable
 type TestDecidable struct {

@@ -9,7 +9,7 @@ import (
 	"github.com/MetalBlockchain/metalgo/version"
 )
 
-var _ router.ExternalHandler = &testHandler{}
+var _ router.ExternalHandler = (*testHandler)(nil)
 
 type testHandler struct {
 	router.InboundHandler

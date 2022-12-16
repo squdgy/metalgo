@@ -30,7 +30,7 @@ import (
 var (
 	errClosed = errors.New("closed")
 
-	_ Peer = &peer{}
+	_ Peer = (*peer)(nil)
 )
 
 // Peer encapsulates all of the functionality required to send and receive
@@ -331,7 +331,7 @@ func (p *peer) readMessages() {
 		}
 
 		// Parse the message length
-		msgLen, isProto, err := readMsgLen(msgLenBytes, constants.DefaultMaxMessageSize)
+		msgLen, err := readMsgLen(msgLenBytes, constants.DefaultMaxMessageSize)
 		if err != nil {
 			p.Log.Verbo("error reading message length",
 				zap.Stringer("nodeID", p.id),
@@ -360,7 +360,7 @@ func (p *peer) readMessages() {
 		)
 
 		// If the peer is shutting down, there's no need to read the message.
-		if p.onClosingCtx.Err() != nil {
+		if err := p.onClosingCtx.Err(); err != nil {
 			onFinishedHandling()
 			return
 		}
@@ -400,12 +400,7 @@ func (p *peer) readMessages() {
 		)
 
 		// Parse the message
-		var msg message.InboundMessage
-		if isProto {
-			msg, err = p.MessageCreatorWithProto.Parse(msgBytes, p.id, onFinishedHandling)
-		} else {
-			msg, err = p.MessageCreator.Parse(msgBytes, p.id, onFinishedHandling)
-		}
+		msg, err := p.MessageCreator.Parse(msgBytes, p.id, onFinishedHandling)
 		if err != nil {
 			p.Log.Verbo("failed to parse message",
 				zap.Stringer("nodeID", p.id),
@@ -492,13 +487,11 @@ func (p *peer) writeMessage(writer io.Writer, msg message.OutboundMessage) {
 			zap.Stringer("nodeID", p.id),
 			zap.Error(err),
 		)
-		msg.DecRef()
 		return
 	}
 
 	msgLen := uint32(len(msgBytes))
-	isProto := msg.IsProto()
-	msgLenBytes, err := writeMsgLen(msgLen, isProto, constants.DefaultMaxMessageSize)
+	msgLenBytes, err := writeMsgLen(msgLen, constants.DefaultMaxMessageSize)
 	if err != nil {
 		p.Log.Verbo("error writing message length",
 			zap.Stringer("nodeID", p.id),
@@ -514,7 +507,6 @@ func (p *peer) writeMessage(writer io.Writer, msg message.OutboundMessage) {
 			zap.Stringer("nodeID", p.id),
 			zap.Error(err),
 		)
-		msg.DecRef()
 		return
 	}
 
@@ -556,7 +548,7 @@ func (p *peer) sendPings() {
 				}
 			}
 
-			pingMessage, err := p.Config.GetMessageCreator().Ping()
+			pingMessage, err := p.Config.MessageCreator.Ping()
 			if err != nil {
 				p.Log.Error("failed to create message",
 					zap.Stringer("messageOp", message.Ping),
@@ -604,7 +596,7 @@ func (p *peer) handle(msg message.InboundMessage) {
 	}
 
 	// Consensus and app-level messages
-	p.Router.HandleInbound(msg)
+	p.Router.HandleInbound(context.Background(), msg)
 }
 
 func (p *peer) handlePing(_ message.InboundMessage) {
@@ -892,7 +884,6 @@ func (p *peer) handlePeerList(msg message.InboundMessage) {
 		return
 	}
 	ips := ipsIntf.([]ips.ClaimedIPPort)
-
 	for _, ip := range ips {
 		if !p.Network.Track(ip) {
 			p.Metrics.NumUselessPeerListBytes.Add(float64(ip.BytesLen()))

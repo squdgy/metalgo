@@ -9,7 +9,7 @@ import (
 	safemath "github.com/MetalBlockchain/metalgo/utils/math"
 )
 
-var _ Weighted = &weightedArray{}
+var _ Weighted = (*weightedArray)(nil)
 
 type weightedArrayElement struct {
 	cumulativeWeight uint64

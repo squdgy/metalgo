@@ -7,7 +7,7 @@ import (
 	"github.com/MetalBlockchain/metalgo/ids"
 )
 
-var _ StakerIterator = &maskedIterator{}
+var _ StakerIterator = (*maskedIterator)(nil)
 
 type maskedIterator struct {
 	parentIterator StakerIterator

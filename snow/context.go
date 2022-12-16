@@ -16,6 +16,7 @@ import (
 	"github.com/MetalBlockchain/metalgo/ids"
 	"github.com/MetalBlockchain/metalgo/snow/validators"
 	"github.com/MetalBlockchain/metalgo/utils"
+	"github.com/MetalBlockchain/metalgo/utils/crypto/bls"
 	"github.com/MetalBlockchain/metalgo/utils/logging"
 )
 
@@ -55,6 +56,7 @@ type Context struct {
 	ValidatorState    validators.State  // interface for P-Chain validators
 	StakingLeafSigner crypto.Signer     // block signer
 	StakingCertLeaf   *x509.Certificate // block certificate
+	StakingBLSKey     *bls.SecretKey    // bls signer
 }
 
 // Expose gatherer interface for unit testing.

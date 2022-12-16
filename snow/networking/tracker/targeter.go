@@ -10,7 +10,7 @@ import (
 	"github.com/MetalBlockchain/metalgo/snow/validators"
 )
 
-var _ Targeter = &targeter{}
+var _ Targeter = (*targeter)(nil)
 
 type Targeter interface {
 	// Returns the target usage of the given node.

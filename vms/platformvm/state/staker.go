@@ -13,7 +13,7 @@ import (
 	"github.com/MetalBlockchain/metalgo/vms/platformvm/txs"
 )
 
-var _ btree.Item = &Staker{}
+var _ btree.Item = (*Staker)(nil)
 
 // StakerIterator defines an interface for iterating over a set of stakers.
 type StakerIterator interface {

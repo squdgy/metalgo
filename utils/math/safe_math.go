@@ -9,7 +9,7 @@ import (
 
 	"golang.org/x/exp/constraints"
 
-	"github.com/ava-labs/avalanchego/utils"
+	"github.com/MetalBlockchain/metalgo/utils"
 )
 
 var errOverflow = errors.New("overflow occurred")

@@ -6,7 +6,7 @@ package buffer
 import (
 	"sync"
 
-	"github.com/ava-labs/avalanchego/utils"
+	"github.com/MetalBlockchain/metalgo/utils"
 )
 
 var _ BlockingDeque[int] = (*unboundedBlockingDeque[int])(nil)

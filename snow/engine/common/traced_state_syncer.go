@@ -3,7 +3,7 @@
 
 package common
 
-import "github.com/ava-labs/avalanchego/trace"
+import "github.com/MetalBlockchain/metalgo/trace"
 
 var _ StateSyncer = (*tracedStateSyncer)(nil)
 

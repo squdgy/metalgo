@@ -19,12 +19,11 @@ import (
 )
 
 const (
-	Header = `     _____               .__                       .__
-    /  _  \___  _______  |  | _____    ____   ____ |  |__   ____    ,_ o
-   /  /_\  \  \/ /\__  \ |  | \__  \  /    \_/ ___\|  |  \_/ __ \   / //\,
-  /    |    \   /  / __ \|  |__/ __ \|   |  \  \___|   Y  \  ___/    \>> |
-  \____|__  /\_/  (____  /____(____  /___|  /\___  >___|  /\___  >    \\
-          \/           \/          \/     \/     \/     \/     \/`
+	Header = `        ███    ███ ███████ ████████  █████  ██      
+	████  ████ ██         ██    ██   ██ ██      
+	██ ████ ██ █████      ██    ███████ ██      
+	██  ██  ██ ██         ██    ██   ██ ██      
+	██      ██ ███████    ██    ██   ██ ███████`
 )
 
 var (
@@ -83,11 +82,6 @@ func (p *process) Start() error {
 		log.Warn("sybil control is not enforced",
 			zap.String("reason", "staking is disabled"),
 		)
-	}
-
-	// Track if assertions should be executed
-	if p.config.LoggingConfig.Assertions {
-		log.Debug("assertions are enabled. This may slow down execution")
 	}
 
 	// TODO move this to config

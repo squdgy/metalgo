@@ -6,9 +6,9 @@ package gteleporter
 import (
 	"context"
 
-	"github.com/ava-labs/avalanchego/vms/platformvm/teleporter"
+	"github.com/MetalBlockchain/metalgo/vms/platformvm/teleporter"
 
-	pb "github.com/ava-labs/avalanchego/proto/pb/teleporter"
+	pb "github.com/MetalBlockchain/metalgo/proto/pb/teleporter"
 )
 
 var _ teleporter.Signer = (*Client)(nil)

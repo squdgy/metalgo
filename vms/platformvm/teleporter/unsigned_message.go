@@ -4,7 +4,7 @@
 package teleporter
 
 import (
-	"github.com/ava-labs/avalanchego/ids"
+	"github.com/MetalBlockchain/metalgo/ids"
 )
 
 // UnsignedMessage defines the standard format for an unsigned Teleporter

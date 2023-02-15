@@ -6,9 +6,9 @@ package poll
 import (
 	"fmt"
 
-	"github.com/ava-labs/avalanchego/ids"
+	"github.com/MetalBlockchain/metalgo/ids"
 
-	sets "github.com/ava-labs/avalanchego/utils/set"
+	sets "github.com/MetalBlockchain/metalgo/utils/set"
 )
 
 var (

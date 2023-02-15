@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ava-labs/avalanchego/utils/ips"
+	"github.com/MetalBlockchain/metalgo/utils/ips"
 )
 
 func init() {

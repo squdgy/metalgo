@@ -15,6 +15,8 @@ import (
 
 	gomath "math"
 
+	"github.com/pires/go-proxyproto"
+
 	"github.com/prometheus/client_golang/prometheus"
 
 	"go.uber.org/zap"
@@ -27,6 +29,7 @@ import (
 	"github.com/MetalBlockchain/metalgo/network/dialer"
 	"github.com/MetalBlockchain/metalgo/network/peer"
 	"github.com/MetalBlockchain/metalgo/network/throttling"
+	"github.com/MetalBlockchain/metalgo/proto/pb/p2p"
 	"github.com/MetalBlockchain/metalgo/snow/networking/router"
 	"github.com/MetalBlockchain/metalgo/snow/networking/sender"
 	"github.com/MetalBlockchain/metalgo/snow/validators"
@@ -38,8 +41,6 @@ import (
 	"github.com/MetalBlockchain/metalgo/utils/set"
 	"github.com/MetalBlockchain/metalgo/utils/wrappers"
 	"github.com/MetalBlockchain/metalgo/version"
-
-	p2ppb "github.com/MetalBlockchain/metalgo/proto/pb/p2p"
 )
 
 const (
@@ -55,8 +56,10 @@ var (
 
 	errMissingPrimaryValidators = errors.New("missing primary validator set")
 	errNotValidator             = errors.New("node is not a validator")
-	errNotWhiteListed           = errors.New("subnet is not whitelisted")
+	errNotTracked               = errors.New("subnet is not tracked")
 	errSubnetNotExist           = errors.New("subnet does not exist")
+	errExpectedProxy            = errors.New("expected proxy")
+	errExpectedTCPProtocol      = errors.New("expected TCP protocol")
 )
 
 // Network defines the functionality of the networking library.
@@ -190,6 +193,28 @@ func NewNetwork(
 		return nil, errMissingPrimaryValidators
 	}
 
+	if config.ProxyEnabled {
+		// Wrap the listener to process the proxy header.
+		listener = &proxyproto.Listener{
+			Listener: listener,
+			Policy: func(net.Addr) (proxyproto.Policy, error) {
+				// Do not perform any fuzzy matching, the header must be
+				// provided.
+				return proxyproto.REQUIRE, nil
+			},
+			ValidateHeader: func(h *proxyproto.Header) error {
+				if !h.Command.IsProxy() {
+					return errExpectedProxy
+				}
+				if h.TransportProtocol != proxyproto.TCPv4 && h.TransportProtocol != proxyproto.TCPv6 {
+					return errExpectedTCPProtocol
+				}
+				return nil
+			},
+			ReadHeaderTimeout: config.ProxyReadHeaderTimeout,
+		}
+	}
+
 	inboundMsgThrottler, err := throttling.NewInboundMsgThrottler(
 		log,
 		config.Namespace,
@@ -220,7 +245,7 @@ func NewNetwork(
 		return nil, fmt.Errorf("initializing peer metrics failed with: %w", err)
 	}
 
-	metrics, err := newMetrics(config.Namespace, metricsRegisterer, config.WhitelistedSubnets)
+	metrics, err := newMetrics(config.Namespace, metricsRegisterer, config.TrackedSubnets)
 	if err != nil {
 		return nil, fmt.Errorf("initializing network metrics failed with: %w", err)
 	}
@@ -236,7 +261,7 @@ func NewNetwork(
 		Network:              nil, // This is set below.
 		Router:               router,
 		VersionCompatibility: version.GetCompatibility(config.NetworkID),
-		MySubnets:            config.WhitelistedSubnets,
+		MySubnets:            config.TrackedSubnets,
 		Beacons:              config.Beacons,
 		NetworkID:            config.NetworkID,
 		PingFrequency:        config.PingFrequency,
@@ -342,25 +367,28 @@ func (n *network) HealthCheck(context.Context) (interface{}, error) {
 	details[SendFailRateKey] = sendFailRate
 	n.metrics.sendFailRate.Set(sendFailRate)
 
-	// Network layer is unhealthy
-	if !healthy {
-		var errorReasons []string
-		if !isConnected {
-			errorReasons = append(errorReasons, fmt.Sprintf("not connected to a minimum of %d peer(s) only %d", n.config.HealthConfig.MinConnectedPeers, connectedTo))
-		}
-		if !wasMsgReceivedRecently {
-			errorReasons = append(errorReasons, fmt.Sprintf("no messages from network received in %s > %s", timeSinceLastMsgReceived, n.config.HealthConfig.MaxTimeSinceMsgReceived))
-		}
-		if !wasMsgSentRecently {
-			errorReasons = append(errorReasons, fmt.Sprintf("no messages from network sent in %s > %s", timeSinceLastMsgSent, n.config.HealthConfig.MaxTimeSinceMsgSent))
-		}
-		if !isMsgFailRate {
-			errorReasons = append(errorReasons, fmt.Sprintf("messages failure send rate %g > %g", sendFailRate, n.config.HealthConfig.MaxSendFailRate))
-		}
+	// emit metrics about the lifetime of peer connections
+	n.metrics.updatePeerConnectionLifetimeMetrics()
 
-		return details, fmt.Errorf("network layer is unhealthy reason: %s", strings.Join(errorReasons, ", "))
+	// Network layer is healthy
+	if healthy || !n.config.HealthConfig.Enabled {
+		return details, nil
 	}
-	return details, nil
+
+	var errorReasons []string
+	if !isConnected {
+		errorReasons = append(errorReasons, fmt.Sprintf("not connected to a minimum of %d peer(s) only %d", n.config.HealthConfig.MinConnectedPeers, connectedTo))
+	}
+	if !wasMsgReceivedRecently {
+		errorReasons = append(errorReasons, fmt.Sprintf("no messages from network received in %s > %s", timeSinceLastMsgReceived, n.config.HealthConfig.MaxTimeSinceMsgReceived))
+	}
+	if !wasMsgSentRecently {
+		errorReasons = append(errorReasons, fmt.Sprintf("no messages from network sent in %s > %s", timeSinceLastMsgSent, n.config.HealthConfig.MaxTimeSinceMsgSent))
+	}
+	if !isMsgFailRate {
+		errorReasons = append(errorReasons, fmt.Sprintf("messages failure send rate %g > %g", sendFailRate, n.config.HealthConfig.MaxSendFailRate))
+	}
+	return details, fmt.Errorf("network layer is unhealthy reason: %s", strings.Join(errorReasons, ", "))
 }
 
 // Connected is called after the peer finishes the handshake.
@@ -380,8 +408,8 @@ func (n *network) Connected(nodeID ids.NodeID) {
 	peerIP := peer.IP()
 	newIP := &ips.ClaimedIPPort{
 		Cert:      peer.Cert(),
-		IPPort:    peerIP.IP.IP,
-		Timestamp: peerIP.IP.Timestamp,
+		IPPort:    peerIP.IPPort,
+		Timestamp: peerIP.Timestamp,
 		Signature: peerIP.Signature,
 	}
 	prevIP, ok := n.peerIPs[nodeID]
@@ -430,7 +458,7 @@ func (n *network) AllowConnection(nodeID ids.NodeID) bool {
 		n.WantsConnection(nodeID)
 }
 
-func (n *network) Track(peerID ids.NodeID, claimedIPPorts []*ips.ClaimedIPPort) ([]*p2ppb.PeerAck, error) {
+func (n *network) Track(peerID ids.NodeID, claimedIPPorts []*ips.ClaimedIPPort) ([]*p2p.PeerAck, error) {
 	// Perform all signature verification and hashing before grabbing the peer
 	// lock.
 	// Note: Avoiding signature verification when the IP isn't needed is a
@@ -549,10 +577,10 @@ func (n *network) Track(peerID ids.NodeID, claimedIPPorts []*ips.ClaimedIPPort) 
 		return nil, nil
 	}
 
-	peerAcks := make([]*p2ppb.PeerAck, len(txIDsToAck))
+	peerAcks := make([]*p2p.PeerAck, len(txIDsToAck))
 	for i, txID := range txIDsToAck {
 		txID := txID
-		peerAcks[i] = &p2ppb.PeerAck{
+		peerAcks[i] = &p2p.PeerAck{
 			TxId: txID[:],
 			// By responding with the highest timestamp, not just the timestamp
 			// the peer provided us, we may be able to avoid some unnecessary
@@ -564,7 +592,7 @@ func (n *network) Track(peerID ids.NodeID, claimedIPPorts []*ips.ClaimedIPPort) 
 	return peerAcks, nil
 }
 
-func (n *network) MarkTracked(peerID ids.NodeID, ips []*p2ppb.PeerAck) error {
+func (n *network) MarkTracked(peerID ids.NodeID, ips []*p2p.PeerAck) error {
 	txIDs := make([]ids.ID, 0, len(ips))
 
 	n.peersLock.RLock()
@@ -659,7 +687,7 @@ func (n *network) Peers(peerID ids.NodeID) ([]ips.ClaimedIPPort, error) {
 		peerIP := n.peerIPs[validator.NodeID]
 		n.peersLock.RUnlock()
 		if !isConnected {
-			n.peerConfig.Log.Debug(
+			n.peerConfig.Log.Verbo(
 				"unable to find validator in connected peers",
 				zap.Stringer("nodeID", validator.NodeID),
 			)
@@ -703,34 +731,50 @@ func (n *network) Dispatch() error {
 			continue
 		}
 
-		// We pessimistically drop an incoming connection if the remote
-		// address is found in connectedIPs, myIPs, or peerAliasIPs.
-		// This protects our node from spending CPU cycles on TLS
-		// handshakes to upgrade connections from existing peers.
-		// Specifically, this can occur when one of our existing
-		// peers attempts to connect to one our IP aliases (that they
-		// aren't yet aware is an alias).
-		remoteAddr := conn.RemoteAddr().String()
-		ip, err := ips.ToIPPort(remoteAddr)
-		if err != nil {
-			errs.Add(fmt.Errorf("unable to convert remote address %s to IP: %w", remoteAddr, err))
-			break
-		}
+		// Note: listener.Accept is rate limited outside of this package, so a
+		// peer can not just arbitrarily spin up goroutines here.
+		go func() {
+			// We pessimistically drop an incoming connection if the remote
+			// address is found in connectedIPs, myIPs, or peerAliasIPs. This
+			// protects our node from spending CPU cycles on TLS handshakes to
+			// upgrade connections from existing peers. Specifically, this can
+			// occur when one of our existing peers attempts to connect to one
+			// our IP aliases (that they aren't yet aware is an alias).
+			//
+			// Note: Calling [RemoteAddr] with the Proxy protocol enabled may
+			// block for up to ProxyReadHeaderTimeout. Therefore, we ensure to
+			// call this function inside the go-routine, rather than the main
+			// accept loop.
+			remoteAddr := conn.RemoteAddr().String()
+			ip, err := ips.ToIPPort(remoteAddr)
+			if err != nil {
+				n.peerConfig.Log.Error("failed to parse remote address",
+					zap.String("peerIP", remoteAddr),
+					zap.Error(err),
+				)
+				_ = conn.Close()
+				return
+			}
 
-		if !n.inboundConnUpgradeThrottler.ShouldUpgrade(ip) {
-			n.peerConfig.Log.Debug("failed to upgrade connection",
-				zap.String("reason", "rate-limiting"),
+			if !n.inboundConnUpgradeThrottler.ShouldUpgrade(ip) {
+				n.peerConfig.Log.Debug("failed to upgrade connection",
+					zap.String("reason", "rate-limiting"),
+					zap.Stringer("peerIP", ip),
+				)
+				n.metrics.inboundConnRateLimited.Inc()
+				_ = conn.Close()
+				return
+			}
+			n.metrics.inboundConnAllowed.Inc()
+
+			n.peerConfig.Log.Verbo("starting to upgrade connection",
+				zap.String("direction", "inbound"),
 				zap.Stringer("peerIP", ip),
 			)
-			n.metrics.inboundConnRateLimited.Inc()
-			_ = conn.Close()
-			continue
-		}
-		n.metrics.inboundConnAllowed.Inc()
 
-		go func() {
 			if err := n.upgrade(conn, n.serverUpgrader); err != nil {
-				n.peerConfig.Log.Verbo("failed to upgrade inbound connection",
+				n.peerConfig.Log.Verbo("failed to upgrade connection",
+					zap.String("direction", "inbound"),
 					zap.Error(err),
 				)
 			}
@@ -956,8 +1000,8 @@ func (n *network) authenticateIPs(ips []*ips.ClaimedIPPort) ([]*ipAuth, error) {
 
 		// Verify signature if needed
 		signedIP := peer.SignedIP{
-			IP: peer.UnsignedIP{
-				IP:        ip.IPPort,
+			UnsignedIP: peer.UnsignedIP{
+				IPPort:    ip.IPPort,
 				Timestamp: ip.Timestamp,
 			},
 			Signature: ip.Signature,
@@ -1065,6 +1109,11 @@ func (n *network) dial(ctx context.Context, nodeID ids.NodeID, ip *trackedIP) {
 				continue
 			}
 
+			n.peerConfig.Log.Verbo("starting to upgrade connection",
+				zap.String("direction", "outbound"),
+				zap.Stringer("peerIP", ip.ip.IP),
+			)
+
 			err = n.upgrade(conn, n.clientUpgrader)
 			if err != nil {
 				n.peerConfig.Log.Verbo(
@@ -1133,9 +1182,9 @@ func (n *network) upgrade(conn net.Conn, upgrader peer.Upgrader) error {
 	}
 
 	n.peersLock.Lock()
-	defer n.peersLock.Unlock()
-
 	if n.closing {
+		n.peersLock.Unlock()
+
 		_ = tlsConn.Close()
 		n.peerConfig.Log.Verbo(
 			"dropping connection",
@@ -1146,6 +1195,8 @@ func (n *network) upgrade(conn net.Conn, upgrader peer.Upgrader) error {
 	}
 
 	if _, connecting := n.connectingPeers.GetByID(nodeID); connecting {
+		n.peersLock.Unlock()
+
 		_ = tlsConn.Close()
 		n.peerConfig.Log.Verbo(
 			"dropping connection",
@@ -1156,6 +1207,8 @@ func (n *network) upgrade(conn net.Conn, upgrader peer.Upgrader) error {
 	}
 
 	if _, connected := n.connectedPeers.GetByID(nodeID); connected {
+		n.peersLock.Unlock()
+
 		_ = tlsConn.Close()
 		n.peerConfig.Log.Verbo(
 			"dropping connection",
@@ -1192,6 +1245,7 @@ func (n *network) upgrade(conn net.Conn, upgrader peer.Upgrader) error {
 		),
 	)
 	n.connectingPeers.Add(peer)
+	n.peersLock.Unlock()
 	return nil
 }
 
@@ -1240,8 +1294,8 @@ func (n *network) StartClose() {
 }
 
 func (n *network) NodeUptime(subnetID ids.ID) (UptimeResult, error) {
-	if subnetID != constants.PrimaryNetworkID && !n.config.WhitelistedSubnets.Contains(subnetID) {
-		return UptimeResult{}, errNotWhiteListed
+	if subnetID != constants.PrimaryNetworkID && !n.config.TrackedSubnets.Contains(subnetID) {
+		return UptimeResult{}, errNotTracked
 	}
 
 	validators, ok := n.config.Validators.Get(subnetID)
@@ -1318,7 +1372,7 @@ func (n *network) runTimers() {
 			n.metrics.nodeUptimeWeightedAverage.Set(primaryUptime.WeightedAveragePercentage)
 			n.metrics.nodeUptimeRewardingStake.Set(primaryUptime.RewardingStakePercentage)
 
-			for subnetID := range n.config.WhitelistedSubnets {
+			for subnetID := range n.config.TrackedSubnets {
 				result, err := n.NodeUptime(subnetID)
 				if err != nil {
 					n.peerConfig.Log.Debug("failed to get subnet uptime",

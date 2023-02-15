@@ -19,14 +19,11 @@ if [[ -z ${DOCKER_USERNAME} ]]; then
     exit 1
 fi
 
-# Avalanche root directory
-AVALANCHE_PATH=$( cd "$( dirname "${BASH_SOURCE[0]}" )"; cd ../.. && pwd )
-
-# Load the versions
-source "$AVALANCHE_PATH"/scripts/versions.sh
+# Metal root directory
+METAL_PATH=$( cd "$( dirname "${BASH_SOURCE[0]}" )"; cd ../.. && pwd )
 
 # Load the constants
-source "$AVALANCHE_PATH"/scripts/constants.sh
+source "$METAL_PATH"/scripts/constants.sh
 
 # Login to docker
 echo "$DOCKER_PASS" | docker login --username "$DOCKER_USERNAME" --password-stdin
@@ -45,17 +42,17 @@ docker pull $avalanchego_byzantine_image
 git_commit_id=$( git rev-list -1 HEAD )
 
 # Build current avalanchego
-source "$AVALANCHE_PATH"/scripts/build_image.sh -r
+source "$METAL_PATH"/scripts/build_image.sh -r
 
 # Target built version to use in avalanche-testing
-avalanche_image="$avalanchego_dockerhub_repo:$current_branch"
+avalanche_image="$metalgo_dockerhub_repo:$current_branch"
 
 echo "Execution Summary:"
 echo ""
-echo "Running Avalanche Image: ${avalanche_image}"
-echo "Running Avalanche Image Tag: $current_branch"
-echo "Running Avalanche Testing Image: ${avalanche_testing_image}"
-echo "Running Avalanche Byzantine Image: ${avalanchego_byzantine_image}"
+echo "Running Metal Image: ${avalanche_image}"
+echo "Running Metal Image Tag: $current_branch"
+echo "Running Metal Testing Image: ${avalanche_testing_image}"
+echo "Running Metal Byzantine Image: ${avalanchego_byzantine_image}"
 echo "Git Commit ID : ${git_commit_id}"
 echo ""
 
@@ -68,7 +65,7 @@ custom_params_json="{
 }"
 # >>>>>>>> avalanche-testing custom parameters <<<<<<<<<<<<<
 
-bash "$AVALANCHE_PATH/.kurtosis/kurtosis.sh" \
+bash "$METAL_PATH/.kurtosis/kurtosis.sh" \
     --custom-params "${custom_params_json}" \
     ${1+"${@}"} \
     "${avalanche_testing_image}"

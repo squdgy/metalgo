@@ -11,11 +11,12 @@ import (
 
 	"golang.org/x/crypto/chacha20poly1305"
 
+	"golang.org/x/exp/slices"
+
 	"github.com/MetalBlockchain/metalgo/codec"
 	"github.com/MetalBlockchain/metalgo/codec/linearcodec"
 	"github.com/MetalBlockchain/metalgo/database"
 	"github.com/MetalBlockchain/metalgo/database/nodb"
-	"github.com/MetalBlockchain/metalgo/utils"
 	"github.com/MetalBlockchain/metalgo/utils/hashing"
 )
 
@@ -187,7 +188,7 @@ type batch struct {
 }
 
 func (b *batch) Put(key, value []byte) error {
-	b.writes = append(b.writes, keyValue{utils.CopyBytes(key), utils.CopyBytes(value), false})
+	b.writes = append(b.writes, keyValue{slices.Clone(key), slices.Clone(value), false})
 	encValue, err := b.db.encrypt(value)
 	if err != nil {
 		return err
@@ -196,7 +197,7 @@ func (b *batch) Put(key, value []byte) error {
 }
 
 func (b *batch) Delete(key []byte) error {
-	b.writes = append(b.writes, keyValue{utils.CopyBytes(key), nil, true})
+	b.writes = append(b.writes, keyValue{slices.Clone(key), nil, true})
 	return b.Batch.Delete(key)
 }
 

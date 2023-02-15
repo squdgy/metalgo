@@ -7,7 +7,7 @@ set -o pipefail
 print_usage() {
   printf "Usage: build [OPTIONS]
 
-  Build avalanchego
+  Build metalgo
 
   Options:
 
@@ -24,12 +24,10 @@ while getopts 'r' flag; do
   esac
 done
 
-# Avalanchego root folder
-AVALANCHE_PATH=$( cd "$( dirname "${BASH_SOURCE[0]}" )"; cd .. && pwd )
-# Load the versions
-source "$AVALANCHE_PATH"/scripts/versions.sh
+# Metalgo root folder
+METAL_PATH=$( cd "$( dirname "${BASH_SOURCE[0]}" )"; cd .. && pwd )
 # Load the constants
-source "$AVALANCHE_PATH"/scripts/constants.sh
+source "$METAL_PATH"/scripts/constants.sh
 
 # Download dependencies
 echo "Downloading dependencies..."
@@ -37,14 +35,11 @@ go mod download
 
 build_args="$race"
 
-# Build avalanchego
-"$AVALANCHE_PATH"/scripts/build_avalanche.sh $build_args
+# Build metalgo
+"$METAL_PATH"/scripts/build_metal.sh $build_args
 
-# Build coreth
-"$AVALANCHE_PATH"/scripts/build_coreth.sh $build_args
-
-# Exit build successfully if the binaries are created
-if [[ -f "$avalanchego_path" && -f "$evm_path" ]]; then
+# Exit build successfully if the AvalancheGo binary is created successfully
+if [[ -f "$metalgo_path" ]]; then
         echo "Build Successful"
         exit 0
 else

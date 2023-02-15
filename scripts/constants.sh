@@ -2,25 +2,23 @@
 #
 # Use lower_case variables in the scripts and UPPER_CASE variables for override
 # Use the constants.sh for env overrides
-# Use the versions.sh to specify versions
-#
 
-AVALANCHE_PATH=$( cd "$( dirname "${BASH_SOURCE[0]}" )"; cd .. && pwd ) # Directory above this script
+METAL_PATH=$( cd "$( dirname "${BASH_SOURCE[0]}" )"; cd .. && pwd ) # Directory above this script
+
+# Where MetalGo binary goes
+metalgo_path="$METAL_PATH/build/metalgo"
+plugin_dir=${PLUGIN_DIR:-$HOME/.metalgo/plugins}
+evm_path=${EVM_PATH:-$plugin_dir/evm}
+coreth_version=${CORETH_VERSION:-'v0.11.6-rc.0'}
 
 # Set the PATHS
 GOPATH="$(go env GOPATH)"
-coreth_path="$GOPATH/pkg/mod/github.com/!metal!blockchain/coreth@$coreth_version"
-
-# Where AvalancheGo binary goes
-build_dir="$AVALANCHE_PATH/build"
-avalanchego_path="$build_dir/metalgo"
-plugin_dir="$build_dir/plugins"
-evm_path="$plugin_dir/evm"
+coreth_path=${CORETH_PATH:-"$GOPATH/pkg/mod/github.com/!metal!blockchain/coreth@$coreth_version"}
 
 # Avalabs docker hub
 # avaplatform/avalanchego - defaults to local as to avoid unintentional pushes
 # You should probably set it - export DOCKER_REPO='avaplatform/avalanchego'
-avalanchego_dockerhub_repo=${DOCKER_REPO:-"metalgo"}
+metalgo_dockerhub_repo=${DOCKER_REPO:-"metalgo"}
 
 # Current branch
 # TODO: fix "fatal: No names found, cannot describe anything" in github CI

@@ -19,9 +19,11 @@ import (
 
 	"github.com/MetalBlockchain/metalgo/api/keystore"
 	"github.com/MetalBlockchain/metalgo/chains/atomic"
+	"github.com/MetalBlockchain/metalgo/database"
 	"github.com/MetalBlockchain/metalgo/database/manager"
-	"github.com/MetalBlockchain/metalgo/database/mockdb"
+	"github.com/MetalBlockchain/metalgo/database/memdb"
 	"github.com/MetalBlockchain/metalgo/database/prefixdb"
+	"github.com/MetalBlockchain/metalgo/database/versiondb"
 	"github.com/MetalBlockchain/metalgo/ids"
 	"github.com/MetalBlockchain/metalgo/snow"
 	"github.com/MetalBlockchain/metalgo/snow/engine/common"
@@ -59,6 +61,8 @@ var (
 	password       = "StrnasfqewiurPasswdn56d" // #nosec G101
 	feeAssetName   = "TEST"
 	otherAssetName = "OTHER"
+
+	errMissing = errors.New("missing")
 )
 
 func init() {
@@ -107,7 +111,7 @@ func NewContext(tb testing.TB) *snow.Context {
 				chainID:                   ctx.SubnetID,
 			}[chainID]
 			if !ok {
-				return ids.Empty, errors.New("missing")
+				return ids.Empty, errMissing
 			}
 			return subnetID, nil
 		},
@@ -1111,24 +1115,22 @@ func TestTxCached(t *testing.T) {
 	_, err := vm.ParseTx(context.Background(), txBytes)
 	require.NoError(t, err)
 
-	db := mockdb.New()
-	called := new(bool)
-	db.OnGet = func([]byte) ([]byte, error) {
-		*called = true
-		return nil, errors.New("")
-	}
-
 	registerer := prometheus.NewRegistry()
 
 	err = vm.metrics.Initialize("", registerer)
 	require.NoError(t, err)
 
-	vm.state, err = states.New(prefixdb.New([]byte("tx"), db), vm.parser, registerer)
+	db := memdb.New()
+	vdb := versiondb.New(db)
+	vm.state, err = states.New(vdb, vm.parser, registerer)
 	require.NoError(t, err)
 
 	_, err = vm.ParseTx(context.Background(), txBytes)
 	require.NoError(t, err)
-	require.False(t, *called, "shouldn't have called the DB")
+
+	count, err := database.Count(vdb)
+	require.NoError(t, err)
+	require.Zero(t, count)
 }
 
 func TestTxNotCached(t *testing.T) {
@@ -1147,30 +1149,25 @@ func TestTxNotCached(t *testing.T) {
 	_, err := vm.ParseTx(context.Background(), txBytes)
 	require.NoError(t, err)
 
-	db := mockdb.New()
-	called := new(bool)
-	db.OnGet = func([]byte) ([]byte, error) {
-		*called = true
-		return nil, errors.New("")
-	}
-	db.OnPut = func([]byte, []byte) error {
-		return nil
-	}
-
 	registerer := prometheus.NewRegistry()
 	require.NoError(t, err)
 
 	err = vm.metrics.Initialize("", registerer)
 	require.NoError(t, err)
 
-	vm.state, err = states.New(db, vm.parser, registerer)
+	db := memdb.New()
+	vdb := versiondb.New(db)
+	vm.state, err = states.New(vdb, vm.parser, registerer)
 	require.NoError(t, err)
 
 	vm.uniqueTxs.Flush()
 
 	_, err = vm.ParseTx(context.Background(), txBytes)
 	require.NoError(t, err)
-	require.True(t, *called, "should have called the DB")
+
+	count, err := database.Count(vdb)
+	require.NoError(t, err)
+	require.NotZero(t, count)
 }
 
 func TestTxVerifyAfterIssueTx(t *testing.T) {

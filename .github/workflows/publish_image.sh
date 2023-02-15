@@ -9,23 +9,20 @@ if [[ -z "$DOCKER_USERNAME"  ]]; then
   exit 0;
 fi
 
-# Avalanche root directory
-AVALANCHE_PATH=$( cd "$( dirname "${BASH_SOURCE[0]}" )"; cd ../.. && pwd )
-
-# Load the versions
-source "$AVALANCHE_PATH"/scripts/versions.sh
+# Metal root directory
+METAL_PATH=$( cd "$( dirname "${BASH_SOURCE[0]}" )"; cd ../.. && pwd )
 
 # Load the constants
-source "$AVALANCHE_PATH"/scripts/constants.sh
+source "$METAL_PATH"/scripts/constants.sh
 
 if [[ $current_branch == "master" ]]; then
-  echo "Tagging current avalanchego image as $avalanchego_dockerhub_repo:latest"
-  docker tag $avalanchego_dockerhub_repo:$current_branch $avalanchego_dockerhub_repo:latest
+  echo "Tagging current avalanchego image as $metalgo_dockerhub_repo:latest"
+  docker tag $metalgo_dockerhub_repo:$current_branch $metalgo_dockerhub_repo:latest
 fi
 
-echo "Pushing: $avalanchego_dockerhub_repo:$current_branch"
+echo "Pushing: $metalgo_dockerhub_repo:$current_branch"
 
 echo "$DOCKER_PASS" | docker login --username "$DOCKER_USERNAME" --password-stdin
 
 ## pushing image with tags
-docker image push -a $avalanchego_dockerhub_repo
+docker image push -a $metalgo_dockerhub_repo

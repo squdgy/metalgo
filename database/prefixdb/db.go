@@ -7,9 +7,10 @@ import (
 	"context"
 	"sync"
 
+	"golang.org/x/exp/slices"
+
 	"github.com/MetalBlockchain/metalgo/database"
 	"github.com/MetalBlockchain/metalgo/database/nodb"
-	"github.com/MetalBlockchain/metalgo/utils"
 	"github.com/MetalBlockchain/metalgo/utils/hashing"
 )
 
@@ -250,7 +251,7 @@ type batch struct {
 // [value] may be modified after this method returns.
 func (b *batch) Put(key, value []byte) error {
 	prefixedKey := b.db.prefix(key)
-	copiedValue := utils.CopyBytes(value)
+	copiedValue := slices.Clone(value)
 	b.writes = append(b.writes, keyValue{prefixedKey, copiedValue, false})
 	return b.Batch.Put(prefixedKey, copiedValue)
 }

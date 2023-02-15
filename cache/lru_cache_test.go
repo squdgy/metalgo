@@ -7,22 +7,24 @@ import (
 	"testing"
 
 	"github.com/MetalBlockchain/metalgo/ids"
+	"github.com/MetalBlockchain/metalgo/utils/set"
+	"github.com/stretchr/testify/require"
 )
 
 func TestLRU(t *testing.T) {
-	cache := &LRU{Size: 1}
+	cache := &LRU[ids.ID, int]{Size: 1}
 
 	TestBasic(t, cache)
 }
 
 func TestLRUEviction(t *testing.T) {
-	cache := &LRU{Size: 2}
+	cache := &LRU[ids.ID, int]{Size: 2}
 
 	TestEviction(t, cache)
 }
 
 func TestLRUResize(t *testing.T) {
-	cache := LRU{Size: 2}
+	cache := LRU[ids.ID, int]{Size: 2}
 
 	id1 := ids.ID{1}
 	id2 := ids.ID{2}
@@ -59,4 +61,39 @@ func TestLRUResize(t *testing.T) {
 	} else if val != 2 {
 		t.Fatalf("Retrieved wrong value")
 	}
+}
+
+func TestLRUOnEviction(t *testing.T) {
+	require := require.New(t)
+
+	shouldEvict := set.NewSet[int](1)
+	cache := LRU[int, int]{
+		Size: 2,
+		OnEviction: func(i int) {
+			require.Contains(shouldEvict, i)
+			shouldEvict.Remove(i)
+		},
+	}
+
+	cache.Put(11, 1)
+	cache.Put(22, 2)
+
+	shouldEvict.Add(1)
+	cache.Put(33, 3)
+	require.Empty(shouldEvict)
+
+	shouldEvict.Add(2)
+	cache.Size = 1
+	cache.resize()
+	require.Empty(shouldEvict)
+
+	shouldEvict.Add(3)
+	cache.Flush()
+	require.Empty(shouldEvict)
+
+	cache.Put(44, 4)
+
+	shouldEvict.Add(4)
+	cache.Evict(44)
+	require.Empty(shouldEvict)
 }

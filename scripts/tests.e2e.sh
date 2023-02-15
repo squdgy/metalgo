@@ -12,10 +12,10 @@ if ! [[ "$0" =~ scripts/tests.e2e.sh ]]; then
   exit 255
 fi
 
-AVALANCHEGO_PATH="${1-}"
-if [[ -z "${AVALANCHEGO_PATH}" ]]; then
-  echo "Missing AVALANCHEGO_PATH argument!"
-  echo "Usage: ${0} [AVALANCHEGO_PATH]" >> /dev/stderr
+METALGO_PATH="${1-}"
+if [[ -z "${METALGO_PATH}" ]]; then
+  echo "Missing METALGO_PATH argument!"
+  echo "Usage: ${0} [METALGO_PATH]" >> /dev/stderr
   exit 255
 fi
 
@@ -40,14 +40,14 @@ echo GINKGO_LABEL_FILTER: ${GINKGO_LABEL_FILTER}
 # TODO: migrate to upstream avalanche-network-runner
 GOARCH=$(go env GOARCH)
 GOOS=$(go env GOOS)
-NETWORK_RUNNER_VERSION=1.3.1
+NETWORK_RUNNER_VERSION=1.3.5-rc.0
 DOWNLOAD_PATH=/tmp/avalanche-network-runner.tar.gz
 DOWNLOAD_URL="https://github.com/ava-labs/avalanche-network-runner/releases/download/v${NETWORK_RUNNER_VERSION}/avalanche-network-runner_${NETWORK_RUNNER_VERSION}_${GOOS}_${GOARCH}.tar.gz"
 
 rm -f ${DOWNLOAD_PATH}
 rm -f /tmp/avalanche-network-runner
 
-echo "downloading avalanche-network-runner ${NETWORK_RUNNER_VERSION} at ${DOWNLOAD_URL}"
+echo "downloading avalanche-network-runner ${NETWORK_RUNNER_VERSION} at ${DOWNLOAD_URL} to ${DOWNLOAD_PATH}"
 curl --fail -L ${DOWNLOAD_URL} -o ${DOWNLOAD_PATH}
 
 echo "extracting downloaded avalanche-network-runner"
@@ -75,12 +75,12 @@ server \
 PID=${!}
 
 #################################
-echo "running e2e tests against the local cluster with ${AVALANCHEGO_PATH}"
+echo "running e2e tests against the local cluster with ${METALGO_PATH}"
 ./tests/e2e/e2e.test \
 --ginkgo.v \
 --log-level debug \
 --network-runner-grpc-endpoint="0.0.0.0:12342" \
---network-runner-avalanchego-path=${AVALANCHEGO_PATH} \
+--network-runner-avalanchego-path=${METALGO_PATH} \
 --network-runner-avalanchego-log-level="WARN" \
 --test-keys-file=tests/test.insecure.secp256k1.keys --ginkgo.label-filter="${GINKGO_LABEL_FILTER}" \
 && EXIT_CODE=$? || EXIT_CODE=$?

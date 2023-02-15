@@ -11,8 +11,8 @@ import (
 
 	"google.golang.org/protobuf/types/known/emptypb"
 
-	"github.com/ava-labs/avalanchego/database"
-	"github.com/ava-labs/avalanchego/utils/units"
+	"github.com/MetalBlockchain/metalgo/database"
+	"github.com/MetalBlockchain/metalgo/utils/units"
 
 	rpcdbpb "github.com/MetalBlockchain/metalgo/proto/pb/rpcdb"
 )

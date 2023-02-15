@@ -6,9 +6,9 @@ package gsharedmemory
 import (
 	"context"
 
-	"github.com/ava-labs/avalanchego/chains/atomic"
-	"github.com/ava-labs/avalanchego/database"
-	"github.com/ava-labs/avalanchego/ids"
+	"github.com/MetalBlockchain/metalgo/chains/atomic"
+	"github.com/MetalBlockchain/metalgo/database"
+	"github.com/MetalBlockchain/metalgo/ids"
 
 	sharedmemorypb "github.com/MetalBlockchain/metalgo/proto/pb/sharedmemory"
 )

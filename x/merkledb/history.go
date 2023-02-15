@@ -9,7 +9,7 @@ import (
 
 	"github.com/google/btree"
 
-	"github.com/ava-labs/avalanchego/ids"
+	"github.com/MetalBlockchain/metalgo/ids"
 )
 
 var (

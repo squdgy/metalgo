@@ -6,8 +6,8 @@ package merkledb
 import (
 	"golang.org/x/exp/slices"
 
-	"github.com/ava-labs/avalanchego/database"
-	"github.com/ava-labs/avalanchego/utils/linkedhashmap"
+	"github.com/MetalBlockchain/metalgo/database"
+	"github.com/MetalBlockchain/metalgo/utils/linkedhashmap"
 )
 
 var _ database.Batch = &batch{}

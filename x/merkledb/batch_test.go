@@ -11,7 +11,7 @@ import (
 
 	"golang.org/x/exp/slices"
 
-	"github.com/ava-labs/avalanchego/database/memdb"
+	"github.com/MetalBlockchain/metalgo/database/memdb"
 )
 
 func TestBatch_Put(t *testing.T) {

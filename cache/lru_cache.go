@@ -7,7 +7,7 @@ import (
 	"container/list"
 	"sync"
 
-	"github.com/ava-labs/avalanchego/utils"
+	"github.com/MetalBlockchain/metalgo/utils"
 )
 
 const minCacheSize = 32

@@ -5,9 +5,9 @@ set -o nounset
 set -o pipefail
 
 print_usage() {
-  printf "Usage: build_avalanche [OPTIONS]
+  printf "Usage: build_metal [OPTIONS]
 
-  Build avalanchego
+  Build metalgo
 
   Options:
 
@@ -25,7 +25,7 @@ while getopts 'r' flag; do
 done
 
 # Changes to the minimum golang version must also be replicated in
-# scripts/build_avalanche.sh (here)
+# scripts/build_metal.sh (here)
 # scripts/local.Dockerfile
 # Dockerfile
 # README.md
@@ -53,11 +53,11 @@ if version_lt "$(go_version)" "$go_version_minimum"; then
     exit 1
 fi
 
-# Avalanchego root folder
-AVALANCHE_PATH=$( cd "$( dirname "${BASH_SOURCE[0]}" )"; cd .. && pwd )
+# MetalGo root folder
+METAL_PATH=$( cd "$( dirname "${BASH_SOURCE[0]}" )"; cd .. && pwd )
 # Load the constants
-source "$AVALANCHE_PATH"/scripts/constants.sh
+source "$METAL_PATH"/scripts/constants.sh
 
 build_args="$race"
 echo "Building MetalGo..."
-go build $build_args -ldflags "-X github.com/MetalBlockchain/metalgo/version.GitCommit=$git_commit $static_ld_flags" -o "$avalanchego_path" "$AVALANCHE_PATH/main/"*.go
+go build $build_args -ldflags "-X github.com/MetalBlockchain/metalgo/version.GitCommit=$git_commit $static_ld_flags" -o "$metalgo_path" "$METAL_PATH/main/"*.go

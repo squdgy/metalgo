@@ -16,13 +16,9 @@ import (
 	"github.com/MetalBlockchain/metalgo/ids"
 	"github.com/MetalBlockchain/metalgo/snow/validators"
 	"github.com/MetalBlockchain/metalgo/utils"
-	"github.com/MetalBlockchain/metalgo/utils/crypto/bls"
 	"github.com/MetalBlockchain/metalgo/utils/logging"
+	"github.com/MetalBlockchain/metalgo/vms/platformvm/teleporter"
 )
-
-type SubnetLookup interface {
-	SubnetID(chainID ids.ID) (ids.ID, error)
-}
 
 // ContextInitializable represents an object that can be initialized
 // given a *Context object
@@ -50,14 +46,14 @@ type Context struct {
 	Keystore     keystore.BlockchainKeystore
 	SharedMemory atomic.SharedMemory
 	BCLookup     ids.AliaserReader
-	SNLookup     SubnetLookup
 	Metrics      metrics.OptionalGatherer
+
+	TeleporterSigner teleporter.Signer
 
 	// snowman++ attributes
 	ValidatorState    validators.State  // interface for P-Chain validators
 	StakingLeafSigner crypto.Signer     // block signer
 	StakingCertLeaf   *x509.Certificate // block certificate
-	StakingBLSKey     *bls.SecretKey    // bls signer
 
 	// Chain-specific directory where arbitrary data can be written
 	ChainDataDir string

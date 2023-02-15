@@ -18,38 +18,36 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/emptypb"
 
-	"github.com/MetalBlockchain/metalgo/api/keystore/gkeystore"
-	"github.com/MetalBlockchain/metalgo/api/metrics"
-	"github.com/MetalBlockchain/metalgo/chains/atomic/gsharedmemory"
-	"github.com/MetalBlockchain/metalgo/database/corruptabledb"
-	"github.com/MetalBlockchain/metalgo/database/manager"
-	"github.com/MetalBlockchain/metalgo/database/rpcdb"
-	"github.com/MetalBlockchain/metalgo/ids"
-	"github.com/MetalBlockchain/metalgo/ids/galiasreader"
-	"github.com/MetalBlockchain/metalgo/snow"
-	"github.com/MetalBlockchain/metalgo/snow/consensus/snowman"
-	"github.com/MetalBlockchain/metalgo/snow/engine/common"
-	"github.com/MetalBlockchain/metalgo/snow/engine/common/appsender"
-	"github.com/MetalBlockchain/metalgo/snow/engine/snowman/block"
-	"github.com/MetalBlockchain/metalgo/snow/validators/gvalidators"
-	"github.com/MetalBlockchain/metalgo/utils/logging"
-	"github.com/MetalBlockchain/metalgo/utils/wrappers"
-	"github.com/MetalBlockchain/metalgo/version"
-	"github.com/MetalBlockchain/metalgo/vms/rpcchainvm/ghttp"
-	"github.com/MetalBlockchain/metalgo/vms/rpcchainvm/grpcutils"
-	"github.com/MetalBlockchain/metalgo/vms/rpcchainvm/gsubnetlookup"
-	"github.com/MetalBlockchain/metalgo/vms/rpcchainvm/messenger"
+	"github.com/ava-labs/avalanchego/api/keystore/gkeystore"
+	"github.com/ava-labs/avalanchego/api/metrics"
+	"github.com/ava-labs/avalanchego/chains/atomic/gsharedmemory"
+	"github.com/ava-labs/avalanchego/database/corruptabledb"
+	"github.com/ava-labs/avalanchego/database/manager"
+	"github.com/ava-labs/avalanchego/database/rpcdb"
+	"github.com/ava-labs/avalanchego/ids"
+	"github.com/ava-labs/avalanchego/ids/galiasreader"
+	"github.com/ava-labs/avalanchego/snow"
+	"github.com/ava-labs/avalanchego/snow/consensus/snowman"
+	"github.com/ava-labs/avalanchego/snow/engine/common"
+	"github.com/ava-labs/avalanchego/snow/engine/common/appsender"
+	"github.com/ava-labs/avalanchego/snow/engine/snowman/block"
+	"github.com/ava-labs/avalanchego/snow/validators/gvalidators"
+	"github.com/ava-labs/avalanchego/utils/logging"
+	"github.com/ava-labs/avalanchego/utils/wrappers"
+	"github.com/ava-labs/avalanchego/version"
+	"github.com/ava-labs/avalanchego/vms/rpcchainvm/ghttp"
+	"github.com/ava-labs/avalanchego/vms/rpcchainvm/grpcutils"
+	"github.com/ava-labs/avalanchego/vms/rpcchainvm/messenger"
 
-	aliasreaderpb "github.com/MetalBlockchain/metalgo/proto/pb/aliasreader"
-	appsenderpb "github.com/MetalBlockchain/metalgo/proto/pb/appsender"
-	httppb "github.com/MetalBlockchain/metalgo/proto/pb/http"
-	keystorepb "github.com/MetalBlockchain/metalgo/proto/pb/keystore"
-	messengerpb "github.com/MetalBlockchain/metalgo/proto/pb/messenger"
-	rpcdbpb "github.com/MetalBlockchain/metalgo/proto/pb/rpcdb"
-	sharedmemorypb "github.com/MetalBlockchain/metalgo/proto/pb/sharedmemory"
-	subnetlookuppb "github.com/MetalBlockchain/metalgo/proto/pb/subnetlookup"
-	validatorstatepb "github.com/MetalBlockchain/metalgo/proto/pb/validatorstate"
-	vmpb "github.com/MetalBlockchain/metalgo/proto/pb/vm"
+	aliasreaderpb "github.com/ava-labs/avalanchego/proto/pb/aliasreader"
+	appsenderpb "github.com/ava-labs/avalanchego/proto/pb/appsender"
+	httppb "github.com/ava-labs/avalanchego/proto/pb/http"
+	keystorepb "github.com/ava-labs/avalanchego/proto/pb/keystore"
+	messengerpb "github.com/ava-labs/avalanchego/proto/pb/messenger"
+	rpcdbpb "github.com/ava-labs/avalanchego/proto/pb/rpcdb"
+	sharedmemorypb "github.com/ava-labs/avalanchego/proto/pb/sharedmemory"
+	validatorstatepb "github.com/ava-labs/avalanchego/proto/pb/validatorstate"
+	vmpb "github.com/ava-labs/avalanchego/proto/pb/vm"
 )
 
 var (
@@ -186,7 +184,6 @@ func (vm *VMServer) Initialize(ctx context.Context, req *vmpb.InitializeRequest)
 	keystoreClient := gkeystore.NewClient(keystorepb.NewKeystoreClient(clientConn))
 	sharedMemoryClient := gsharedmemory.NewClient(sharedmemorypb.NewSharedMemoryClient(clientConn))
 	bcLookupClient := galiasreader.NewClient(aliasreaderpb.NewAliasReaderClient(clientConn))
-	snLookupClient := gsubnetlookup.NewClient(subnetlookuppb.NewSubnetLookupClient(clientConn))
 	appSenderClient := appsender.NewClient(appsenderpb.NewAppSenderClient(clientConn))
 	validatorStateClient := gvalidators.NewClient(validatorstatepb.NewValidatorStateClient(clientConn))
 
@@ -221,7 +218,6 @@ func (vm *VMServer) Initialize(ctx context.Context, req *vmpb.InitializeRequest)
 		Keystore:     keystoreClient,
 		SharedMemory: sharedMemoryClient,
 		BCLookup:     bcLookupClient,
-		SNLookup:     snLookupClient,
 		Metrics:      metrics.NewOptionalGatherer(),
 
 		ValidatorState: validatorStateClient,
@@ -319,10 +315,7 @@ func (vm *VMServer) CreateHandlers(ctx context.Context, _ *emptypb.Empty) (*vmpb
 
 		// Start the gRPC server which serves the HTTP service
 		go grpcutils.Serve(serverListener, func(opts []grpc.ServerOption) *grpc.Server {
-			if len(opts) == 0 {
-				opts = append(opts, grpcutils.DefaultServerOptions...)
-			}
-			server := grpc.NewServer(opts...)
+			server := grpcutils.NewDefaultServer(opts)
 			vm.serverCloser.Add(server)
 			httppb.RegisterHTTPServer(server, ghttp.NewServer(handler.Handler))
 			return server
@@ -354,10 +347,7 @@ func (vm *VMServer) CreateStaticHandlers(ctx context.Context, _ *emptypb.Empty) 
 
 		// Start the gRPC server which serves the HTTP service
 		go grpcutils.Serve(serverListener, func(opts []grpc.ServerOption) *grpc.Server {
-			if len(opts) == 0 {
-				opts = append(opts, grpcutils.DefaultServerOptions...)
-			}
-			server := grpc.NewServer(opts...)
+			server := grpcutils.NewDefaultServer(opts)
 			vm.serverCloser.Add(server)
 			httppb.RegisterHTTPServer(server, ghttp.NewServer(handler.Handler))
 			return server

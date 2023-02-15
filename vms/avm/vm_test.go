@@ -17,30 +17,31 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/MetalBlockchain/metalgo/api/keystore"
-	"github.com/MetalBlockchain/metalgo/chains/atomic"
-	"github.com/MetalBlockchain/metalgo/database/manager"
-	"github.com/MetalBlockchain/metalgo/database/mockdb"
-	"github.com/MetalBlockchain/metalgo/database/prefixdb"
-	"github.com/MetalBlockchain/metalgo/ids"
-	"github.com/MetalBlockchain/metalgo/snow"
-	"github.com/MetalBlockchain/metalgo/snow/engine/common"
-	"github.com/MetalBlockchain/metalgo/utils/cb58"
-	"github.com/MetalBlockchain/metalgo/utils/constants"
-	"github.com/MetalBlockchain/metalgo/utils/crypto"
-	"github.com/MetalBlockchain/metalgo/utils/formatting"
-	"github.com/MetalBlockchain/metalgo/utils/formatting/address"
-	"github.com/MetalBlockchain/metalgo/utils/json"
-	"github.com/MetalBlockchain/metalgo/utils/wrappers"
-	"github.com/MetalBlockchain/metalgo/version"
-	"github.com/MetalBlockchain/metalgo/vms/avm/fxs"
-	"github.com/MetalBlockchain/metalgo/vms/avm/states"
-	"github.com/MetalBlockchain/metalgo/vms/avm/txs"
-	"github.com/MetalBlockchain/metalgo/vms/components/avax"
-	"github.com/MetalBlockchain/metalgo/vms/components/verify"
-	"github.com/MetalBlockchain/metalgo/vms/nftfx"
-	"github.com/MetalBlockchain/metalgo/vms/propertyfx"
-	"github.com/MetalBlockchain/metalgo/vms/secp256k1fx"
+	"github.com/ava-labs/avalanchego/api/keystore"
+	"github.com/ava-labs/avalanchego/chains/atomic"
+	"github.com/ava-labs/avalanchego/database/manager"
+	"github.com/ava-labs/avalanchego/database/mockdb"
+	"github.com/ava-labs/avalanchego/database/prefixdb"
+	"github.com/ava-labs/avalanchego/ids"
+	"github.com/ava-labs/avalanchego/snow"
+	"github.com/ava-labs/avalanchego/snow/engine/common"
+	"github.com/ava-labs/avalanchego/snow/validators"
+	"github.com/ava-labs/avalanchego/utils/cb58"
+	"github.com/ava-labs/avalanchego/utils/constants"
+	"github.com/ava-labs/avalanchego/utils/crypto"
+	"github.com/ava-labs/avalanchego/utils/formatting"
+	"github.com/ava-labs/avalanchego/utils/formatting/address"
+	"github.com/ava-labs/avalanchego/utils/json"
+	"github.com/ava-labs/avalanchego/utils/wrappers"
+	"github.com/ava-labs/avalanchego/version"
+	"github.com/ava-labs/avalanchego/vms/avm/fxs"
+	"github.com/ava-labs/avalanchego/vms/avm/states"
+	"github.com/ava-labs/avalanchego/vms/avm/txs"
+	"github.com/ava-labs/avalanchego/vms/components/avax"
+	"github.com/ava-labs/avalanchego/vms/components/verify"
+	"github.com/ava-labs/avalanchego/vms/nftfx"
+	"github.com/ava-labs/avalanchego/vms/propertyfx"
+	"github.com/ava-labs/avalanchego/vms/secp256k1fx"
 )
 
 var (
@@ -75,18 +76,6 @@ func init() {
 	}
 }
 
-type snLookup struct {
-	chainsToSubnet map[ids.ID]ids.ID
-}
-
-func (sn *snLookup) SubnetID(chainID ids.ID) (ids.ID, error) {
-	subnetID, ok := sn.chainsToSubnet[chainID]
-	if !ok {
-		return ids.ID{}, errors.New("")
-	}
-	return subnetID, nil
-}
-
 func NewContext(tb testing.TB) *snow.Context {
 	genesisBytes := BuildGenesisTest(tb)
 
@@ -111,12 +100,18 @@ func NewContext(tb testing.TB) *snow.Context {
 		tb.Fatal(errs.Err)
 	}
 
-	sn := &snLookup{
-		chainsToSubnet: make(map[ids.ID]ids.ID),
+	ctx.ValidatorState = &validators.TestState{
+		GetSubnetIDF: func(_ context.Context, chainID ids.ID) (ids.ID, error) {
+			subnetID, ok := map[ids.ID]ids.ID{
+				constants.PlatformChainID: ctx.SubnetID,
+				chainID:                   ctx.SubnetID,
+			}[chainID]
+			if !ok {
+				return ids.Empty, errors.New("missing")
+			}
+			return subnetID, nil
+		},
 	}
-	sn.chainsToSubnet[chainID] = ctx.SubnetID
-	sn.chainsToSubnet[constants.PlatformChainID] = ctx.SubnetID
-	ctx.SNLookup = sn
 	return ctx
 }
 

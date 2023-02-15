@@ -26,39 +26,37 @@ import (
 
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 
-	"github.com/MetalBlockchain/metalgo/api/keystore/gkeystore"
-	"github.com/MetalBlockchain/metalgo/api/metrics"
-	"github.com/MetalBlockchain/metalgo/chains/atomic/gsharedmemory"
-	"github.com/MetalBlockchain/metalgo/database/manager"
-	"github.com/MetalBlockchain/metalgo/database/rpcdb"
-	"github.com/MetalBlockchain/metalgo/ids"
-	"github.com/MetalBlockchain/metalgo/ids/galiasreader"
-	"github.com/MetalBlockchain/metalgo/snow"
-	"github.com/MetalBlockchain/metalgo/snow/choices"
-	"github.com/MetalBlockchain/metalgo/snow/consensus/snowman"
-	"github.com/MetalBlockchain/metalgo/snow/engine/common"
-	"github.com/MetalBlockchain/metalgo/snow/engine/common/appsender"
-	"github.com/MetalBlockchain/metalgo/snow/engine/snowman/block"
-	"github.com/MetalBlockchain/metalgo/snow/validators/gvalidators"
-	"github.com/MetalBlockchain/metalgo/utils/resource"
-	"github.com/MetalBlockchain/metalgo/utils/wrappers"
-	"github.com/MetalBlockchain/metalgo/version"
-	"github.com/MetalBlockchain/metalgo/vms/components/chain"
-	"github.com/MetalBlockchain/metalgo/vms/rpcchainvm/ghttp"
-	"github.com/MetalBlockchain/metalgo/vms/rpcchainvm/grpcutils"
-	"github.com/MetalBlockchain/metalgo/vms/rpcchainvm/gsubnetlookup"
-	"github.com/MetalBlockchain/metalgo/vms/rpcchainvm/messenger"
+	"github.com/ava-labs/avalanchego/api/keystore/gkeystore"
+	"github.com/ava-labs/avalanchego/api/metrics"
+	"github.com/ava-labs/avalanchego/chains/atomic/gsharedmemory"
+	"github.com/ava-labs/avalanchego/database/manager"
+	"github.com/ava-labs/avalanchego/database/rpcdb"
+	"github.com/ava-labs/avalanchego/ids"
+	"github.com/ava-labs/avalanchego/ids/galiasreader"
+	"github.com/ava-labs/avalanchego/snow"
+	"github.com/ava-labs/avalanchego/snow/choices"
+	"github.com/ava-labs/avalanchego/snow/consensus/snowman"
+	"github.com/ava-labs/avalanchego/snow/engine/common"
+	"github.com/ava-labs/avalanchego/snow/engine/common/appsender"
+	"github.com/ava-labs/avalanchego/snow/engine/snowman/block"
+	"github.com/ava-labs/avalanchego/snow/validators/gvalidators"
+	"github.com/ava-labs/avalanchego/utils/resource"
+	"github.com/ava-labs/avalanchego/utils/wrappers"
+	"github.com/ava-labs/avalanchego/version"
+	"github.com/ava-labs/avalanchego/vms/components/chain"
+	"github.com/ava-labs/avalanchego/vms/rpcchainvm/ghttp"
+	"github.com/ava-labs/avalanchego/vms/rpcchainvm/grpcutils"
+	"github.com/ava-labs/avalanchego/vms/rpcchainvm/messenger"
 
-	aliasreaderpb "github.com/MetalBlockchain/metalgo/proto/pb/aliasreader"
-	appsenderpb "github.com/MetalBlockchain/metalgo/proto/pb/appsender"
-	httppb "github.com/MetalBlockchain/metalgo/proto/pb/http"
-	keystorepb "github.com/MetalBlockchain/metalgo/proto/pb/keystore"
-	messengerpb "github.com/MetalBlockchain/metalgo/proto/pb/messenger"
-	rpcdbpb "github.com/MetalBlockchain/metalgo/proto/pb/rpcdb"
-	sharedmemorypb "github.com/MetalBlockchain/metalgo/proto/pb/sharedmemory"
-	subnetlookuppb "github.com/MetalBlockchain/metalgo/proto/pb/subnetlookup"
-	validatorstatepb "github.com/MetalBlockchain/metalgo/proto/pb/validatorstate"
-	vmpb "github.com/MetalBlockchain/metalgo/proto/pb/vm"
+	aliasreaderpb "github.com/ava-labs/avalanchego/proto/pb/aliasreader"
+	appsenderpb "github.com/ava-labs/avalanchego/proto/pb/appsender"
+	httppb "github.com/ava-labs/avalanchego/proto/pb/http"
+	keystorepb "github.com/ava-labs/avalanchego/proto/pb/keystore"
+	messengerpb "github.com/ava-labs/avalanchego/proto/pb/messenger"
+	rpcdbpb "github.com/ava-labs/avalanchego/proto/pb/rpcdb"
+	sharedmemorypb "github.com/ava-labs/avalanchego/proto/pb/sharedmemory"
+	validatorstatepb "github.com/ava-labs/avalanchego/proto/pb/validatorstate"
+	vmpb "github.com/ava-labs/avalanchego/proto/pb/vm"
 )
 
 const (
@@ -97,7 +95,6 @@ type VMClient struct {
 	keystore             *gkeystore.Server
 	sharedMemory         *gsharedmemory.Server
 	bcLookup             *galiasreader.Server
-	snLookup             *gsubnetlookup.Server
 	appSender            *appsender.Server
 	validatorStateServer *gvalidators.Server
 
@@ -185,7 +182,6 @@ func (vm *VMClient) Initialize(
 	vm.keystore = gkeystore.NewServer(chainCtx.Keystore)
 	vm.sharedMemory = gsharedmemory.NewServer(chainCtx.SharedMemory, dbManager.Current().Database)
 	vm.bcLookup = galiasreader.NewServer(chainCtx.BCLookup)
-	vm.snLookup = gsubnetlookup.NewServer(chainCtx.SNLookup)
 	vm.appSender = appsender.NewServer(appSender)
 	vm.validatorStateServer = gvalidators.NewServer(chainCtx.ValidatorState)
 
@@ -255,6 +251,7 @@ func (vm *VMClient) Initialize(
 			LastAcceptedBlock:     lastAcceptedBlk,
 			GetBlock:              vm.getBlock,
 			UnmarshalBlock:        vm.parseBlock,
+			BatchedUnmarshalBlock: vm.batchedParseBlock,
 			BuildBlock:            vm.buildBlock,
 			BuildBlockWithContext: vm.buildBlockWithContext,
 		},
@@ -323,7 +320,6 @@ func (vm *VMClient) getInitServer(opts []grpc.ServerOption) *grpc.Server {
 	keystorepb.RegisterKeystoreServer(server, vm.keystore)
 	sharedmemorypb.RegisterSharedMemoryServer(server, vm.sharedMemory)
 	aliasreaderpb.RegisterAliasReaderServer(server, vm.bcLookup)
-	subnetlookuppb.RegisterSubnetLookupServer(server, vm.snLookup)
 	appsenderpb.RegisterAppSenderServer(server, vm.appSender)
 	healthpb.RegisterHealthServer(server, grpcHealth)
 	validatorstatepb.RegisterValidatorStateServer(server, vm.validatorStateServer)
@@ -671,7 +667,7 @@ func (vm *VMClient) GetAncestors(
 	return resp.BlksBytes, nil
 }
 
-func (vm *VMClient) BatchedParseBlock(ctx context.Context, blksBytes [][]byte) ([]snowman.Block, error) {
+func (vm *VMClient) batchedParseBlock(ctx context.Context, blksBytes [][]byte) ([]snowman.Block, error) {
 	resp, err := vm.client.BatchedParseBlock(ctx, &vmpb.BatchedParseBlockRequest{
 		Request: blksBytes,
 	})

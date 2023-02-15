@@ -74,7 +74,6 @@ const (
 )
 
 var (
-	errUnknownChainID   = errors.New("unknown chain ID")
 	errUnknownVMType    = errors.New("the vm should have type avalanche.DAGVM or snowman.ChainVM")
 	errCreatePlatformVM = errors.New("attempted to create a chain running the PlatformVM")
 	errNotBootstrapped  = errors.New("subnets not bootstrapped")
@@ -109,8 +108,6 @@ type Manager interface {
 
 	// Given an alias, return the ID of the VM associated with that alias
 	LookupVM(string) (ids.ID, error)
-
-	SubnetID(chainID ids.ID) (ids.ID, error)
 
 	// Returns true iff the chain with the given ID exists and is finished bootstrapping
 	IsBootstrapped(ids.ID) bool
@@ -444,7 +441,6 @@ func (m *manager) buildChain(chainParams ChainParameters, sb Subnet) (*chain, er
 			Keystore:     m.Keystore.NewBlockchainKeyStore(chainParams.ID),
 			SharedMemory: m.AtomicMemory.NewSharedMemory(chainParams.ID),
 			BCLookup:     m,
-			SNLookup:     m,
 			Metrics:      vmMetrics,
 
 			ValidatorState:    m.validatorState,
@@ -1082,17 +1078,6 @@ func (m *manager) createSnowmanChain(
 		Engine:  engine,
 		Handler: handler,
 	}, nil
-}
-
-func (m *manager) SubnetID(chainID ids.ID) (ids.ID, error) {
-	m.chainsLock.Lock()
-	defer m.chainsLock.Unlock()
-
-	chain, exists := m.chains[chainID]
-	if !exists {
-		return ids.ID{}, errUnknownChainID
-	}
-	return chain.Context().SubnetID, nil
 }
 
 func (m *manager) IsBootstrapped(id ids.ID) bool {

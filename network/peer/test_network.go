@@ -4,8 +4,10 @@
 package peer
 
 import (
-	"github.com/MetalBlockchain/metalgo/ids"
-	"github.com/MetalBlockchain/metalgo/utils/ips"
+	"github.com/ava-labs/avalanchego/ids"
+	"github.com/ava-labs/avalanchego/utils/ips"
+
+	p2ppb "github.com/ava-labs/avalanchego/proto/pb/p2p"
 )
 
 var TestNetwork Network = testNetwork{}
@@ -18,8 +20,12 @@ func (testNetwork) AllowConnection(ids.NodeID) bool {
 	return true
 }
 
-func (testNetwork) Track(ips.ClaimedIPPort) bool {
-	return true
+func (testNetwork) Track(ids.NodeID, []*ips.ClaimedIPPort) ([]*p2ppb.PeerAck, error) {
+	return nil, nil
+}
+
+func (testNetwork) MarkTracked(ids.NodeID, []*p2ppb.PeerAck) error {
+	return nil
 }
 
 func (testNetwork) Disconnected(ids.NodeID) {}

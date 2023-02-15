@@ -26,37 +26,39 @@ import (
 
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 
-	"github.com/MetalBlockchain/metalgo/api/keystore/gkeystore"
-	"github.com/MetalBlockchain/metalgo/api/metrics"
-	"github.com/MetalBlockchain/metalgo/chains/atomic/gsharedmemory"
-	"github.com/MetalBlockchain/metalgo/database/manager"
-	"github.com/MetalBlockchain/metalgo/database/rpcdb"
-	"github.com/MetalBlockchain/metalgo/ids"
-	"github.com/MetalBlockchain/metalgo/ids/galiasreader"
-	"github.com/MetalBlockchain/metalgo/snow"
-	"github.com/MetalBlockchain/metalgo/snow/choices"
-	"github.com/MetalBlockchain/metalgo/snow/consensus/snowman"
-	"github.com/MetalBlockchain/metalgo/snow/engine/common"
-	"github.com/MetalBlockchain/metalgo/snow/engine/common/appsender"
-	"github.com/MetalBlockchain/metalgo/snow/engine/snowman/block"
-	"github.com/MetalBlockchain/metalgo/snow/validators/gvalidators"
-	"github.com/MetalBlockchain/metalgo/utils/resource"
-	"github.com/MetalBlockchain/metalgo/utils/wrappers"
-	"github.com/MetalBlockchain/metalgo/version"
-	"github.com/MetalBlockchain/metalgo/vms/components/chain"
-	"github.com/MetalBlockchain/metalgo/vms/rpcchainvm/ghttp"
-	"github.com/MetalBlockchain/metalgo/vms/rpcchainvm/grpcutils"
-	"github.com/MetalBlockchain/metalgo/vms/rpcchainvm/messenger"
+	"github.com/ava-labs/avalanchego/api/keystore/gkeystore"
+	"github.com/ava-labs/avalanchego/api/metrics"
+	"github.com/ava-labs/avalanchego/chains/atomic/gsharedmemory"
+	"github.com/ava-labs/avalanchego/database/manager"
+	"github.com/ava-labs/avalanchego/database/rpcdb"
+	"github.com/ava-labs/avalanchego/ids"
+	"github.com/ava-labs/avalanchego/ids/galiasreader"
+	"github.com/ava-labs/avalanchego/snow"
+	"github.com/ava-labs/avalanchego/snow/choices"
+	"github.com/ava-labs/avalanchego/snow/consensus/snowman"
+	"github.com/ava-labs/avalanchego/snow/engine/common"
+	"github.com/ava-labs/avalanchego/snow/engine/common/appsender"
+	"github.com/ava-labs/avalanchego/snow/engine/snowman/block"
+	"github.com/ava-labs/avalanchego/snow/validators/gvalidators"
+	"github.com/ava-labs/avalanchego/utils/resource"
+	"github.com/ava-labs/avalanchego/utils/wrappers"
+	"github.com/ava-labs/avalanchego/version"
+	"github.com/ava-labs/avalanchego/vms/components/chain"
+	"github.com/ava-labs/avalanchego/vms/platformvm/teleporter/gteleporter"
+	"github.com/ava-labs/avalanchego/vms/rpcchainvm/ghttp"
+	"github.com/ava-labs/avalanchego/vms/rpcchainvm/grpcutils"
+	"github.com/ava-labs/avalanchego/vms/rpcchainvm/messenger"
 
-	aliasreaderpb "github.com/MetalBlockchain/metalgo/proto/pb/aliasreader"
-	appsenderpb "github.com/MetalBlockchain/metalgo/proto/pb/appsender"
-	httppb "github.com/MetalBlockchain/metalgo/proto/pb/http"
-	keystorepb "github.com/MetalBlockchain/metalgo/proto/pb/keystore"
-	messengerpb "github.com/MetalBlockchain/metalgo/proto/pb/messenger"
-	rpcdbpb "github.com/MetalBlockchain/metalgo/proto/pb/rpcdb"
-	sharedmemorypb "github.com/MetalBlockchain/metalgo/proto/pb/sharedmemory"
-	validatorstatepb "github.com/MetalBlockchain/metalgo/proto/pb/validatorstate"
-	vmpb "github.com/MetalBlockchain/metalgo/proto/pb/vm"
+	aliasreaderpb "github.com/ava-labs/avalanchego/proto/pb/aliasreader"
+	appsenderpb "github.com/ava-labs/avalanchego/proto/pb/appsender"
+	httppb "github.com/ava-labs/avalanchego/proto/pb/http"
+	keystorepb "github.com/ava-labs/avalanchego/proto/pb/keystore"
+	messengerpb "github.com/ava-labs/avalanchego/proto/pb/messenger"
+	rpcdbpb "github.com/ava-labs/avalanchego/proto/pb/rpcdb"
+	sharedmemorypb "github.com/ava-labs/avalanchego/proto/pb/sharedmemory"
+	teleporterpb "github.com/ava-labs/avalanchego/proto/pb/teleporter"
+	validatorstatepb "github.com/ava-labs/avalanchego/proto/pb/validatorstate"
+	vmpb "github.com/ava-labs/avalanchego/proto/pb/vm"
 )
 
 const (
@@ -91,12 +93,13 @@ type VMClient struct {
 	pid            int
 	processTracker resource.ProcessTracker
 
-	messenger            *messenger.Server
-	keystore             *gkeystore.Server
-	sharedMemory         *gsharedmemory.Server
-	bcLookup             *galiasreader.Server
-	appSender            *appsender.Server
-	validatorStateServer *gvalidators.Server
+	messenger              *messenger.Server
+	keystore               *gkeystore.Server
+	sharedMemory           *gsharedmemory.Server
+	bcLookup               *galiasreader.Server
+	appSender              *appsender.Server
+	validatorStateServer   *gvalidators.Server
+	teleporterSignerServer *gteleporter.Server
 
 	serverCloser grpcutils.ServerCloser
 	conns        []*grpc.ClientConn
@@ -184,6 +187,7 @@ func (vm *VMClient) Initialize(
 	vm.bcLookup = galiasreader.NewServer(chainCtx.BCLookup)
 	vm.appSender = appsender.NewServer(appSender)
 	vm.validatorStateServer = gvalidators.NewServer(chainCtx.ValidatorState)
+	vm.teleporterSignerServer = gteleporter.NewServer(chainCtx.TeleporterSigner)
 
 	serverListener, err := grpcutils.NewListener()
 	if err != nil {
@@ -323,6 +327,7 @@ func (vm *VMClient) getInitServer(opts []grpc.ServerOption) *grpc.Server {
 	appsenderpb.RegisterAppSenderServer(server, vm.appSender)
 	healthpb.RegisterHealthServer(server, grpcHealth)
 	validatorstatepb.RegisterValidatorStateServer(server, vm.validatorStateServer)
+	teleporterpb.RegisterSignerServer(server, vm.teleporterSignerServer)
 
 	// Ensure metric counters are zeroed on restart
 	grpc_prometheus.Register(server)

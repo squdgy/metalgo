@@ -10,14 +10,14 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 
-	"github.com/MetalBlockchain/metalgo/api/keystore"
-	"github.com/MetalBlockchain/metalgo/api/metrics"
-	"github.com/MetalBlockchain/metalgo/chains/atomic"
-	"github.com/MetalBlockchain/metalgo/ids"
-	"github.com/MetalBlockchain/metalgo/snow/validators"
-	"github.com/MetalBlockchain/metalgo/utils"
-	"github.com/MetalBlockchain/metalgo/utils/crypto/bls"
-	"github.com/MetalBlockchain/metalgo/utils/logging"
+	"github.com/ava-labs/avalanchego/api/keystore"
+	"github.com/ava-labs/avalanchego/api/metrics"
+	"github.com/ava-labs/avalanchego/chains/atomic"
+	"github.com/ava-labs/avalanchego/ids"
+	"github.com/ava-labs/avalanchego/snow/validators"
+	"github.com/ava-labs/avalanchego/utils"
+	"github.com/ava-labs/avalanchego/utils/logging"
+	"github.com/ava-labs/avalanchego/vms/platformvm/teleporter"
 )
 
 // ContextInitializable represents an object that can be initialized
@@ -48,11 +48,12 @@ type Context struct {
 	BCLookup     ids.AliaserReader
 	Metrics      metrics.OptionalGatherer
 
+	TeleporterSigner teleporter.Signer
+
 	// snowman++ attributes
 	ValidatorState    validators.State  // interface for P-Chain validators
 	StakingLeafSigner crypto.Signer     // block signer
 	StakingCertLeaf   *x509.Certificate // block certificate
-	StakingBLSKey     *bls.SecretKey    // bls signer
 
 	// Chain-specific directory where arbitrary data can be written
 	ChainDataDir string

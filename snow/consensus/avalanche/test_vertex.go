@@ -4,12 +4,15 @@
 package avalanche
 
 import (
+	"context"
+
 	"github.com/MetalBlockchain/metalgo/ids"
 	"github.com/MetalBlockchain/metalgo/snow/choices"
 	"github.com/MetalBlockchain/metalgo/snow/consensus/snowstorm"
+	"github.com/MetalBlockchain/metalgo/utils/set"
 )
 
-var _ Vertex = &TestVertex{}
+var _ Vertex = (*TestVertex)(nil)
 
 // TestVertex is a useful test vertex
 type TestVertex struct {
@@ -19,7 +22,7 @@ type TestVertex struct {
 	ParentsV      []Vertex
 	ParentsErrV   error
 	HasWhitelistV bool
-	WhitelistV    ids.Set
+	WhitelistV    set.Set[ids.ID]
 	WhitelistErrV error
 	HeightV       uint64
 	HeightErrV    error
@@ -28,10 +31,30 @@ type TestVertex struct {
 	BytesV        []byte
 }
 
-func (v *TestVertex) Verify() error                { return v.VerifyErrV }
-func (v *TestVertex) Parents() ([]Vertex, error)   { return v.ParentsV, v.ParentsErrV }
-func (v *TestVertex) HasWhitelist() bool           { return v.HasWhitelistV }
-func (v *TestVertex) Whitelist() (ids.Set, error)  { return v.WhitelistV, v.WhitelistErrV }
-func (v *TestVertex) Height() (uint64, error)      { return v.HeightV, v.HeightErrV }
-func (v *TestVertex) Txs() ([]snowstorm.Tx, error) { return v.TxsV, v.TxsErrV }
-func (v *TestVertex) Bytes() []byte                { return v.BytesV }
+func (v *TestVertex) Verify(context.Context) error {
+	return v.VerifyErrV
+}
+
+func (v *TestVertex) Parents() ([]Vertex, error) {
+	return v.ParentsV, v.ParentsErrV
+}
+
+func (v *TestVertex) HasWhitelist() bool {
+	return v.HasWhitelistV
+}
+
+func (v *TestVertex) Whitelist(context.Context) (set.Set[ids.ID], error) {
+	return v.WhitelistV, v.WhitelistErrV
+}
+
+func (v *TestVertex) Height() (uint64, error) {
+	return v.HeightV, v.HeightErrV
+}
+
+func (v *TestVertex) Txs(context.Context) ([]snowstorm.Tx, error) {
+	return v.TxsV, v.TxsErrV
+}
+
+func (v *TestVertex) Bytes() []byte {
+	return v.BytesV
+}

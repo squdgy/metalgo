@@ -4,11 +4,13 @@
 package proposervm
 
 import (
+	"context"
+
 	"github.com/MetalBlockchain/metalgo/snow/engine/snowman/block"
 	"github.com/MetalBlockchain/metalgo/vms/proposervm/summary"
 )
 
-var _ block.StateSummary = &stateSummary{}
+var _ block.StateSummary = (*stateSummary)(nil)
 
 // stateSummary implements block.StateSummary by layering three objects:
 // 1. [statelessSummary] carries all summary marshallable content along with
@@ -36,7 +38,7 @@ func (s *stateSummary) Height() uint64 {
 	return s.innerSummary.Height()
 }
 
-func (s *stateSummary) Accept() (bool, error) {
+func (s *stateSummary) Accept(ctx context.Context) (bool, error) {
 	// If we have already synced up to or past this state summary, we do not
 	// want to sync to it.
 	if s.vm.lastAcceptedHeight >= s.Height() {
@@ -59,5 +61,5 @@ func (s *stateSummary) Accept() (bool, error) {
 	// innerSummary.Accept may fail with the proposerVM block and index already
 	// updated. The error would be treated as fatal and the chain would then be
 	// repaired upon the VM restart.
-	return s.innerSummary.Accept()
+	return s.innerSummary.Accept(ctx)
 }

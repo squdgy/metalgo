@@ -265,7 +265,7 @@ func TestGetVMAliasesFromFile(t *testing.T) {
 		"wrong vm id": {
 			givenJSON:  `{"wrongVmId": ["vm1","vm2"]}`,
 			expected:   nil,
-			errMessage: "problem unmarshaling vmAliases",
+			errMessage: "problem unmarshaling vm aliases",
 		},
 		"vm id": {
 			givenJSON: `{"2Ctt6eGAeo4MLqTmGa7AdRecuVMPGWEX9wSsCLBYrLhX4a394i": ["vm1","vm2"],
@@ -312,7 +312,7 @@ func TestGetVMAliasesFromFlag(t *testing.T) {
 		"wrong vm id": {
 			givenJSON:  `{"wrongVmId": ["vm1","vm2"]}`,
 			expected:   nil,
-			errMessage: "problem unmarshaling vmAliases",
+			errMessage: "problem unmarshaling vm aliases",
 		},
 		"vm id": {
 			givenJSON: `{"2Ctt6eGAeo4MLqTmGa7AdRecuVMPGWEX9wSsCLBYrLhX4a394i": ["vm1","vm2"],
@@ -381,7 +381,7 @@ func TestGetVMAliasesDirNotExists(t *testing.T) {
 	vmAliases, err := getVMAliases(v)
 	require.Nil(vmAliases)
 	require.Error(err)
-	require.Contains(err.Error(), "vm alias file does not exist")
+	require.Contains(err.Error(), "vm aliases file does not exist")
 
 	// do not set it explicitly
 	configJSON = "{}"
@@ -405,7 +405,7 @@ func TestGetSubnetConfigsFromFile(t *testing.T) {
 			testF: func(require *require.Assertions, given map[ids.ID]chains.SubnetConfig) {
 				require.Nil(given)
 			},
-			errMessage: "couldn't read subnet configs",
+			errMessage: "invalid character",
 		},
 		"subnet is not whitelisted": {
 			fileName:  "Gmt4fuNsGJAd2PX86LBvycGaBpgCYKbuULdCLZs3SEs1Jx1LU.json",
@@ -576,6 +576,14 @@ func TestGetSubnetConfigsFromFlags(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestCalcMinConnectedStake(t *testing.T) {
+	v := setupViperFlags()
+	defaultParams := getConsensusConfig(v)
+	defaultExpectedMinStake := 0.8
+	minStake := calcMinConnectedStake(defaultParams.Parameters)
+	require.Equal(t, defaultExpectedMinStake, minStake)
 }
 
 // setups config json file and writes content

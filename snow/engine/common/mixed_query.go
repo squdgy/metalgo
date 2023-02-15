@@ -3,7 +3,12 @@
 
 package common
 
-import "github.com/MetalBlockchain/metalgo/ids"
+import (
+	"context"
+
+	"github.com/MetalBlockchain/metalgo/ids"
+	"github.com/MetalBlockchain/metalgo/utils/set"
+)
 
 // Send a query composed partially of push queries and partially of pull queries.
 // The validators in [vdrs] will be queried.
@@ -12,6 +17,7 @@ import "github.com/MetalBlockchain/metalgo/ids"
 // [containerID] and [container] are the ID and body of the container being queried.
 // [sender] is used to actually send the queries.
 func SendMixedQuery(
+	ctx context.Context,
 	sender Sender,
 	vdrs []ids.NodeID,
 	numPushTo int,
@@ -23,13 +29,13 @@ func SendMixedQuery(
 		numPushTo = len(vdrs)
 	}
 	if numPushTo > 0 {
-		sendPushQueryTo := ids.NewNodeIDSet(numPushTo)
+		sendPushQueryTo := set.NewSet[ids.NodeID](numPushTo)
 		sendPushQueryTo.Add(vdrs[:numPushTo]...)
-		sender.SendPushQuery(sendPushQueryTo, reqID, container)
+		sender.SendPushQuery(ctx, sendPushQueryTo, reqID, container)
 	}
 	if numPullTo := len(vdrs) - numPushTo; numPullTo > 0 {
-		sendPullQueryTo := ids.NewNodeIDSet(numPullTo)
+		sendPullQueryTo := set.NewSet[ids.NodeID](numPullTo)
 		sendPullQueryTo.Add(vdrs[numPushTo:]...)
-		sender.SendPullQuery(sendPullQueryTo, reqID, containerID)
+		sender.SendPullQuery(ctx, sendPullQueryTo, reqID, containerID)
 	}
 }

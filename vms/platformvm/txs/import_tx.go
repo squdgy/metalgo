@@ -9,12 +9,14 @@ import (
 
 	"github.com/MetalBlockchain/metalgo/ids"
 	"github.com/MetalBlockchain/metalgo/snow"
+	"github.com/MetalBlockchain/metalgo/utils"
+	"github.com/MetalBlockchain/metalgo/utils/set"
 	"github.com/MetalBlockchain/metalgo/vms/components/avax"
 	"github.com/MetalBlockchain/metalgo/vms/secp256k1fx"
 )
 
 var (
-	_ UnsignedTx = &ImportTx{}
+	_ UnsignedTx = (*ImportTx)(nil)
 
 	errNoImportInputs = errors.New("tx has no imported inputs")
 )
@@ -41,15 +43,15 @@ func (tx *ImportTx) InitCtx(ctx *snow.Context) {
 }
 
 // InputUTXOs returns the UTXOIDs of the imported funds
-func (tx *ImportTx) InputUTXOs() ids.Set {
-	set := ids.NewSet(len(tx.ImportedInputs))
+func (tx *ImportTx) InputUTXOs() set.Set[ids.ID] {
+	set := set.NewSet[ids.ID](len(tx.ImportedInputs))
 	for _, in := range tx.ImportedInputs {
 		set.Add(in.InputID())
 	}
 	return set
 }
 
-func (tx *ImportTx) InputIDs() ids.Set {
+func (tx *ImportTx) InputIDs() set.Set[ids.ID] {
 	inputs := tx.BaseTx.InputIDs()
 	atomicInputs := tx.InputUTXOs()
 	inputs.Union(atomicInputs)
@@ -76,7 +78,7 @@ func (tx *ImportTx) SyntacticVerify(ctx *snow.Context) error {
 			return fmt.Errorf("input failed verification: %w", err)
 		}
 	}
-	if !avax.IsSortedAndUniqueTransferableInputs(tx.ImportedInputs) {
+	if !utils.IsSortedAndUniqueSortable(tx.ImportedInputs) {
 		return errInputsNotSortedUnique
 	}
 

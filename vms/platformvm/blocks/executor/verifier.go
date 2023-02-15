@@ -9,6 +9,7 @@ import (
 
 	"github.com/MetalBlockchain/metalgo/chains/atomic"
 	"github.com/MetalBlockchain/metalgo/ids"
+	"github.com/MetalBlockchain/metalgo/utils/set"
 	"github.com/MetalBlockchain/metalgo/vms/platformvm/blocks"
 	"github.com/MetalBlockchain/metalgo/vms/platformvm/state"
 	"github.com/MetalBlockchain/metalgo/vms/platformvm/status"
@@ -17,9 +18,8 @@ import (
 )
 
 var (
-	_ blocks.Visitor = &verifier{}
+	_ blocks.Visitor = (*verifier)(nil)
 
-	errBanffBlockIssuedBeforeFork                 = errors.New("banff block issued before fork")
 	errApricotBlockIssuedAfterFork                = errors.New("apricot block issued after fork")
 	errBanffProposalBlockWithMultipleTransactions = errors.New("BanffProposalBlock contains multiple transactions")
 	errBanffStandardBlockWithoutChanges           = errors.New("BanffStandardBlock performs no state changes")
@@ -222,7 +222,7 @@ func (v *verifier) ApricotAtomicBlock(b *blocks.ApricotAtomicBlock) error {
 }
 
 func (v *verifier) banffOptionBlock(b blocks.BanffBlock) error {
-	if err := v.banffCommonBlock(b); err != nil {
+	if err := v.commonBlock(b); err != nil {
 		return err
 	}
 
@@ -245,7 +245,7 @@ func (v *verifier) banffOptionBlock(b blocks.BanffBlock) error {
 }
 
 func (v *verifier) banffNonOptionBlock(b blocks.BanffBlock) error {
-	if err := v.banffCommonBlock(b); err != nil {
+	if err := v.commonBlock(b); err != nil {
 		return err
 	}
 
@@ -277,14 +277,6 @@ func (v *verifier) banffNonOptionBlock(b blocks.BanffBlock) error {
 		nextStakerChangeTime,
 		now,
 	)
-}
-
-func (v *verifier) banffCommonBlock(b blocks.BanffBlock) error {
-	timestamp := b.Timestamp()
-	if !v.txExecutorBackend.Config.IsBanffActivated(timestamp) {
-		return fmt.Errorf("%w: timestamp = %s", errBanffBlockIssuedBeforeFork, timestamp)
-	}
-	return v.commonBlock(b)
 }
 
 func (v *verifier) apricotCommonBlock(b blocks.Block) error {
@@ -470,7 +462,7 @@ func (v *verifier) standardBlock(
 
 // verifyUniqueInputs verifies that the inputs of the given block are not
 // duplicated in any of the parent blocks pinned in memory.
-func (v *verifier) verifyUniqueInputs(block blocks.Block, inputs ids.Set) error {
+func (v *verifier) verifyUniqueInputs(block blocks.Block, inputs set.Set[ids.ID]) error {
 	if inputs.Len() == 0 {
 		return nil
 	}

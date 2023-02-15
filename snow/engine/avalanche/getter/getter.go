@@ -4,6 +4,7 @@
 package getter
 
 import (
+	"context"
 	"time"
 
 	"go.uber.org/zap"
@@ -17,11 +18,12 @@ import (
 	"github.com/MetalBlockchain/metalgo/utils/constants"
 	"github.com/MetalBlockchain/metalgo/utils/logging"
 	"github.com/MetalBlockchain/metalgo/utils/metric"
+	"github.com/MetalBlockchain/metalgo/utils/set"
 	"github.com/MetalBlockchain/metalgo/utils/wrappers"
 )
 
 // Get requests are always served, regardless node state (bootstrapping or normal operations).
-var _ common.AllGetsServer = &getter{}
+var _ common.AllGetsServer = (*getter)(nil)
 
 func New(storage vertex.Storage, commonCfg common.Config) (common.AllGetsServer, error) {
 	gh := &getter{
@@ -50,51 +52,51 @@ type getter struct {
 	getAncestorsVtxs metric.Averager
 }
 
-func (gh *getter) GetStateSummaryFrontier(nodeID ids.NodeID, requestID uint32) error {
+func (gh *getter) GetStateSummaryFrontier(_ context.Context, nodeID ids.NodeID, requestID uint32) error {
 	gh.log.Debug("dropping request",
 		zap.String("reason", "unhandled by this gear"),
-		zap.Stringer("messageOp", message.GetStateSummaryFrontier),
+		zap.Stringer("messageOp", message.GetStateSummaryFrontierOp),
 		zap.Stringer("nodeID", nodeID),
 		zap.Uint32("requestID", requestID),
 	)
 	return nil
 }
 
-func (gh *getter) GetAcceptedStateSummary(nodeID ids.NodeID, requestID uint32, _ []uint64) error {
+func (gh *getter) GetAcceptedStateSummary(_ context.Context, nodeID ids.NodeID, requestID uint32, _ []uint64) error {
 	gh.log.Debug("dropping request",
 		zap.String("reason", "unhandled by this gear"),
-		zap.Stringer("messageOp", message.GetAcceptedStateSummary),
+		zap.Stringer("messageOp", message.GetAcceptedStateSummaryOp),
 		zap.Stringer("nodeID", nodeID),
 		zap.Uint32("requestID", requestID),
 	)
 	return nil
 }
 
-func (gh *getter) GetAcceptedFrontier(validatorID ids.NodeID, requestID uint32) error {
-	acceptedFrontier := gh.storage.Edge()
-	gh.sender.SendAcceptedFrontier(validatorID, requestID, acceptedFrontier)
+func (gh *getter) GetAcceptedFrontier(ctx context.Context, validatorID ids.NodeID, requestID uint32) error {
+	acceptedFrontier := gh.storage.Edge(ctx)
+	gh.sender.SendAcceptedFrontier(ctx, validatorID, requestID, acceptedFrontier)
 	return nil
 }
 
-func (gh *getter) GetAccepted(nodeID ids.NodeID, requestID uint32, containerIDs []ids.ID) error {
+func (gh *getter) GetAccepted(ctx context.Context, nodeID ids.NodeID, requestID uint32, containerIDs []ids.ID) error {
 	acceptedVtxIDs := make([]ids.ID, 0, len(containerIDs))
 	for _, vtxID := range containerIDs {
-		if vtx, err := gh.storage.GetVtx(vtxID); err == nil && vtx.Status() == choices.Accepted {
+		if vtx, err := gh.storage.GetVtx(ctx, vtxID); err == nil && vtx.Status() == choices.Accepted {
 			acceptedVtxIDs = append(acceptedVtxIDs, vtxID)
 		}
 	}
-	gh.sender.SendAccepted(nodeID, requestID, acceptedVtxIDs)
+	gh.sender.SendAccepted(ctx, nodeID, requestID, acceptedVtxIDs)
 	return nil
 }
 
-func (gh *getter) GetAncestors(nodeID ids.NodeID, requestID uint32, vtxID ids.ID) error {
+func (gh *getter) GetAncestors(ctx context.Context, nodeID ids.NodeID, requestID uint32, vtxID ids.ID) error {
 	startTime := time.Now()
 	gh.log.Verbo("called GetAncestors",
 		zap.Stringer("nodeID", nodeID),
 		zap.Uint32("requestID", requestID),
 		zap.Stringer("vtxID", vtxID),
 	)
-	vertex, err := gh.storage.GetVtx(vtxID)
+	vertex, err := gh.storage.GetVtx(ctx, vtxID)
 	if err != nil || vertex.Status() == choices.Unknown {
 		gh.log.Verbo("dropping getAncestors")
 		return nil // Don't have the requested vertex. Drop message.
@@ -104,7 +106,7 @@ func (gh *getter) GetAncestors(nodeID ids.NodeID, requestID uint32, vtxID ids.ID
 	queue[0] = vertex
 	ancestorsBytesLen := 0                                                 // length, in bytes, of vertex and its ancestors
 	ancestorsBytes := make([][]byte, 0, gh.cfg.AncestorsMaxContainersSent) // vertex and its ancestors in BFS order
-	visited := ids.Set{}                                                   // IDs of vertices that have been in queue before
+	visited := set.Set[ids.ID]{}                                           // IDs of vertices that have been in queue before
 	visited.Add(vertex.ID())
 
 	for len(ancestorsBytes) < gh.cfg.AncestorsMaxContainersSent && len(queue) > 0 && time.Since(startTime) < gh.cfg.MaxTimeGetAncestors {
@@ -135,14 +137,14 @@ func (gh *getter) GetAncestors(nodeID ids.NodeID, requestID uint32, vtxID ids.ID
 	}
 
 	gh.getAncestorsVtxs.Observe(float64(len(ancestorsBytes)))
-	gh.sender.SendAncestors(nodeID, requestID, ancestorsBytes)
+	gh.sender.SendAncestors(ctx, nodeID, requestID, ancestorsBytes)
 	return nil
 }
 
-func (gh *getter) Get(nodeID ids.NodeID, requestID uint32, vtxID ids.ID) error {
+func (gh *getter) Get(ctx context.Context, nodeID ids.NodeID, requestID uint32, vtxID ids.ID) error {
 	// If this engine has access to the requested vertex, provide it
-	if vtx, err := gh.storage.GetVtx(vtxID); err == nil {
-		gh.sender.SendPut(nodeID, requestID, vtx.Bytes())
+	if vtx, err := gh.storage.GetVtx(ctx, vtxID); err == nil {
+		gh.sender.SendPut(ctx, nodeID, requestID, vtx.Bytes())
 	}
 	return nil
 }

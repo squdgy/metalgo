@@ -3,7 +3,7 @@
 
 package state
 
-var _ StakerIterator = &sliceIterator{}
+var _ StakerIterator = (*sliceIterator)(nil)
 
 type sliceIterator struct {
 	index   int
@@ -28,4 +28,4 @@ func (i *sliceIterator) Value() *Staker {
 	return i.stakers[i.index]
 }
 
-func (i *sliceIterator) Release() {}
+func (*sliceIterator) Release() {}

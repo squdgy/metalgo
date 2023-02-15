@@ -4,18 +4,21 @@
 package events
 
 import (
+	"context"
+
 	"github.com/MetalBlockchain/metalgo/ids"
+	"github.com/MetalBlockchain/metalgo/utils/set"
 )
 
 // Blockable defines what an object must implement to be able to block on
 // dependent events being completed.
 type Blockable interface {
 	// IDs that this object is blocking on
-	Dependencies() ids.Set
+	Dependencies() set.Set[ids.ID]
 	// Notify this object that an event has been fulfilled
-	Fulfill(ids.ID)
+	Fulfill(context.Context, ids.ID)
 	// Notify this object that an event has been abandoned
-	Abandon(ids.ID)
+	Abandon(context.Context, ids.ID)
 	// Update the state of this object without changing the status of any events
-	Update()
+	Update(context.Context)
 }

@@ -11,7 +11,7 @@ import (
 	"github.com/MetalBlockchain/metalgo/ids"
 )
 
-func TestTimeoutManager(t *testing.T) {
+func TestTimeoutManager(*testing.T) {
 	wg := sync.WaitGroup{}
 	wg.Add(2)
 	defer wg.Wait()

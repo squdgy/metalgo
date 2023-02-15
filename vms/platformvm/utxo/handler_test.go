@@ -20,13 +20,13 @@ import (
 	"github.com/MetalBlockchain/metalgo/vms/secp256k1fx"
 )
 
-var _ txs.UnsignedTx = &dummyUnsignedTx{}
+var _ txs.UnsignedTx = (*dummyUnsignedTx)(nil)
 
 type dummyUnsignedTx struct {
 	txs.BaseTx
 }
 
-func (du *dummyUnsignedTx) Visit(txs.Visitor) error {
+func (*dummyUnsignedTx) Visit(txs.Visitor) error {
 	return nil
 }
 

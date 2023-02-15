@@ -4,24 +4,15 @@
 package avm
 
 import (
-	"time"
-
 	"github.com/MetalBlockchain/metalgo/snow"
 	"github.com/MetalBlockchain/metalgo/vms"
 )
 
-var _ vms.Factory = &Factory{}
+var _ vms.Factory = (*Factory)(nil)
 
 type Factory struct {
 	TxFee            uint64
 	CreateAssetTxFee uint64
-
-	// Time of the Banff network upgrade
-	BanffTime time.Time
-}
-
-func (f *Factory) IsBanffActivated(timestamp time.Time) bool {
-	return !timestamp.Before(f.BanffTime)
 }
 
 func (f *Factory) New(*snow.Context) (interface{}, error) {

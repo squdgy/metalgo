@@ -13,6 +13,7 @@ import (
 
 	plugin "github.com/hashicorp/go-plugin"
 
+	"github.com/MetalBlockchain/metalgo/version"
 	"github.com/MetalBlockchain/metalgo/vms/rpcchainvm/grpcutils"
 )
 
@@ -31,7 +32,7 @@ const (
 
 var (
 	TestHandshake = plugin.HandshakeConfig{
-		ProtocolVersion:  protocolVersion,
+		ProtocolVersion:  version.RPCChainVMProtocol,
 		MagicCookieKey:   "VM_PLUGIN",
 		MagicCookieValue: "dynamic",
 	}

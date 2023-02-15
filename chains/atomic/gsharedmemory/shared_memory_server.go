@@ -7,6 +7,8 @@ import (
 	"context"
 	"sync"
 
+	"golang.org/x/exp/maps"
+
 	"github.com/MetalBlockchain/metalgo/chains/atomic"
 	"github.com/MetalBlockchain/metalgo/database"
 	"github.com/MetalBlockchain/metalgo/ids"
@@ -14,7 +16,7 @@ import (
 	sharedmemorypb "github.com/MetalBlockchain/metalgo/proto/pb/sharedmemory"
 )
 
-var _ sharedmemorypb.SharedMemoryServer = &Server{}
+var _ sharedmemorypb.SharedMemoryServer = (*Server)(nil)
 
 // Server is shared memory that is managed over RPC.
 type Server struct {
@@ -222,7 +224,7 @@ func (s *Server) Apply(
 		}
 	}
 
-	if err := s.parseRequests(apply.requests, req.Requests); err != nil {
+	if err := parseRequests(apply.requests, req.Requests); err != nil {
 		delete(s.apply, req.Id)
 		return nil, err
 	}
@@ -239,17 +241,12 @@ func (s *Server) Apply(
 
 	delete(s.apply, req.Id)
 
-	batches := make([]database.Batch, len(apply.batches))
-	i := 0
-	for _, batch := range apply.batches {
-		batches[i] = batch
-		i++
-	}
+	batches := maps.Values(apply.batches)
 
 	return &sharedmemorypb.ApplyResponse{}, s.sm.Apply(apply.requests, batches...)
 }
 
-func (s *Server) parseRequests(
+func parseRequests(
 	requests map[ids.ID]*atomic.Requests,
 	rawRequests []*sharedmemorypb.AtomicRequest,
 ) error {

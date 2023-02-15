@@ -40,7 +40,7 @@ echo GINKGO_LABEL_FILTER: ${GINKGO_LABEL_FILTER}
 # TODO: migrate to upstream avalanche-network-runner
 GOARCH=$(go env GOARCH)
 GOOS=$(go env GOOS)
-NETWORK_RUNNER_VERSION=1.2.2
+NETWORK_RUNNER_VERSION=1.3.1
 DOWNLOAD_PATH=/tmp/avalanche-network-runner.tar.gz
 DOWNLOAD_URL="https://github.com/ava-labs/avalanche-network-runner/releases/download/v${NETWORK_RUNNER_VERSION}/avalanche-network-runner_${NETWORK_RUNNER_VERSION}_${GOOS}_${GOARCH}.tar.gz"
 
@@ -71,7 +71,7 @@ echo "launch avalanche-network-runner in the background"
 server \
 --log-level debug \
 --port=":12342" \
---disable-grpc-gateway 2> /dev/null &
+--disable-grpc-gateway &
 PID=${!}
 
 #################################

@@ -4,6 +4,8 @@
 package block
 
 import (
+	"context"
+
 	"github.com/MetalBlockchain/metalgo/ids"
 )
 
@@ -23,5 +25,5 @@ type StateSummary interface {
 	//
 	// The returned boolean will be [true] if the VM has started state sync or
 	// [false] if the VM has skipped state sync.
-	Accept() (bool, error)
+	Accept(context.Context) (bool, error)
 }

@@ -1,13 +1,14 @@
 name: build-arm64-debian-packages
 
 on:
+  workflow_dispatch:
   push:
     tags:
       - "*"
 
 jobs:
-  build-bionic-arm64-package:
-    runs-on: [self-hosted, linux, ARM64, bionic]
+  build-jammy-arm64-package:
+    runs-on: [self-hosted, linux, ARM64, jammy]
 
     steps:
       - uses: actions/checkout@v3
@@ -23,11 +24,12 @@ jobs:
       - name: Install aws cli
         run: |
           sudo apt update
-          sudo apt-get -y install awscli
+          sudo apt -y install awscli
 
       - name: Get the version
         id: get_version
-        run: echo ::set-output name=VERSION::${GITHUB_REF/refs\/tags\//}
+        run: |
+          echo "VERSION=${GITHUB_REF/refs\/tags\//}" >> $GITHUB_ENV
         shell: bash
 
       - name: Configure AWS credentials
@@ -40,10 +42,10 @@ jobs:
       - name: Create debian package
         run: ./.github/workflows/build-deb-pkg.sh
         env:
-          TAG: ${{ steps.get_version.outputs.VERSION }}
+          TAG: ${{ env.VERSION }}
           BUCKET: ${{ secrets.BUCKET }}
           ARCH: "arm64"
-          RELEASE: "bionic"
+          RELEASE: "jammy"
 
   build-focal-arm64-package:
     runs-on: [self-hosted, linux, ARM64, focal]
@@ -62,11 +64,12 @@ jobs:
       - name: Install aws cli
         run: |
           sudo apt update
-          sudo apt-get -y install awscli
+          sudo apt -y install awscli
 
       - name: Get the version
         id: get_version
-        run: echo ::set-output name=VERSION::${GITHUB_REF/refs\/tags\//}
+        run: |
+          echo "VERSION=${GITHUB_REF/refs\/tags\//}" >> $GITHUB_ENV
         shell: bash
 
       - name: Configure AWS credentials
@@ -79,7 +82,7 @@ jobs:
       - name: Create debian package
         run: ./.github/workflows/build-deb-pkg.sh
         env:
-          TAG: ${{ steps.get_version.outputs.VERSION }}
+          TAG: ${{ env.VERSION }}
           BUCKET: ${{ secrets.BUCKET }}
           ARCH: "arm64"
           RELEASE: "focal"

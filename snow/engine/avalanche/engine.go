@@ -4,6 +4,8 @@
 package avalanche
 
 import (
+	"context"
+
 	"github.com/MetalBlockchain/metalgo/ids"
 	"github.com/MetalBlockchain/metalgo/snow/consensus/avalanche"
 	"github.com/MetalBlockchain/metalgo/snow/engine/common"
@@ -15,5 +17,5 @@ type Engine interface {
 
 	// GetVtx returns a vertex by its ID.
 	// Returns an error if unknown.
-	GetVtx(vtxID ids.ID) (avalanche.Vertex, error)
+	GetVtx(ctx context.Context, vtxID ids.ID) (avalanche.Vertex, error)
 }

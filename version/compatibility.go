@@ -13,7 +13,7 @@ import (
 var (
 	errIncompatible = errors.New("peers version is incompatible")
 
-	_ Compatibility = &compatibility{}
+	_ Compatibility = (*compatibility)(nil)
 )
 
 // Compatibility a utility for checking the compatibility of peer versions
@@ -52,7 +52,9 @@ func NewCompatibility(
 	}
 }
 
-func (c *compatibility) Version() *Application { return c.version }
+func (c *compatibility) Version() *Application {
+	return c.version
+}
 
 func (c *compatibility) Compatible(peer *Application) error {
 	if err := c.version.Compatible(peer); err != nil {

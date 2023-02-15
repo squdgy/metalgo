@@ -10,11 +10,13 @@ import (
 
 	"github.com/MetalBlockchain/metalgo/ids"
 	"github.com/MetalBlockchain/metalgo/network/dialer"
+	"github.com/MetalBlockchain/metalgo/network/peer"
 	"github.com/MetalBlockchain/metalgo/network/throttling"
 	"github.com/MetalBlockchain/metalgo/snow/networking/tracker"
 	"github.com/MetalBlockchain/metalgo/snow/uptime"
 	"github.com/MetalBlockchain/metalgo/snow/validators"
 	"github.com/MetalBlockchain/metalgo/utils/ips"
+	"github.com/MetalBlockchain/metalgo/utils/set"
 )
 
 // HealthConfig describes parameters for network layer health checks.
@@ -125,11 +127,11 @@ type Config struct {
 	TLSKey crypto.Signer `json:"-"`
 
 	// WhitelistedSubnets of the node.
-	WhitelistedSubnets ids.Set        `json:"whitelistedSubnets"`
-	Beacons            validators.Set `json:"beacons"`
+	WhitelistedSubnets set.Set[ids.ID] `json:"-"`
+	Beacons            validators.Set  `json:"-"`
 
 	// Validators are the current validators in the Avalanche network
-	Validators validators.Manager `json:"validators"`
+	Validators validators.Manager `json:"-"`
 
 	UptimeCalculator uptime.Calculator `json:"-"`
 
@@ -139,7 +141,7 @@ type Config struct {
 
 	// UptimeRequirement is the fraction of time a validator must be online and
 	// responsive for us to vote that they should receive a staking reward.
-	UptimeRequirement float64 `json:"uptimeRequirement"`
+	UptimeRequirement float64 `json:"-"`
 
 	// RequireValidatorToConnect require that all connections must have at least
 	// one validator between the 2 peers. This can be useful to enable if the
@@ -170,4 +172,7 @@ type Config struct {
 	// Specifies how much disk usage each peer can cause before
 	// we rate-limit them.
 	DiskTargeter tracker.Targeter `json:"-"`
+
+	// Tracks which validators have been sent to which peers
+	GossipTracker peer.GossipTracker `json:"-"`
 }

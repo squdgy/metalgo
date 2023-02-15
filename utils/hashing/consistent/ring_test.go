@@ -14,7 +14,7 @@ import (
 )
 
 var (
-	_ Hashable = &testKey{}
+	_ Hashable = (*testKey)(nil)
 
 	// nodes
 	node1 = testKey{key: "node-1", hash: 1}
@@ -30,7 +30,9 @@ type testKey struct {
 	hash uint64
 }
 
-func (t testKey) ConsistentHashKey() []byte { return []byte(t.key) }
+func (t testKey) ConsistentHashKey() []byte {
+	return []byte(t.key)
+}
 
 // Tests that a key routes to its closest clockwise node.
 // Test cases are described in greater detail below; see diagrams for Ring.

@@ -4,6 +4,7 @@
 package builder
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"time"
@@ -31,7 +32,7 @@ import (
 const targetBlockSize = 128 * units.KiB
 
 var (
-	_ Builder = &builder{}
+	_ Builder = (*builder)(nil)
 
 	errEndOfTime       = errors.New("program time is suspiciously far in the future")
 	errNoPendingBlocks = errors.New("no pending blocks")
@@ -53,7 +54,7 @@ type Builder interface {
 
 	// BuildBlock is called on timer clock to attempt to create
 	// next block
-	BuildBlock() (snowman.Block, error)
+	BuildBlock(context.Context) (snowman.Block, error)
 
 	// Shutdown cleanly shuts Builder down
 	Shutdown()
@@ -150,7 +151,7 @@ func (b *builder) AddUnverifiedTx(tx *txs.Tx) error {
 // BuildBlock builds a block to be added to consensus.
 // This method removes the transactions from the returned
 // blocks from the mempool.
-func (b *builder) BuildBlock() (snowman.Block, error) {
+func (b *builder) BuildBlock(context.Context) (snowman.Block, error) {
 	b.Mempool.DisableAdding()
 	defer func() {
 		b.Mempool.EnableAdding()
@@ -209,19 +210,7 @@ func (b *builder) buildBlock() (blocks.Block, error) {
 	}
 	// [timestamp] = min(max(now, parentTime), nextStakerChangeTime)
 
-	// If the banff timestamp has come, build banff blocks.
-	if b.txExecutorBackend.Config.IsBanffActivated(timestamp) {
-		return buildBanffBlock(
-			b,
-			preferredID,
-			nextHeight,
-			timestamp,
-			timeWasCapped,
-			preferredState,
-		)
-	}
-
-	return buildApricotBlock(
+	return buildBlock(
 		b,
 		preferredID,
 		nextHeight,
@@ -244,41 +233,6 @@ func (b *builder) ResetBlockTimer() {
 	// Next time the context lock is released, we can attempt to reset the block
 	// timer.
 	b.timer.SetTimeoutIn(0)
-}
-
-// getNextStakerToReward returns the next staker txID to remove from the staking
-// set with a RewardValidatorTx rather than an AdvanceTimeTx. [chainTimestamp]
-// is the timestamp of the chain at the time this validator would be getting
-// removed and is used to calculate [shouldReward].
-// Returns:
-// - [txID] of the next staker to reward
-// - [shouldReward] if the txID exists and is ready to be rewarded
-// - [err] if something bad happened
-func (b *builder) getNextStakerToReward(
-	chainTimestamp time.Time,
-	preferredState state.Chain,
-) (ids.ID, bool, error) {
-	if !chainTimestamp.Before(mockable.MaxTime) {
-		return ids.Empty, false, errEndOfTime
-	}
-
-	currentStakerIterator, err := preferredState.GetCurrentStakerIterator()
-	if err != nil {
-		return ids.Empty, false, err
-	}
-	defer currentStakerIterator.Release()
-
-	for currentStakerIterator.Next() {
-		currentStaker := currentStakerIterator.Value()
-		priority := currentStaker.Priority
-		// If the staker is a permissionless staker (not a permissioned subnet
-		// validator), it's the next staker we will want to remove with a
-		// RewardValidatorTx rather than an AdvanceTimeTx.
-		if priority != txs.SubnetPermissionedValidatorCurrentPriority {
-			return currentStaker.TxID, chainTimestamp.Equal(currentStaker.EndTime), nil
-		}
-	}
-	return ids.Empty, false, nil
 }
 
 // dropExpiredStakerTxs drops add validator/delegator transactions in the
@@ -372,4 +326,87 @@ func (b *builder) notifyBlockReady() {
 	default:
 		b.txExecutorBackend.Ctx.Log.Debug("dropping message to consensus engine")
 	}
+}
+
+// [timestamp] is min(max(now, parent timestamp), next staker change time)
+func buildBlock(
+	builder *builder,
+	parentID ids.ID,
+	height uint64,
+	timestamp time.Time,
+	forceAdvanceTime bool,
+	parentState state.Chain,
+) (blocks.Block, error) {
+	// Try rewarding stakers whose staking period ends at the new chain time.
+	// This is done first to prioritize advancing the timestamp as quickly as
+	// possible.
+	stakerTxID, shouldReward, err := getNextStakerToReward(timestamp, parentState)
+	if err != nil {
+		return nil, fmt.Errorf("could not find next staker to reward: %w", err)
+	}
+	if shouldReward {
+		rewardValidatorTx, err := builder.txBuilder.NewRewardValidatorTx(stakerTxID)
+		if err != nil {
+			return nil, fmt.Errorf("could not build tx to reward staker: %w", err)
+		}
+
+		return blocks.NewBanffProposalBlock(
+			timestamp,
+			parentID,
+			height,
+			rewardValidatorTx,
+		)
+	}
+
+	// Clean out the mempool's transactions with invalid timestamps.
+	builder.dropExpiredStakerTxs(timestamp)
+
+	// If there is no reason to build a block, don't.
+	if !builder.Mempool.HasTxs() && !forceAdvanceTime {
+		builder.txExecutorBackend.Ctx.Log.Debug("no pending txs to issue into a block")
+		return nil, errNoPendingBlocks
+	}
+
+	// Issue a block with as many transactions as possible.
+	return blocks.NewBanffStandardBlock(
+		timestamp,
+		parentID,
+		height,
+		builder.Mempool.PeekTxs(targetBlockSize),
+	)
+}
+
+// getNextStakerToReward returns the next staker txID to remove from the staking
+// set with a RewardValidatorTx rather than an AdvanceTimeTx. [chainTimestamp]
+// is the timestamp of the chain at the time this validator would be getting
+// removed and is used to calculate [shouldReward].
+// Returns:
+// - [txID] of the next staker to reward
+// - [shouldReward] if the txID exists and is ready to be rewarded
+// - [err] if something bad happened
+func getNextStakerToReward(
+	chainTimestamp time.Time,
+	preferredState state.Chain,
+) (ids.ID, bool, error) {
+	if !chainTimestamp.Before(mockable.MaxTime) {
+		return ids.Empty, false, errEndOfTime
+	}
+
+	currentStakerIterator, err := preferredState.GetCurrentStakerIterator()
+	if err != nil {
+		return ids.Empty, false, err
+	}
+	defer currentStakerIterator.Release()
+
+	for currentStakerIterator.Next() {
+		currentStaker := currentStakerIterator.Value()
+		priority := currentStaker.Priority
+		// If the staker is a permissionless staker (not a permissioned subnet
+		// validator), it's the next staker we will want to remove with a
+		// RewardValidatorTx rather than an AdvanceTimeTx.
+		if priority != txs.SubnetPermissionedValidatorCurrentPriority {
+			return currentStaker.TxID, chainTimestamp.Equal(currentStaker.EndTime), nil
+		}
+	}
+	return ids.Empty, false, nil
 }

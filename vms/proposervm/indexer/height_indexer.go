@@ -25,7 +25,7 @@ const (
 	sleepDurationMultiplier = 5
 )
 
-var _ HeightIndexer = &heightIndexer{}
+var _ HeightIndexer = (*heightIndexer)(nil)
 
 type HeightIndexer interface {
 	// Returns whether the height index is fully repaired.
@@ -95,7 +95,7 @@ func (hi *heightIndexer) RepairHeightIndex(ctx context.Context) error {
 
 	// retrieve checkpoint height. We explicitly track block height
 	// in doRepair to avoid heavier DB reads.
-	startBlk, err := hi.server.GetFullPostForkBlock(startBlkID)
+	startBlk, err := hi.server.GetFullPostForkBlock(ctx, startBlkID)
 	if err != nil {
 		return err
 	}

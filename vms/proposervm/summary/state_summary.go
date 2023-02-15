@@ -7,7 +7,7 @@ import (
 	"github.com/MetalBlockchain/metalgo/ids"
 )
 
-var _ StateSummary = &stateSummary{}
+var _ StateSummary = (*stateSummary)(nil)
 
 type StateSummary interface {
 	ID() ids.ID
@@ -30,8 +30,22 @@ type stateSummary struct {
 	bytes []byte
 }
 
-func (s *stateSummary) ID() ids.ID                { return s.id }
-func (s *stateSummary) ForkHeight() uint64        { return s.Height }
-func (s *stateSummary) BlockBytes() []byte        { return s.Block }
-func (s *stateSummary) InnerSummaryBytes() []byte { return s.InnerSummary }
-func (s *stateSummary) Bytes() []byte             { return s.bytes }
+func (s *stateSummary) ID() ids.ID {
+	return s.id
+}
+
+func (s *stateSummary) ForkHeight() uint64 {
+	return s.Height
+}
+
+func (s *stateSummary) BlockBytes() []byte {
+	return s.Block
+}
+
+func (s *stateSummary) InnerSummaryBytes() []byte {
+	return s.InnerSummary
+}
+
+func (s *stateSummary) Bytes() []byte {
+	return s.bytes
+}

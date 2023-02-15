@@ -11,9 +11,9 @@ import (
 )
 
 var (
-	_ http.ResponseWriter = &lockedWriter{}
-	_ http.Flusher        = &lockedWriter{}
-	_ http.Hijacker       = &lockedWriter{}
+	_ http.ResponseWriter = (*lockedWriter)(nil)
+	_ http.Flusher        = (*lockedWriter)(nil)
+	_ http.Hijacker       = (*lockedWriter)(nil)
 )
 
 type lockedWriter struct {
@@ -22,7 +22,9 @@ type lockedWriter struct {
 	headerWritten bool
 }
 
-func NewLockedWriter(w http.ResponseWriter) http.ResponseWriter { return &lockedWriter{writer: w} }
+func NewLockedWriter(w http.ResponseWriter) http.ResponseWriter {
+	return &lockedWriter{writer: w}
+}
 
 func (lw *lockedWriter) Header() http.Header {
 	lw.lock.Lock()

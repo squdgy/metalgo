@@ -37,7 +37,7 @@ var (
 	errNoneAccepted        = errors.New("no containers have been accepted")
 	errNumToFetchZero      = fmt.Errorf("numToFetch must be in [1,%d]", MaxFetchedByRange)
 
-	_ Index = &index{}
+	_ Index = (*index)(nil)
 )
 
 // Index indexes containers in their order of acceptance
@@ -212,7 +212,7 @@ func (i *index) getContainerByIndexBytes(indexBytes []byte) (Container, error) {
 		return Container{}, fmt.Errorf("couldn't read from database: %w", err)
 	}
 	var container Container
-	if _, err = i.codec.Unmarshal(containerBytes, &container); err != nil {
+	if _, err := i.codec.Unmarshal(containerBytes, &container); err != nil {
 		return Container{}, fmt.Errorf("couldn't unmarshal container: %w", err)
 	}
 	return container, nil
@@ -241,7 +241,7 @@ func (i *index) GetContainerRange(startIndex, numToFetch uint64) ([]Container, e
 	}
 
 	// Calculate the last index we will fetch
-	lastIndex := math.Min64(startIndex+numToFetch-1, lastAcceptedIndex)
+	lastIndex := math.Min(startIndex+numToFetch-1, lastAcceptedIndex)
 	// [lastIndex] is always >= [startIndex] so this is safe.
 	// [numToFetch] is limited to [MaxFetchedByRange] so [containers] is bounded in size.
 	containers := make([]Container, int(lastIndex)-int(startIndex)+1)

@@ -11,6 +11,7 @@ import (
 	"github.com/MetalBlockchain/metalgo/ids"
 	"github.com/MetalBlockchain/metalgo/snow"
 	"github.com/MetalBlockchain/metalgo/utils/constants"
+	"github.com/MetalBlockchain/metalgo/utils/crypto/bls"
 	"github.com/MetalBlockchain/metalgo/utils/math"
 	"github.com/MetalBlockchain/metalgo/vms/components/avax"
 	"github.com/MetalBlockchain/metalgo/vms/components/verify"
@@ -22,7 +23,7 @@ import (
 )
 
 var (
-	_ ValidatorTx = &AddPermissionlessValidatorTx{}
+	_ ValidatorTx = (*AddPermissionlessValidatorTx)(nil)
 
 	errEmptyNodeID             = errors.New("validator nodeID cannot be empty")
 	errNoStake                 = errors.New("no stake")
@@ -71,11 +72,33 @@ func (tx *AddPermissionlessValidatorTx) InitCtx(ctx *snow.Context) {
 	tx.DelegatorRewardsOwner.InitCtx(ctx)
 }
 
-func (tx *AddPermissionlessValidatorTx) SubnetID() ids.ID     { return tx.Subnet }
-func (tx *AddPermissionlessValidatorTx) NodeID() ids.NodeID   { return tx.Validator.NodeID }
-func (tx *AddPermissionlessValidatorTx) StartTime() time.Time { return tx.Validator.StartTime() }
-func (tx *AddPermissionlessValidatorTx) EndTime() time.Time   { return tx.Validator.EndTime() }
-func (tx *AddPermissionlessValidatorTx) Weight() uint64       { return tx.Validator.Wght }
+func (tx *AddPermissionlessValidatorTx) SubnetID() ids.ID {
+	return tx.Subnet
+}
+
+func (tx *AddPermissionlessValidatorTx) NodeID() ids.NodeID {
+	return tx.Validator.NodeID
+}
+
+func (tx *AddPermissionlessValidatorTx) PublicKey() (*bls.PublicKey, bool, error) {
+	if err := tx.Signer.Verify(); err != nil {
+		return nil, false, err
+	}
+	key := tx.Signer.Key()
+	return key, key != nil, nil
+}
+
+func (tx *AddPermissionlessValidatorTx) StartTime() time.Time {
+	return tx.Validator.StartTime()
+}
+
+func (tx *AddPermissionlessValidatorTx) EndTime() time.Time {
+	return tx.Validator.EndTime()
+}
+
+func (tx *AddPermissionlessValidatorTx) Weight() uint64 {
+	return tx.Validator.Wght
+}
 
 func (tx *AddPermissionlessValidatorTx) PendingPriority() Priority {
 	if tx.Subnet == constants.PrimaryNetworkID {

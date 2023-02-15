@@ -4,11 +4,14 @@
 package avalanche
 
 import (
+	"context"
+
 	"go.uber.org/zap"
 
 	"github.com/MetalBlockchain/metalgo/ids"
 	"github.com/MetalBlockchain/metalgo/snow/consensus/snowstorm"
 	"github.com/MetalBlockchain/metalgo/snow/engine/avalanche/vertex"
+	"github.com/MetalBlockchain/metalgo/utils/set"
 )
 
 // Voter records chits received from [vdr] once its dependencies are met.
@@ -17,21 +20,25 @@ type voter struct {
 	vdr       ids.NodeID
 	requestID uint32
 	response  []ids.ID
-	deps      ids.Set
+	deps      set.Set[ids.ID]
 }
 
-func (v *voter) Dependencies() ids.Set { return v.deps }
+func (v *voter) Dependencies() set.Set[ids.ID] {
+	return v.deps
+}
 
 // Mark that a dependency has been met.
-func (v *voter) Fulfill(id ids.ID) {
+func (v *voter) Fulfill(ctx context.Context, id ids.ID) {
 	v.deps.Remove(id)
-	v.Update()
+	v.Update(ctx)
 }
 
 // Abandon this attempt to record chits.
-func (v *voter) Abandon(id ids.ID) { v.Fulfill(id) }
+func (v *voter) Abandon(ctx context.Context, id ids.ID) {
+	v.Fulfill(ctx, id)
+}
 
-func (v *voter) Update() {
+func (v *voter) Update(ctx context.Context) {
 	if v.deps.Len() != 0 || v.t.errs.Errored() {
 		return
 	}
@@ -41,7 +48,7 @@ func (v *voter) Update() {
 		return
 	}
 	for _, result := range results {
-		_, err := v.bubbleVotes(result)
+		_, err := v.bubbleVotes(ctx, result)
 		if err != nil {
 			v.t.errs.Add(err)
 			return
@@ -54,7 +61,7 @@ func (v *voter) Update() {
 		v.t.Ctx.Log.Debug("finishing poll",
 			zap.Stringer("result", &result),
 		)
-		if err := v.t.Consensus.RecordPoll(result); err != nil {
+		if err := v.t.Consensus.RecordPoll(ctx, result); err != nil {
 			v.t.errs.Add(err)
 			return
 		}
@@ -63,7 +70,7 @@ func (v *voter) Update() {
 	orphans := v.t.Consensus.Orphans()
 	txs := make([]snowstorm.Tx, 0, orphans.Len())
 	for orphanID := range orphans {
-		if tx, err := v.t.VM.GetTx(orphanID); err == nil {
+		if tx, err := v.t.VM.GetTx(ctx, orphanID); err == nil {
 			txs = append(txs, tx)
 		} else {
 			v.t.Ctx.Log.Warn("failed to fetch tx during attempted re-issuance",
@@ -77,7 +84,7 @@ func (v *voter) Update() {
 			zap.Int("numTxs", len(txs)),
 		)
 	}
-	if _, err := v.t.batch(txs, batchOption{force: true}); err != nil {
+	if _, err := v.t.batch(ctx, txs, batchOption{force: true}); err != nil {
 		v.t.errs.Add(err)
 		return
 	}
@@ -88,13 +95,13 @@ func (v *voter) Update() {
 	}
 
 	v.t.Ctx.Log.Debug("avalanche engine can't quiesce")
-	v.t.repoll()
+	v.t.repoll(ctx)
 }
 
-func (v *voter) bubbleVotes(votes ids.UniqueBag) (ids.UniqueBag, error) {
+func (v *voter) bubbleVotes(ctx context.Context, votes ids.UniqueBag) (ids.UniqueBag, error) {
 	vertexHeap := vertex.NewHeap()
 	for vote, set := range votes {
-		vtx, err := v.t.Manager.GetVtx(vote)
+		vtx, err := v.t.Manager.GetVtx(ctx, vote)
 		if err != nil {
 			v.t.Ctx.Log.Debug("dropping vote(s)",
 				zap.String("reason", "failed to fetch vertex"),

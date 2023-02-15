@@ -4,20 +4,22 @@
 package proposervm
 
 import (
+	"context"
+
 	"github.com/MetalBlockchain/metalgo/ids"
 	"github.com/MetalBlockchain/metalgo/snow/consensus/snowman"
 	"github.com/MetalBlockchain/metalgo/vms/proposervm/indexer"
 )
 
-var _ indexer.BlockServer = &VM{}
+var _ indexer.BlockServer = (*VM)(nil)
 
 // Note: this is a contention heavy call that should be avoided
 // for frequent/repeated indexer ops
-func (vm *VM) GetFullPostForkBlock(blkID ids.ID) (snowman.Block, error) {
+func (vm *VM) GetFullPostForkBlock(ctx context.Context, blkID ids.ID) (snowman.Block, error) {
 	vm.ctx.Lock.Lock()
 	defer vm.ctx.Lock.Unlock()
 
-	return vm.getPostForkBlock(blkID)
+	return vm.getPostForkBlock(ctx, blkID)
 }
 
 func (vm *VM) Commit() error {

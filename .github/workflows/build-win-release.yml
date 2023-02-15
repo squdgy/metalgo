@@ -4,6 +4,7 @@ name: build-win-release
 
 # Controls when the action will run.
 on:
+  workflow_dispatch:
   push:
     tags:
       - "*" # Push events to every tag
@@ -26,7 +27,8 @@ jobs:
 
       - name: Get the version
         id: get_version
-        run: echo ::set-output name=VERSION::${GITHUB_REF/refs\/tags\//}
+        run: |
+          echo "VERSION=${GITHUB_REF/refs\/tags\//}" >> $GITHUB_ENV
         shell: bash
 
       - name: Install awscli
@@ -43,7 +45,7 @@ jobs:
         run: |
           mv .\build\metalgo .\build\metalgo.exe
           mv .\build\plugins\evm .\build\plugins\evm.exe
-          Compress-Archive -Path .\build\metalgo.exe,.\build\plugins -DestinationPath .\build\metalgo-win-${{ steps.get_version.outputs.VERSION }}-experimental.zip
+          Compress-Archive -Path .\build\metalgo.exe,.\build\plugins -DestinationPath .\build\metalgo-win-${{ env.VERSION }}-experimental.zip
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v1
@@ -53,4 +55,4 @@ jobs:
           aws-region: us-east-1
 
       - name: Copy to s3
-        run: aws s3 cp .\build\metalgo-win-${{ steps.get_version.outputs.VERSION }}-experimental.zip s3://${{ secrets.BUCKET }}/windows/metalgo-win-${{ steps.get_version.outputs.VERSION }}-experimental.zip
+        run: aws s3 cp .\build\metalgo-win-${{ env.VERSION }}-experimental.zip s3://${{ secrets.BUCKET }}/windows/metalgo-win-${{ env.VERSION }}-experimental.zip

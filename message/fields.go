@@ -4,148 +4,71 @@
 package message
 
 import (
-	"github.com/MetalBlockchain/metalgo/utils/wrappers"
+	"errors"
+	"time"
+
+	"github.com/MetalBlockchain/metalgo/ids"
+	"github.com/MetalBlockchain/metalgo/utils/constants"
+
+	p2ppb "github.com/MetalBlockchain/metalgo/proto/pb/p2p"
 )
 
-// Field that may be packed into a message
-type Field uint32
+var errMissingField = errors.New("message missing field")
 
-// Fields that may be packed. These values are not sent over the wire.
-const (
-	VersionStr          Field = iota // Used in handshake
-	NetworkID                        // Used in handshake
-	NodeID                           // TODO: remove NodeID. Used in handshake
-	MyTime                           // Used in handshake
-	IP                               // Used in handshake
-	ChainID                          // Used for dispatching
-	RequestID                        // Used for all messages
-	Deadline                         // Used for request messages
-	ContainerID                      // Used for querying
-	ContainerBytes                   // Used for gossiping
-	ContainerIDs                     // Used for querying
-	MultiContainerBytes              // Used in Ancestors
-	SigBytes                         // Used in handshake / peer gossiping
-	VersionTime                      // Used in handshake / peer gossiping
-	Peers                            // Used in peer gossiping
-	TrackedSubnets                   // Used in handshake / peer gossiping
-	AppBytes                         // Used at application level
-	VMMessage                        // Used internally
-	Uptime                           // Used for Pong
-	SummaryBytes                     // Used for state sync
-	SummaryHeights                   // Used for state sync
-	SummaryIDs                       // Used for state sync
-	VersionStruct                    // Used internally
-)
-
-// Packer returns the packer function that can be used to pack this field.
-func (f Field) Packer() func(*wrappers.Packer, interface{}) {
-	switch f {
-	case VersionStr:
-		return wrappers.TryPackStr
-	case NetworkID, NodeID, RequestID:
-		return wrappers.TryPackInt
-	case MyTime, Deadline, VersionTime:
-		return wrappers.TryPackLong
-	case IP:
-		return wrappers.TryPackIP
-	case ChainID, ContainerID: // TODO: This will be shortened to use a modified varint spec
-		return wrappers.TryPackHash
-	case ContainerBytes, AppBytes, SigBytes, SummaryBytes:
-		return wrappers.TryPackBytes
-	case ContainerIDs, TrackedSubnets, SummaryIDs:
-		return wrappers.TryPackHashes
-	case MultiContainerBytes:
-		return wrappers.TryPack2DBytes
-	case Peers:
-		return wrappers.TryPackClaimedIPPortList
-	case Uptime:
-		return wrappers.TryPackByte
-	case SummaryHeights:
-		return wrappers.TryPackUint64Slice
-	default:
-		return nil
-	}
+type chainIDGetter interface {
+	GetChainId() []byte
 }
 
-// Unpacker returns the unpacker function that can be used to unpack this field.
-func (f Field) Unpacker() func(*wrappers.Packer) interface{} {
-	switch f {
-	case VersionStr:
-		return wrappers.TryUnpackStr
-	case NetworkID, NodeID, RequestID:
-		return wrappers.TryUnpackInt
-	case MyTime, Deadline, VersionTime:
-		return wrappers.TryUnpackLong
-	case IP:
-		return wrappers.TryUnpackIP
-	case ChainID, ContainerID: // TODO: This will be shortened to use a modified varint spec
-		return wrappers.TryUnpackHash
-	case ContainerBytes, AppBytes, SigBytes, SummaryBytes:
-		return wrappers.TryUnpackBytes
-	case ContainerIDs, TrackedSubnets, SummaryIDs:
-		return wrappers.TryUnpackHashes
-	case MultiContainerBytes:
-		return wrappers.TryUnpack2DBytes
-	case Peers:
-		return wrappers.TryUnpackClaimedIPPortList
-	case Uptime:
-		return wrappers.TryUnpackByte
-	case SummaryHeights:
-		return wrappers.TryUnpackUint64Slice
-	default:
-		return nil
+func GetChainID(m any) (ids.ID, error) {
+	msg, ok := m.(chainIDGetter)
+	if !ok {
+		return ids.Empty, errMissingField
 	}
+	chainIDBytes := msg.GetChainId()
+	return ids.ToID(chainIDBytes)
 }
 
-func (f Field) String() string {
-	switch f {
-	case VersionStr:
-		return "VersionStr"
-	case NetworkID:
-		return "NetworkID"
-	case NodeID:
-		return "NodeID"
-	case MyTime:
-		return "MyTime"
-	case IP:
-		return "IP"
-	case ChainID:
-		return "ChainID"
-	case RequestID:
-		return "RequestID"
-	case Deadline:
-		return "Deadline"
-	case ContainerID:
-		return "ContainerID"
-	case ContainerBytes:
-		return "Container Bytes"
-	case ContainerIDs:
-		return "Container IDs"
-	case MultiContainerBytes:
-		return "MultiContainerBytes"
-	case AppBytes:
-		return "AppBytes"
-	case SigBytes:
-		return "SigBytes"
-	case VersionTime:
-		return "VersionTime"
-	case Peers:
-		return "Peers"
-	case TrackedSubnets:
-		return "TrackedSubnets"
-	case VMMessage:
-		return "VMMessage"
-	case Uptime:
-		return "Uptime"
-	case SummaryBytes:
-		return "Summary"
-	case SummaryHeights:
-		return "SummaryHeights"
-	case SummaryIDs:
-		return "SummaryIDs"
-	case VersionStruct:
-		return "VersionStruct"
-	default:
-		return "Unknown Field"
+type sourceChainIDGetter interface {
+	GetSourceChainID() ids.ID
+}
+
+func GetSourceChainID(m any) (ids.ID, error) {
+	msg, ok := m.(sourceChainIDGetter)
+	if !ok {
+		return GetChainID(m)
 	}
+	return msg.GetSourceChainID(), nil
+}
+
+type requestIDGetter interface {
+	GetRequestId() uint32
+}
+
+func GetRequestID(m any) (uint32, bool) {
+	if msg, ok := m.(requestIDGetter); ok {
+		requestID := msg.GetRequestId()
+		return requestID, true
+	}
+
+	// AppGossip is the only message currently not containing a requestID
+	// Here we assign the requestID already in use for gossiped containers
+	// to allow a uniform handling of all messages
+	if _, ok := m.(*p2ppb.AppGossip); ok {
+		return constants.GossipMsgRequestID, true
+	}
+
+	return 0, false
+}
+
+type deadlineGetter interface {
+	GetDeadline() uint64
+}
+
+func GetDeadline(m any) (time.Duration, bool) {
+	msg, ok := m.(deadlineGetter)
+	if !ok {
+		return 0, false
+	}
+	deadline := msg.GetDeadline()
+	return time.Duration(deadline), true
 }

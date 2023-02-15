@@ -9,6 +9,7 @@ import (
 	"github.com/MetalBlockchain/metalgo/codec"
 	"github.com/MetalBlockchain/metalgo/ids"
 	"github.com/MetalBlockchain/metalgo/snow"
+	"github.com/MetalBlockchain/metalgo/utils/set"
 	"github.com/MetalBlockchain/metalgo/vms/components/avax"
 	"github.com/MetalBlockchain/metalgo/vms/secp256k1fx"
 )
@@ -18,8 +19,8 @@ var (
 	errNoOperations              = errors.New("an operationTx must have at least one operation")
 	errDoubleSpend               = errors.New("inputs attempt to double spend an input")
 
-	_ UnsignedTx             = &OperationTx{}
-	_ secp256k1fx.UnsignedTx = &OperationTx{}
+	_ UnsignedTx             = (*OperationTx)(nil)
+	_ secp256k1fx.UnsignedTx = (*OperationTx)(nil)
 )
 
 // OperationTx is a transaction with no credentials.
@@ -38,7 +39,9 @@ func (t *OperationTx) InitCtx(ctx *snow.Context) {
 
 // Operations track which ops this transaction is performing. The returned array
 // should not be modified.
-func (t *OperationTx) Operations() []*Operation { return t.Ops }
+func (t *OperationTx) Operations() []*Operation {
+	return t.Ops
+}
 
 func (t *OperationTx) InputUTXOs() []*avax.UTXOID {
 	utxos := t.BaseTx.InputUTXOs()
@@ -49,7 +52,7 @@ func (t *OperationTx) InputUTXOs() []*avax.UTXOID {
 }
 
 // ConsumedAssetIDs returns the IDs of the assets this transaction consumes
-func (t *OperationTx) ConsumedAssetIDs() ids.Set {
+func (t *OperationTx) ConsumedAssetIDs() set.Set[ids.ID] {
 	assets := t.AssetIDs()
 	for _, op := range t.Ops {
 		if len(op.UTXOIDs) > 0 {
@@ -60,7 +63,7 @@ func (t *OperationTx) ConsumedAssetIDs() ids.Set {
 }
 
 // AssetIDs returns the IDs of the assets this transaction depends on
-func (t *OperationTx) AssetIDs() ids.Set {
+func (t *OperationTx) AssetIDs() set.Set[ids.ID] {
 	assets := t.BaseTx.AssetIDs()
 	for _, op := range t.Ops {
 		assets.Add(op.AssetID())
@@ -93,13 +96,13 @@ func (t *OperationTx) SyntacticVerify(
 		return err
 	}
 
-	inputs := ids.NewSet(len(t.Ins))
+	inputs := set.NewSet[ids.ID](len(t.Ins))
 	for _, in := range t.Ins {
 		inputs.Add(in.InputID())
 	}
 
 	for _, op := range t.Ops {
-		if err := op.Verify(c); err != nil {
+		if err := op.Verify(); err != nil {
 			return err
 		}
 		for _, utxoID := range op.UTXOIDs {

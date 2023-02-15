@@ -7,7 +7,7 @@ import (
 	"github.com/MetalBlockchain/metalgo/vms/components/verify"
 )
 
-var _ verify.State = &MintOutput{}
+var _ verify.State = (*MintOutput)(nil)
 
 type MintOutput struct {
 	OutputOwners `serialize:"true"`
@@ -22,4 +22,6 @@ func (out *MintOutput) Verify() error {
 	}
 }
 
-func (out *MintOutput) VerifyState() error { return out.Verify() }
+func (out *MintOutput) VerifyState() error {
+	return out.Verify()
+}

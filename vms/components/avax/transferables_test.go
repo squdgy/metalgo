@@ -10,6 +10,7 @@ import (
 	"github.com/MetalBlockchain/metalgo/codec"
 	"github.com/MetalBlockchain/metalgo/codec/linearcodec"
 	"github.com/MetalBlockchain/metalgo/ids"
+	"github.com/MetalBlockchain/metalgo/utils"
 	"github.com/MetalBlockchain/metalgo/vms/secp256k1fx"
 )
 
@@ -244,11 +245,11 @@ func TestTransferableInputSorting(t *testing.T) {
 		},
 	}
 
-	if IsSortedAndUniqueTransferableInputs(ins) {
+	if utils.IsSortedAndUniqueSortable(ins) {
 		t.Fatalf("Shouldn't be sorted")
 	}
-	SortTransferableInputs(ins)
-	if !IsSortedAndUniqueTransferableInputs(ins) {
+	utils.Sort(ins)
+	if !utils.IsSortedAndUniqueSortable(ins) {
 		t.Fatalf("Should be sorted")
 	}
 
@@ -261,7 +262,7 @@ func TestTransferableInputSorting(t *testing.T) {
 		In:    &TestTransferable{},
 	})
 
-	if IsSortedAndUniqueTransferableInputs(ins) {
+	if utils.IsSortedAndUniqueSortable(ins) {
 		t.Fatalf("Shouldn't be unique")
 	}
 }

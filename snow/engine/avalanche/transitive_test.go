@@ -5,6 +5,7 @@ package avalanche
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"testing"
@@ -12,6 +13,8 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/stretchr/testify/require"
+
+	"golang.org/x/exp/slices"
 
 	"github.com/MetalBlockchain/metalgo/ids"
 	"github.com/MetalBlockchain/metalgo/snow/choices"
@@ -25,6 +28,7 @@ import (
 	"github.com/MetalBlockchain/metalgo/snow/validators"
 	"github.com/MetalBlockchain/metalgo/utils"
 	"github.com/MetalBlockchain/metalgo/utils/constants"
+	"github.com/MetalBlockchain/metalgo/utils/set"
 	"github.com/MetalBlockchain/metalgo/utils/wrappers"
 	"github.com/MetalBlockchain/metalgo/version"
 
@@ -38,12 +42,12 @@ var (
 )
 
 type dummyHandler struct {
-	startEngineF func(startReqID uint32) error
+	startEngineF func(ctx context.Context, startReqID uint32) error
 }
 
-func (dh *dummyHandler) onDoneBootstrapping(lastReqID uint32) error {
+func (dh *dummyHandler) onDoneBootstrapping(ctx context.Context, lastReqID uint32) error {
 	lastReqID++
-	return dh.startEngineF(lastReqID)
+	return dh.startEngineF(ctx, lastReqID)
 }
 
 func TestEngineShutdown(t *testing.T) {
@@ -52,14 +56,17 @@ func TestEngineShutdown(t *testing.T) {
 	vmShutdownCalled := false
 	vm := &vertex.TestVM{}
 	vm.T = t
-	vm.ShutdownF = func() error { vmShutdownCalled = true; return nil }
+	vm.ShutdownF = func(context.Context) error {
+		vmShutdownCalled = true
+		return nil
+	}
 	engCfg.VM = vm
 
 	transitive, err := newTransitive(engCfg)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := transitive.Shutdown(); err != nil {
+	if err := transitive.Shutdown(context.Background()); err != nil {
 		t.Fatal(err)
 	}
 	if !vmShutdownCalled {
@@ -74,7 +81,7 @@ func TestEngineAdd(t *testing.T) {
 	engCfg.Validators = vals
 
 	vdr := ids.GenerateTestNodeID()
-	if err := vals.AddWeight(vdr, 1); err != nil {
+	if err := vals.Add(vdr, nil, ids.Empty, 1); err != nil {
 		t.Fatal(err)
 	}
 
@@ -96,7 +103,7 @@ func TestEngineAdd(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := te.Start(0); err != nil {
+	if err := te.Start(context.Background(), 0); err != nil {
 		t.Fatal(err)
 	}
 
@@ -120,7 +127,7 @@ func TestEngineAdd(t *testing.T) {
 
 	asked := new(bool)
 	reqID := new(uint32)
-	sender.SendGetF = func(inVdr ids.NodeID, requestID uint32, vtxID ids.ID) {
+	sender.SendGetF = func(_ context.Context, inVdr ids.NodeID, requestID uint32, vtxID ids.ID) {
 		*reqID = requestID
 		if *asked {
 			t.Fatalf("Asked multiple times")
@@ -134,14 +141,14 @@ func TestEngineAdd(t *testing.T) {
 		}
 	}
 
-	manager.ParseVtxF = func(b []byte) (avalanche.Vertex, error) {
+	manager.ParseVtxF = func(_ context.Context, b []byte) (avalanche.Vertex, error) {
 		if !bytes.Equal(b, vtx.Bytes()) {
 			t.Fatalf("Wrong bytes")
 		}
 		return vtx, nil
 	}
 
-	if err := te.Put(vdr, 0, vtx.Bytes()); err != nil {
+	if err := te.Put(context.Background(), vdr, 0, vtx.Bytes()); err != nil {
 		t.Fatal(err)
 	}
 
@@ -155,9 +162,11 @@ func TestEngineAdd(t *testing.T) {
 		t.Fatalf("Should have been blocking on request")
 	}
 
-	manager.ParseVtxF = func(b []byte) (avalanche.Vertex, error) { return nil, errFailedParsing }
+	manager.ParseVtxF = func(context.Context, []byte) (avalanche.Vertex, error) {
+		return nil, errFailedParsing
+	}
 
-	if err := te.Put(vdr, *reqID, nil); err != nil {
+	if err := te.Put(context.Background(), vdr, *reqID, nil); err != nil {
 		t.Fatal(err)
 	}
 
@@ -175,7 +184,7 @@ func TestEngineQuery(t *testing.T) {
 	engCfg.Validators = vals
 
 	vdr := ids.GenerateTestNodeID()
-	if err := vals.AddWeight(vdr, 1); err != nil {
+	if err := vals.Add(vdr, nil, ids.Empty, 1); err != nil {
 		t.Fatal(err)
 	}
 
@@ -219,8 +228,10 @@ func TestEngineQuery(t *testing.T) {
 		BytesV:   []byte{0, 1, 2, 3},
 	}
 
-	manager.EdgeF = func() []ids.ID { return []ids.ID{vts[0].ID(), vts[1].ID()} }
-	manager.GetVtxF = func(id ids.ID) (avalanche.Vertex, error) {
+	manager.EdgeF = func(context.Context) []ids.ID {
+		return []ids.ID{vts[0].ID(), vts[1].ID()}
+	}
+	manager.GetVtxF = func(_ context.Context, id ids.ID) (avalanche.Vertex, error) {
 		switch id {
 		case gVtx.ID():
 			return gVtx, nil
@@ -237,12 +248,12 @@ func TestEngineQuery(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := te.Start(0); err != nil {
+	if err := te.Start(context.Background(), 0); err != nil {
 		t.Fatal(err)
 	}
 
 	vertexed := new(bool)
-	manager.GetVtxF = func(vtxID ids.ID) (avalanche.Vertex, error) {
+	manager.GetVtxF = func(_ context.Context, vtxID ids.ID) (avalanche.Vertex, error) {
 		if *vertexed {
 			t.Fatalf("Sent multiple requests")
 		}
@@ -254,7 +265,7 @@ func TestEngineQuery(t *testing.T) {
 	}
 
 	chitted := new(bool)
-	sender.SendChitsF = func(inVdr ids.NodeID, _ uint32, prefs []ids.ID) {
+	sender.SendChitsF = func(_ context.Context, inVdr ids.NodeID, _ uint32, prefs []ids.ID) {
 		if *chitted {
 			t.Fatalf("Sent multiple chits")
 		}
@@ -265,7 +276,7 @@ func TestEngineQuery(t *testing.T) {
 	}
 
 	asked := new(bool)
-	sender.SendGetF = func(inVdr ids.NodeID, _ uint32, vtxID ids.ID) {
+	sender.SendGetF = func(_ context.Context, inVdr ids.NodeID, _ uint32, vtxID ids.ID) {
 		if *asked {
 			t.Fatalf("Asked multiple times")
 		}
@@ -280,7 +291,7 @@ func TestEngineQuery(t *testing.T) {
 
 	// After receiving the pull query for [vtx0] we will first request [vtx0]
 	// from the peer, because it is currently unknown to the engine.
-	if err := te.PullQuery(vdr, 0, vtx0.ID()); err != nil {
+	if err := te.PullQuery(context.Background(), vdr, 0, vtx0.ID()); err != nil {
 		t.Fatal(err)
 	}
 
@@ -293,13 +304,13 @@ func TestEngineQuery(t *testing.T) {
 
 	queried := new(bool)
 	queryRequestID := new(uint32)
-	sender.SendPushQueryF = func(inVdrs ids.NodeIDSet, requestID uint32, vtx []byte) {
+	sender.SendPushQueryF = func(_ context.Context, inVdrs set.Set[ids.NodeID], requestID uint32, vtx []byte) {
 		if *queried {
 			t.Fatalf("Asked multiple times")
 		}
 		*queried = true
 		*queryRequestID = requestID
-		vdrSet := ids.NodeIDSet{}
+		vdrSet := set.Set[ids.NodeID]{}
 		vdrSet.Add(vdr)
 		if !inVdrs.Equals(vdrSet) {
 			t.Fatalf("Asking wrong validator for preference")
@@ -309,7 +320,7 @@ func TestEngineQuery(t *testing.T) {
 		}
 	}
 
-	manager.ParseVtxF = func(b []byte) (avalanche.Vertex, error) {
+	manager.ParseVtxF = func(_ context.Context, b []byte) (avalanche.Vertex, error) {
 		if !bytes.Equal(b, vtx0.Bytes()) {
 			t.Fatalf("Wrong bytes")
 		}
@@ -318,7 +329,7 @@ func TestEngineQuery(t *testing.T) {
 
 	// Once the peer returns [vtx0], we will respond to its query and then issue
 	// our own push query for [vtx0].
-	if err := te.Put(vdr, 0, vtx0.Bytes()); err != nil {
+	if err := te.Put(context.Background(), vdr, 0, vtx0.Bytes()); err != nil {
 		t.Fatal(err)
 	}
 	manager.ParseVtxF = nil
@@ -341,7 +352,7 @@ func TestEngineQuery(t *testing.T) {
 		BytesV:   []byte{5, 4, 3, 2, 1, 9},
 	}
 
-	manager.GetVtxF = func(vtxID ids.ID) (avalanche.Vertex, error) {
+	manager.GetVtxF = func(_ context.Context, vtxID ids.ID) (avalanche.Vertex, error) {
 		if vtxID == vtx0.ID() {
 			return &avalanche.TestVertex{
 				TestDecidable: choices.TestDecidable{
@@ -357,7 +368,7 @@ func TestEngineQuery(t *testing.T) {
 	}
 
 	*asked = false
-	sender.SendGetF = func(inVdr ids.NodeID, _ uint32, vtxID ids.ID) {
+	sender.SendGetF = func(_ context.Context, inVdr ids.NodeID, _ uint32, vtxID ids.ID) {
 		if *asked {
 			t.Fatalf("Asked multiple times")
 		}
@@ -372,18 +383,18 @@ func TestEngineQuery(t *testing.T) {
 
 	// The peer returned [vtx1] from our query for [vtx0], which means we will
 	// need to request the missing [vtx1].
-	if err := te.Chits(vdr, *queryRequestID, []ids.ID{vtx1.ID()}); err != nil {
+	if err := te.Chits(context.Background(), vdr, *queryRequestID, []ids.ID{vtx1.ID()}); err != nil {
 		t.Fatal(err)
 	}
 
 	*queried = false
-	sender.SendPushQueryF = func(inVdrs ids.NodeIDSet, requestID uint32, vtx []byte) {
+	sender.SendPushQueryF = func(_ context.Context, inVdrs set.Set[ids.NodeID], requestID uint32, vtx []byte) {
 		if *queried {
 			t.Fatalf("Asked multiple times")
 		}
 		*queried = true
 		*queryRequestID = requestID
-		vdrSet := ids.NodeIDSet{}
+		vdrSet := set.Set[ids.NodeID]{}
 		vdrSet.Add(vdr)
 		if !inVdrs.Equals(vdrSet) {
 			t.Fatalf("Asking wrong validator for preference")
@@ -393,12 +404,12 @@ func TestEngineQuery(t *testing.T) {
 		}
 	}
 
-	manager.ParseVtxF = func(b []byte) (avalanche.Vertex, error) {
+	manager.ParseVtxF = func(_ context.Context, b []byte) (avalanche.Vertex, error) {
 		if !bytes.Equal(b, vtx1.Bytes()) {
 			t.Fatalf("Wrong bytes")
 		}
 
-		manager.GetVtxF = func(vtxID ids.ID) (avalanche.Vertex, error) {
+		manager.GetVtxF = func(_ context.Context, vtxID ids.ID) (avalanche.Vertex, error) {
 			if vtxID == vtx0.ID() {
 				return &avalanche.TestVertex{
 					TestDecidable: choices.TestDecidable{
@@ -419,7 +430,7 @@ func TestEngineQuery(t *testing.T) {
 	// Once the peer returns [vtx1], the poll that was issued for [vtx0] will be
 	// able to terminate. Additionally the node will issue a push query with
 	// [vtx1].
-	if err := te.Put(vdr, 0, vtx1.Bytes()); err != nil {
+	if err := te.Put(context.Background(), vdr, 0, vtx1.Bytes()); err != nil {
 		t.Fatal(err)
 	}
 	manager.ParseVtxF = nil
@@ -445,7 +456,7 @@ func TestEngineQuery(t *testing.T) {
 	sender.CantSendPullQuery = false
 
 	// Abandon the query for [vtx1]. This will result in a re-query for [vtx0].
-	if err := te.QueryFailed(vdr, *queryRequestID); err != nil {
+	if err := te.QueryFailed(context.Background(), vdr, *queryRequestID); err != nil {
 		t.Fatal(err)
 	}
 	if len(te.vtxBlocked) != 0 {
@@ -481,9 +492,9 @@ func TestEngineMultipleQuery(t *testing.T) {
 
 	errs := wrappers.Errs{}
 	errs.Add(
-		vals.AddWeight(vdr0, 1),
-		vals.AddWeight(vdr1, 1),
-		vals.AddWeight(vdr2, 1),
+		vals.Add(vdr0, nil, ids.Empty, 1),
+		vals.Add(vdr1, nil, ids.Empty, 1),
+		vals.Add(vdr2, nil, ids.Empty, 1),
 	)
 	if errs.Errored() {
 		t.Fatal(errs.Err)
@@ -510,8 +521,10 @@ func TestEngineMultipleQuery(t *testing.T) {
 	vts := []avalanche.Vertex{gVtx, mVtx}
 	utxos := []ids.ID{ids.GenerateTestID()}
 
-	manager.EdgeF = func() []ids.ID { return []ids.ID{vts[0].ID(), vts[1].ID()} }
-	manager.GetVtxF = func(id ids.ID) (avalanche.Vertex, error) {
+	manager.EdgeF = func(context.Context) []ids.ID {
+		return []ids.ID{vts[0].ID(), vts[1].ID()}
+	}
+	manager.GetVtxF = func(_ context.Context, id ids.ID) (avalanche.Vertex, error) {
 		switch id {
 		case gVtx.ID():
 			return gVtx, nil
@@ -543,19 +556,19 @@ func TestEngineMultipleQuery(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := te.Start(0); err != nil {
+	if err := te.Start(context.Background(), 0); err != nil {
 		t.Fatal(err)
 	}
 
 	queried := new(bool)
 	queryRequestID := new(uint32)
-	sender.SendPushQueryF = func(inVdrs ids.NodeIDSet, requestID uint32, vtx []byte) {
+	sender.SendPushQueryF = func(_ context.Context, inVdrs set.Set[ids.NodeID], requestID uint32, vtx []byte) {
 		if *queried {
 			t.Fatalf("Asked multiple times")
 		}
 		*queried = true
 		*queryRequestID = requestID
-		vdrSet := ids.NodeIDSet{}
+		vdrSet := set.Set[ids.NodeID]{}
 		vdrSet.Add(vdr0, vdr1, vdr2)
 		if !inVdrs.Equals(vdrSet) {
 			t.Fatalf("Asking wrong validator for preference")
@@ -565,7 +578,7 @@ func TestEngineMultipleQuery(t *testing.T) {
 		}
 	}
 
-	if err := te.issue(vtx0); err != nil {
+	if err := te.issue(context.Background(), vtx0); err != nil {
 		t.Fatal(err)
 	}
 
@@ -579,7 +592,7 @@ func TestEngineMultipleQuery(t *testing.T) {
 		TxsV:     []snowstorm.Tx{tx0},
 	}
 
-	manager.GetVtxF = func(id ids.ID) (avalanche.Vertex, error) {
+	manager.GetVtxF = func(_ context.Context, id ids.ID) (avalanche.Vertex, error) {
 		switch id {
 		case gVtx.ID():
 			return gVtx, nil
@@ -596,7 +609,7 @@ func TestEngineMultipleQuery(t *testing.T) {
 
 	asked := new(bool)
 	reqID := new(uint32)
-	sender.SendGetF = func(inVdr ids.NodeID, requestID uint32, vtxID ids.ID) {
+	sender.SendGetF = func(_ context.Context, inVdr ids.NodeID, requestID uint32, vtxID ids.ID) {
 		*reqID = requestID
 		if *asked {
 			t.Fatalf("Asked multiple times")
@@ -614,22 +627,22 @@ func TestEngineMultipleQuery(t *testing.T) {
 
 	s2 := []ids.ID{vtx0.ID()}
 
-	if err := te.Chits(vdr0, *queryRequestID, s0); err != nil {
+	if err := te.Chits(context.Background(), vdr0, *queryRequestID, s0); err != nil {
 		t.Fatal(err)
 	}
-	if err := te.QueryFailed(vdr1, *queryRequestID); err != nil {
+	if err := te.QueryFailed(context.Background(), vdr1, *queryRequestID); err != nil {
 		t.Fatal(err)
 	}
-	if err := te.Chits(vdr2, *queryRequestID, s2); err != nil {
+	if err := te.Chits(context.Background(), vdr2, *queryRequestID, s2); err != nil {
 		t.Fatal(err)
 	}
 
 	// Should be dropped because the query was marked as failed
-	if err := te.Chits(vdr1, *queryRequestID, s0); err != nil {
+	if err := te.Chits(context.Background(), vdr1, *queryRequestID, s0); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := te.GetFailed(vdr0, *reqID); err != nil {
+	if err := te.GetFailed(context.Background(), vdr0, *reqID); err != nil {
 		t.Fatal(err)
 	}
 
@@ -648,7 +661,7 @@ func TestEngineBlockedIssue(t *testing.T) {
 	engCfg.Validators = vals
 
 	vdr := ids.GenerateTestNodeID()
-	if err := vals.AddWeight(vdr, 1); err != nil {
+	if err := vals.Add(vdr, nil, ids.Empty, 1); err != nil {
 		t.Fatal(err)
 	}
 
@@ -703,16 +716,16 @@ func TestEngineBlockedIssue(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := te.Start(0); err != nil {
+	if err := te.Start(context.Background(), 0); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := te.issue(vtx1); err != nil {
+	if err := te.issue(context.Background(), vtx1); err != nil {
 		t.Fatal(err)
 	}
 
 	vtx1.ParentsV[0] = vtx0
-	if err := te.issue(vtx0); err != nil {
+	if err := te.issue(context.Background(), vtx0); err != nil {
 		t.Fatal(err)
 	}
 
@@ -728,7 +741,7 @@ func TestEngineAbandonResponse(t *testing.T) {
 	engCfg.Validators = vals
 
 	vdr := ids.GenerateTestNodeID()
-	if err := vals.AddWeight(vdr, 1); err != nil {
+	if err := vals.Add(vdr, nil, ids.Empty, 1); err != nil {
 		t.Fatal(err)
 	}
 
@@ -768,27 +781,29 @@ func TestEngineAbandonResponse(t *testing.T) {
 		TxsV:     []snowstorm.Tx{tx0},
 	}
 
-	manager.GetVtxF = func(id ids.ID) (avalanche.Vertex, error) { return nil, errUnknownVertex }
+	manager.GetVtxF = func(context.Context, ids.ID) (avalanche.Vertex, error) {
+		return nil, errUnknownVertex
+	}
 
 	te, err := newTransitive(engCfg)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if err := te.Start(0); err != nil {
+	if err := te.Start(context.Background(), 0); err != nil {
 		t.Fatal(err)
 	}
 
 	reqID := new(uint32)
-	sender.SendGetF = func(vID ids.NodeID, requestID uint32, vtxID ids.ID) {
+	sender.SendGetF = func(_ context.Context, vID ids.NodeID, requestID uint32, vtxID ids.ID) {
 		*reqID = requestID
 	}
 	sender.CantSendChits = false
 
-	if err := te.PullQuery(vdr, 0, vtx.ID()); err != nil {
+	if err := te.PullQuery(context.Background(), vdr, 0, vtx.ID()); err != nil {
 		t.Fatal(err)
 	}
-	if err := te.GetFailed(vdr, *reqID); err != nil {
+	if err := te.GetFailed(context.Background(), vdr, *reqID); err != nil {
 		t.Fatal(err)
 	}
 
@@ -804,7 +819,7 @@ func TestEngineScheduleRepoll(t *testing.T) {
 	engCfg.Validators = vals
 
 	vdr := ids.GenerateTestNodeID()
-	if err := vals.AddWeight(vdr, 1); err != nil {
+	if err := vals.Add(vdr, nil, ids.Empty, 1); err != nil {
 		t.Fatal(err)
 	}
 
@@ -853,30 +868,30 @@ func TestEngineScheduleRepoll(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := te.Start(0); err != nil {
+	if err := te.Start(context.Background(), 0); err != nil {
 		t.Fatal(err)
 	}
 
 	requestID := new(uint32)
-	sender.SendPushQueryF = func(_ ids.NodeIDSet, reqID uint32, _ []byte) {
+	sender.SendPushQueryF = func(_ context.Context, _ set.Set[ids.NodeID], reqID uint32, _ []byte) {
 		*requestID = reqID
 	}
 
-	if err := te.issue(vtx); err != nil {
+	if err := te.issue(context.Background(), vtx); err != nil {
 		t.Fatal(err)
 	}
 
 	sender.SendPushQueryF = nil
 
 	repolled := new(bool)
-	sender.SendPullQueryF = func(_ ids.NodeIDSet, _ uint32, vtxID ids.ID) {
+	sender.SendPullQueryF = func(_ context.Context, _ set.Set[ids.NodeID], _ uint32, vtxID ids.ID) {
 		*repolled = true
 		if vtxID != vtx.ID() {
 			t.Fatalf("Wrong vertex queried")
 		}
 	}
 
-	if err := te.QueryFailed(vdr, *requestID); err != nil {
+	if err := te.QueryFailed(context.Background(), vdr, *requestID); err != nil {
 		t.Fatal(err)
 	}
 
@@ -900,7 +915,7 @@ func TestEngineRejectDoubleSpendTx(t *testing.T) {
 	engCfg.Validators = vals
 
 	vdr := ids.GenerateTestNodeID()
-	if err := vals.AddWeight(vdr, 1); err != nil {
+	if err := vals.Add(vdr, nil, ids.Empty, 1); err != nil {
 		t.Fatal(err)
 	}
 
@@ -946,8 +961,10 @@ func TestEngineRejectDoubleSpendTx(t *testing.T) {
 	}
 	tx1.InputIDsV = append(tx1.InputIDsV, utxos[0])
 
-	manager.EdgeF = func() []ids.ID { return []ids.ID{gVtx.ID(), mVtx.ID()} }
-	manager.GetVtxF = func(id ids.ID) (avalanche.Vertex, error) {
+	manager.EdgeF = func(context.Context) []ids.ID {
+		return []ids.ID{gVtx.ID(), mVtx.ID()}
+	}
+	manager.GetVtxF = func(_ context.Context, id ids.ID) (avalanche.Vertex, error) {
 		switch id {
 		case gVtx.ID():
 			return gVtx, nil
@@ -957,7 +974,7 @@ func TestEngineRejectDoubleSpendTx(t *testing.T) {
 		t.Fatalf("Unknown vertex")
 		panic("Should have errored")
 	}
-	manager.BuildVtxF = func(_ []ids.ID, txs []snowstorm.Tx) (avalanche.Vertex, error) {
+	manager.BuildVtxF = func(_ context.Context, _ []ids.ID, txs []snowstorm.Tx) (avalanche.Vertex, error) {
 		return &avalanche.TestVertex{
 			TestDecidable: choices.TestDecidable{
 				IDV:     ids.GenerateTestID(),
@@ -976,14 +993,16 @@ func TestEngineRejectDoubleSpendTx(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := te.Start(0); err != nil {
+	if err := te.Start(context.Background(), 0); err != nil {
 		t.Fatal(err)
 	}
 
 	vm.CantSetState = true
 	sender.CantSendPushQuery = false
-	vm.PendingTxsF = func() []snowstorm.Tx { return []snowstorm.Tx{tx0, tx1} }
-	if err := te.Notify(common.PendingTxs); err != nil {
+	vm.PendingTxsF = func(context.Context) []snowstorm.Tx {
+		return []snowstorm.Tx{tx0, tx1}
+	}
+	if err := te.Notify(context.Background(), common.PendingTxs); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -1002,7 +1021,7 @@ func TestEngineRejectDoubleSpendIssuedTx(t *testing.T) {
 	engCfg.Validators = vals
 
 	vdr := ids.GenerateTestNodeID()
-	if err := vals.AddWeight(vdr, 1); err != nil {
+	if err := vals.Add(vdr, nil, ids.Empty, 1); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1048,8 +1067,10 @@ func TestEngineRejectDoubleSpendIssuedTx(t *testing.T) {
 	}
 	tx1.InputIDsV = append(tx1.InputIDsV, utxos[0])
 
-	manager.EdgeF = func() []ids.ID { return []ids.ID{gVtx.ID(), mVtx.ID()} }
-	manager.GetVtxF = func(id ids.ID) (avalanche.Vertex, error) {
+	manager.EdgeF = func(context.Context) []ids.ID {
+		return []ids.ID{gVtx.ID(), mVtx.ID()}
+	}
+	manager.GetVtxF = func(_ context.Context, id ids.ID) (avalanche.Vertex, error) {
 		switch id {
 		case gVtx.ID():
 			return gVtx, nil
@@ -1066,12 +1087,12 @@ func TestEngineRejectDoubleSpendIssuedTx(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := te.Start(0); err != nil {
+	if err := te.Start(context.Background(), 0); err != nil {
 		t.Fatal(err)
 	}
 
 	vm.CantSetState = true
-	manager.BuildVtxF = func(_ []ids.ID, txs []snowstorm.Tx) (avalanche.Vertex, error) {
+	manager.BuildVtxF = func(_ context.Context, _ []ids.ID, txs []snowstorm.Tx) (avalanche.Vertex, error) {
 		return &avalanche.TestVertex{
 			TestDecidable: choices.TestDecidable{
 				IDV:     ids.GenerateTestID(),
@@ -1086,13 +1107,17 @@ func TestEngineRejectDoubleSpendIssuedTx(t *testing.T) {
 
 	sender.CantSendPushQuery = false
 
-	vm.PendingTxsF = func() []snowstorm.Tx { return []snowstorm.Tx{tx0} }
-	if err := te.Notify(common.PendingTxs); err != nil {
+	vm.PendingTxsF = func(context.Context) []snowstorm.Tx {
+		return []snowstorm.Tx{tx0}
+	}
+	if err := te.Notify(context.Background(), common.PendingTxs); err != nil {
 		t.Fatal(err)
 	}
 
-	vm.PendingTxsF = func() []snowstorm.Tx { return []snowstorm.Tx{tx1} }
-	if err := te.Notify(common.PendingTxs); err != nil {
+	vm.PendingTxsF = func(context.Context) []snowstorm.Tx {
+		return []snowstorm.Tx{tx1}
+	}
+	if err := te.Notify(context.Background(), common.PendingTxs); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -1111,7 +1136,7 @@ func TestEngineIssueRepoll(t *testing.T) {
 	engCfg.Validators = vals
 
 	vdr := ids.GenerateTestNodeID()
-	if err := vals.AddWeight(vdr, 1); err != nil {
+	if err := vals.Add(vdr, nil, ids.Empty, 1); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1128,8 +1153,10 @@ func TestEngineIssueRepoll(t *testing.T) {
 		StatusV: choices.Accepted,
 	}}
 
-	manager.EdgeF = func() []ids.ID { return []ids.ID{gVtx.ID(), mVtx.ID()} }
-	manager.GetVtxF = func(id ids.ID) (avalanche.Vertex, error) {
+	manager.EdgeF = func(context.Context) []ids.ID {
+		return []ids.ID{gVtx.ID(), mVtx.ID()}
+	}
+	manager.GetVtxF = func(_ context.Context, id ids.ID) (avalanche.Vertex, error) {
 		switch id {
 		case gVtx.ID():
 			return gVtx, nil
@@ -1145,12 +1172,12 @@ func TestEngineIssueRepoll(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := te.Start(0); err != nil {
+	if err := te.Start(context.Background(), 0); err != nil {
 		t.Fatal(err)
 	}
 
-	sender.SendPullQueryF = func(vdrs ids.NodeIDSet, _ uint32, vtxID ids.ID) {
-		vdrSet := ids.NodeIDSet{}
+	sender.SendPullQueryF = func(_ context.Context, vdrs set.Set[ids.NodeID], _ uint32, vtxID ids.ID) {
+		vdrSet := set.Set[ids.NodeID]{}
 		vdrSet.Add(vdr)
 		if !vdrs.Equals(vdrSet) {
 			t.Fatalf("Wrong query recipients")
@@ -1160,7 +1187,7 @@ func TestEngineIssueRepoll(t *testing.T) {
 		}
 	}
 
-	te.repoll()
+	te.repoll(context.Background())
 	if err := te.errs.Err; err != nil {
 		t.Fatal(err)
 	}
@@ -1182,7 +1209,7 @@ func TestEngineReissue(t *testing.T) {
 	engCfg.Validators = vals
 
 	vdr := ids.GenerateTestNodeID()
-	if err := vals.AddWeight(vdr, 1); err != nil {
+	if err := vals.Add(vdr, nil, ids.Empty, 1); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1257,8 +1284,10 @@ func TestEngineReissue(t *testing.T) {
 		BytesV:   []byte{42},
 	}
 
-	manager.EdgeF = func() []ids.ID { return []ids.ID{gVtx.ID(), mVtx.ID()} }
-	manager.GetVtxF = func(id ids.ID) (avalanche.Vertex, error) {
+	manager.EdgeF = func(context.Context) []ids.ID {
+		return []ids.ID{gVtx.ID(), mVtx.ID()}
+	}
+	manager.GetVtxF = func(_ context.Context, id ids.ID) (avalanche.Vertex, error) {
 		switch id {
 		case gVtx.ID():
 			return gVtx, nil
@@ -1277,13 +1306,13 @@ func TestEngineReissue(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := te.Start(0); err != nil {
+	if err := te.Start(context.Background(), 0); err != nil {
 		t.Fatal(err)
 	}
 
 	vm.CantSetState = true
 	lastVtx := new(avalanche.TestVertex)
-	manager.BuildVtxF = func(_ []ids.ID, txs []snowstorm.Tx) (avalanche.Vertex, error) {
+	manager.BuildVtxF = func(_ context.Context, _ []ids.ID, txs []snowstorm.Tx) (avalanche.Vertex, error) {
 		lastVtx = &avalanche.TestVertex{
 			TestDecidable: choices.TestDecidable{
 				IDV:     ids.GenerateTestID(),
@@ -1297,7 +1326,7 @@ func TestEngineReissue(t *testing.T) {
 		return lastVtx, nil
 	}
 
-	vm.GetTxF = func(id ids.ID) (snowstorm.Tx, error) {
+	vm.GetTxF = func(_ context.Context, id ids.ID) (snowstorm.Tx, error) {
 		if id != tx0.ID() {
 			t.Fatalf("Wrong tx")
 		}
@@ -1305,16 +1334,18 @@ func TestEngineReissue(t *testing.T) {
 	}
 
 	queryRequestID := new(uint32)
-	sender.SendPushQueryF = func(_ ids.NodeIDSet, requestID uint32, _ []byte) {
+	sender.SendPushQueryF = func(_ context.Context, _ set.Set[ids.NodeID], requestID uint32, _ []byte) {
 		*queryRequestID = requestID
 	}
 
-	vm.PendingTxsF = func() []snowstorm.Tx { return []snowstorm.Tx{tx0, tx1} }
-	if err := te.Notify(common.PendingTxs); err != nil {
+	vm.PendingTxsF = func(context.Context) []snowstorm.Tx {
+		return []snowstorm.Tx{tx0, tx1}
+	}
+	if err := te.Notify(context.Background(), common.PendingTxs); err != nil {
 		t.Fatal(err)
 	}
 
-	manager.ParseVtxF = func(b []byte) (avalanche.Vertex, error) {
+	manager.ParseVtxF = func(_ context.Context, b []byte) (avalanche.Vertex, error) {
 		if !bytes.Equal(b, vtx.Bytes()) {
 			t.Fatalf("Wrong bytes")
 		}
@@ -1323,22 +1354,24 @@ func TestEngineReissue(t *testing.T) {
 
 	// must vote on the first poll for the second one to settle
 	// *queryRequestID is 1
-	if err := te.Chits(vdr, *queryRequestID, []ids.ID{vtx.ID()}); err != nil {
+	if err := te.Chits(context.Background(), vdr, *queryRequestID, []ids.ID{vtx.ID()}); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := te.Put(vdr, 0, vtx.Bytes()); err != nil {
+	if err := te.Put(context.Background(), vdr, 0, vtx.Bytes()); err != nil {
 		t.Fatal(err)
 	}
 	manager.ParseVtxF = nil
 
-	vm.PendingTxsF = func() []snowstorm.Tx { return []snowstorm.Tx{tx3} }
-	if err := te.Notify(common.PendingTxs); err != nil {
+	vm.PendingTxsF = func(context.Context) []snowstorm.Tx {
+		return []snowstorm.Tx{tx3}
+	}
+	if err := te.Notify(context.Background(), common.PendingTxs); err != nil {
 		t.Fatal(err)
 	}
 
 	// vote on second poll, *queryRequestID is 2
-	if err := te.Chits(vdr, *queryRequestID, []ids.ID{vtx.ID()}); err != nil {
+	if err := te.Chits(context.Background(), vdr, *queryRequestID, []ids.ID{vtx.ID()}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1364,7 +1397,7 @@ func TestEngineLargeIssue(t *testing.T) {
 	engCfg.Validators = vals
 
 	vdr := ids.GenerateTestNodeID()
-	if err := vals.AddWeight(vdr, 1); err != nil {
+	if err := vals.Add(vdr, nil, ids.Empty, 1); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1410,8 +1443,10 @@ func TestEngineLargeIssue(t *testing.T) {
 	}
 	tx1.InputIDsV = append(tx1.InputIDsV, utxos[1])
 
-	manager.EdgeF = func() []ids.ID { return []ids.ID{gVtx.ID(), mVtx.ID()} }
-	manager.GetVtxF = func(id ids.ID) (avalanche.Vertex, error) {
+	manager.EdgeF = func(context.Context) []ids.ID {
+		return []ids.ID{gVtx.ID(), mVtx.ID()}
+	}
+	manager.GetVtxF = func(_ context.Context, id ids.ID) (avalanche.Vertex, error) {
 		switch id {
 		case gVtx.ID():
 			return gVtx, nil
@@ -1428,13 +1463,13 @@ func TestEngineLargeIssue(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := te.Start(0); err != nil {
+	if err := te.Start(context.Background(), 0); err != nil {
 		t.Fatal(err)
 	}
 
 	vm.CantSetState = true
 	lastVtx := new(avalanche.TestVertex)
-	manager.BuildVtxF = func(_ []ids.ID, txs []snowstorm.Tx) (avalanche.Vertex, error) {
+	manager.BuildVtxF = func(_ context.Context, _ []ids.ID, txs []snowstorm.Tx) (avalanche.Vertex, error) {
 		lastVtx = &avalanche.TestVertex{
 			TestDecidable: choices.TestDecidable{
 				IDV:     ids.GenerateTestID(),
@@ -1450,8 +1485,10 @@ func TestEngineLargeIssue(t *testing.T) {
 
 	sender.CantSendPushQuery = false
 
-	vm.PendingTxsF = func() []snowstorm.Tx { return []snowstorm.Tx{tx0, tx1} }
-	if err := te.Notify(common.PendingTxs); err != nil {
+	vm.PendingTxsF = func(context.Context) []snowstorm.Tx {
+		return []snowstorm.Tx{tx0, tx1}
+	}
+	if err := te.Notify(context.Background(), common.PendingTxs); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1468,7 +1505,7 @@ func TestEngineGetVertex(t *testing.T) {
 	sender.CantSendGetAcceptedFrontier = false
 	engCfg.Sender = sender
 
-	vdr := validators.GenerateRandomValidator(1)
+	vdrID := ids.GenerateTestNodeID()
 
 	manager := vertex.NewTestManager(t)
 	manager.Default(true)
@@ -1488,8 +1525,10 @@ func TestEngineGetVertex(t *testing.T) {
 		StatusV: choices.Accepted,
 	}}
 
-	manager.EdgeF = func() []ids.ID { return []ids.ID{gVtx.ID(), mVtx.ID()} }
-	manager.GetVtxF = func(id ids.ID) (avalanche.Vertex, error) {
+	manager.EdgeF = func(context.Context) []ids.ID {
+		return []ids.ID{gVtx.ID(), mVtx.ID()}
+	}
+	manager.GetVtxF = func(_ context.Context, id ids.ID) (avalanche.Vertex, error) {
 		switch id {
 		case gVtx.ID():
 			return gVtx, nil
@@ -1505,12 +1544,12 @@ func TestEngineGetVertex(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := te.Start(0); err != nil {
+	if err := te.Start(context.Background(), 0); err != nil {
 		t.Fatal(err)
 	}
 
-	sender.SendPutF = func(v ids.NodeID, _ uint32, vtx []byte) {
-		if v != vdr.ID() {
+	sender.SendPutF = func(_ context.Context, v ids.NodeID, _ uint32, vtx []byte) {
+		if v != vdrID {
 			t.Fatalf("Wrong validator")
 		}
 		if !bytes.Equal(mVtx.Bytes(), vtx) {
@@ -1518,7 +1557,7 @@ func TestEngineGetVertex(t *testing.T) {
 		}
 	}
 
-	if err := te.Get(vdr.ID(), 0, mVtx.ID()); err != nil {
+	if err := te.Get(context.Background(), vdrID, 0, mVtx.ID()); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -1559,8 +1598,10 @@ func TestEngineInsufficientValidators(t *testing.T) {
 		BytesV:   []byte{0, 1, 2, 3},
 	}
 
-	manager.EdgeF = func() []ids.ID { return []ids.ID{vts[0].ID(), vts[1].ID()} }
-	manager.GetVtxF = func(id ids.ID) (avalanche.Vertex, error) {
+	manager.EdgeF = func(context.Context) []ids.ID {
+		return []ids.ID{vts[0].ID(), vts[1].ID()}
+	}
+	manager.GetVtxF = func(_ context.Context, id ids.ID) (avalanche.Vertex, error) {
 		switch id {
 		case gVtx.ID():
 			return gVtx, nil
@@ -1576,16 +1617,16 @@ func TestEngineInsufficientValidators(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := te.Start(0); err != nil {
+	if err := te.Start(context.Background(), 0); err != nil {
 		t.Fatal(err)
 	}
 
 	queried := new(bool)
-	sender.SendPushQueryF = func(ids.NodeIDSet, uint32, []byte) {
+	sender.SendPushQueryF = func(context.Context, set.Set[ids.NodeID], uint32, []byte) {
 		*queried = true
 	}
 
-	if err := te.issue(vtx); err != nil {
+	if err := te.issue(context.Background(), vtx); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1601,7 +1642,7 @@ func TestEnginePushGossip(t *testing.T) {
 	engCfg.Validators = vals
 
 	vdr := ids.GenerateTestNodeID()
-	if err := vals.AddWeight(vdr, 1); err != nil {
+	if err := vals.Add(vdr, nil, ids.Empty, 1); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1635,8 +1676,10 @@ func TestEnginePushGossip(t *testing.T) {
 		BytesV:   []byte{0, 1, 2, 3},
 	}
 
-	manager.EdgeF = func() []ids.ID { return []ids.ID{vts[0].ID(), vts[1].ID()} }
-	manager.GetVtxF = func(id ids.ID) (avalanche.Vertex, error) {
+	manager.EdgeF = func(context.Context) []ids.ID {
+		return []ids.ID{vts[0].ID(), vts[1].ID()}
+	}
+	manager.GetVtxF = func(_ context.Context, id ids.ID) (avalanche.Vertex, error) {
 		switch id {
 		case gVtx.ID():
 			return gVtx, nil
@@ -1654,16 +1697,16 @@ func TestEnginePushGossip(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := te.Start(0); err != nil {
+	if err := te.Start(context.Background(), 0); err != nil {
 		t.Fatal(err)
 	}
 
 	requested := new(bool)
-	sender.SendGetF = func(vdr ids.NodeID, _ uint32, vtxID ids.ID) {
+	sender.SendGetF = func(_ context.Context, vdr ids.NodeID, _ uint32, vtxID ids.ID) {
 		*requested = true
 	}
 
-	manager.ParseVtxF = func(b []byte) (avalanche.Vertex, error) {
+	manager.ParseVtxF = func(_ context.Context, b []byte) (avalanche.Vertex, error) {
 		if bytes.Equal(b, vtx.BytesV) {
 			return vtx, nil
 		}
@@ -1673,7 +1716,7 @@ func TestEnginePushGossip(t *testing.T) {
 
 	sender.CantSendPushQuery = false
 	sender.CantSendChits = false
-	if err := te.PushQuery(vdr, 0, vtx.Bytes()); err != nil {
+	if err := te.PushQuery(context.Background(), vdr, 0, vtx.Bytes()); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1689,7 +1732,7 @@ func TestEngineSingleQuery(t *testing.T) {
 	engCfg.Validators = vals
 
 	vdr := ids.GenerateTestNodeID()
-	if err := vals.AddWeight(vdr, 1); err != nil {
+	if err := vals.Add(vdr, nil, ids.Empty, 1); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1723,8 +1766,10 @@ func TestEngineSingleQuery(t *testing.T) {
 		BytesV:   []byte{0, 1, 2, 3},
 	}
 
-	manager.EdgeF = func() []ids.ID { return []ids.ID{vts[0].ID(), vts[1].ID()} }
-	manager.GetVtxF = func(id ids.ID) (avalanche.Vertex, error) {
+	manager.EdgeF = func(context.Context) []ids.ID {
+		return []ids.ID{vts[0].ID(), vts[1].ID()}
+	}
+	manager.GetVtxF = func(_ context.Context, id ids.ID) (avalanche.Vertex, error) {
 		switch id {
 		case gVtx.ID():
 			return gVtx, nil
@@ -1742,14 +1787,14 @@ func TestEngineSingleQuery(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := te.Start(0); err != nil {
+	if err := te.Start(context.Background(), 0); err != nil {
 		t.Fatal(err)
 	}
 
 	sender.CantSendPushQuery = false
 	sender.CantSendPullQuery = false
 
-	if err := te.issue(vtx); err != nil {
+	if err := te.issue(context.Background(), vtx); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -1761,7 +1806,7 @@ func TestEngineParentBlockingInsert(t *testing.T) {
 	engCfg.Validators = vals
 
 	vdr := ids.GenerateTestNodeID()
-	if err := vals.AddWeight(vdr, 1); err != nil {
+	if err := vals.Add(vdr, nil, ids.Empty, 1); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1815,8 +1860,10 @@ func TestEngineParentBlockingInsert(t *testing.T) {
 		BytesV:   []byte{0, 1, 2, 3},
 	}
 
-	manager.EdgeF = func() []ids.ID { return []ids.ID{vts[0].ID(), vts[1].ID()} }
-	manager.GetVtxF = func(id ids.ID) (avalanche.Vertex, error) {
+	manager.EdgeF = func(context.Context) []ids.ID {
+		return []ids.ID{vts[0].ID(), vts[1].ID()}
+	}
+	manager.GetVtxF = func(_ context.Context, id ids.ID) (avalanche.Vertex, error) {
 		switch id {
 		case gVtx.ID():
 			return gVtx, nil
@@ -1832,14 +1879,14 @@ func TestEngineParentBlockingInsert(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := te.Start(0); err != nil {
+	if err := te.Start(context.Background(), 0); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := te.issue(parentVtx); err != nil {
+	if err := te.issue(context.Background(), parentVtx); err != nil {
 		t.Fatal(err)
 	}
-	if err := te.issue(blockingVtx); err != nil {
+	if err := te.issue(context.Background(), blockingVtx); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1850,13 +1897,211 @@ func TestEngineParentBlockingInsert(t *testing.T) {
 	sender.CantSendPushQuery = false
 
 	missingVtx.StatusV = choices.Processing
-	if err := te.issue(missingVtx); err != nil {
+	if err := te.issue(context.Background(), missingVtx); err != nil {
 		t.Fatal(err)
 	}
 
 	if len(te.vtxBlocked) != 0 {
 		t.Fatalf("Both inserts should not longer be blocking")
 	}
+}
+
+func TestEngineAbandonChit(t *testing.T) {
+	require := require.New(t)
+
+	_, _, engCfg := DefaultConfig()
+
+	vals := validators.NewSet()
+	engCfg.Validators = vals
+
+	vdr := ids.GenerateTestNodeID()
+	err := vals.Add(vdr, nil, ids.Empty, 1)
+	require.NoError(err)
+
+	sender := &common.SenderTest{T: t}
+	sender.Default(true)
+	sender.CantSendGetAcceptedFrontier = false
+	engCfg.Sender = sender
+
+	manager := vertex.NewTestManager(t)
+	manager.Default(true)
+	engCfg.Manager = manager
+
+	gVtx := &avalanche.TestVertex{TestDecidable: choices.TestDecidable{
+		IDV:     ids.GenerateTestID(),
+		StatusV: choices.Accepted,
+	}}
+	mVtx := &avalanche.TestVertex{TestDecidable: choices.TestDecidable{
+		IDV:     ids.GenerateTestID(),
+		StatusV: choices.Accepted,
+	}}
+
+	vts := []avalanche.Vertex{gVtx, mVtx}
+
+	vtx := &avalanche.TestVertex{
+		TestDecidable: choices.TestDecidable{
+			IDV:     ids.GenerateTestID(),
+			StatusV: choices.Processing,
+		},
+		ParentsV: vts,
+		HeightV:  1,
+		BytesV:   []byte{0, 1, 2, 3},
+	}
+
+	manager.EdgeF = func(context.Context) []ids.ID {
+		return []ids.ID{vts[0].ID(), vts[1].ID()}
+	}
+	manager.GetVtxF = func(_ context.Context, id ids.ID) (avalanche.Vertex, error) {
+		switch id {
+		case gVtx.ID():
+			return gVtx, nil
+		case mVtx.ID():
+			return mVtx, nil
+		}
+		t.Fatalf("Unknown vertex")
+		panic("Should have errored")
+	}
+
+	te, err := newTransitive(engCfg)
+	require.NoError(err)
+
+	err = te.Start(context.Background(), 0)
+	require.NoError(err)
+
+	var reqID uint32
+	sender.SendPushQueryF = func(_ context.Context, _ set.Set[ids.NodeID], requestID uint32, _ []byte) {
+		reqID = requestID
+	}
+
+	err = te.issue(context.Background(), vtx)
+	require.NoError(err)
+
+	fakeVtxID := ids.GenerateTestID()
+	manager.GetVtxF = func(_ context.Context, id ids.ID) (avalanche.Vertex, error) {
+		require.Equal(fakeVtxID, id)
+		return nil, errMissing
+	}
+
+	sender.SendGetF = func(_ context.Context, _ ids.NodeID, requestID uint32, _ ids.ID) {
+		reqID = requestID
+	}
+
+	// Register a voter dependency on an unknown vertex.
+	err = te.Chits(context.Background(), vdr, reqID, []ids.ID{fakeVtxID})
+	require.NoError(err)
+	require.Len(te.vtxBlocked, 1)
+
+	sender.CantSendPullQuery = false
+
+	err = te.GetFailed(context.Background(), vdr, reqID)
+	require.NoError(err)
+	require.Empty(te.vtxBlocked)
+}
+
+func TestEngineAbandonChitWithUnexpectedPutVertex(t *testing.T) {
+	require := require.New(t)
+
+	_, _, engCfg := DefaultConfig()
+
+	vals := validators.NewSet()
+	engCfg.Validators = vals
+
+	vdr := ids.GenerateTestNodeID()
+	err := vals.Add(vdr, nil, ids.Empty, 1)
+	require.NoError(err)
+
+	sender := &common.SenderTest{T: t}
+	sender.Default(true)
+	sender.CantSendGetAcceptedFrontier = false
+	engCfg.Sender = sender
+
+	manager := vertex.NewTestManager(t)
+	manager.Default(true)
+	engCfg.Manager = manager
+
+	gVtx := &avalanche.TestVertex{
+		TestDecidable: choices.TestDecidable{
+			IDV:     ids.GenerateTestID(),
+			StatusV: choices.Accepted,
+		},
+		BytesV: []byte{0},
+	}
+	mVtx := &avalanche.TestVertex{
+		TestDecidable: choices.TestDecidable{
+			IDV:     ids.GenerateTestID(),
+			StatusV: choices.Accepted,
+		},
+		BytesV: []byte{1},
+	}
+
+	vts := []avalanche.Vertex{gVtx, mVtx}
+
+	vtx := &avalanche.TestVertex{
+		TestDecidable: choices.TestDecidable{
+			IDV:     ids.GenerateTestID(),
+			StatusV: choices.Processing,
+		},
+		ParentsV: vts,
+		HeightV:  1,
+		BytesV:   []byte{0, 1, 2, 3},
+	}
+
+	manager.EdgeF = func(context.Context) []ids.ID {
+		return []ids.ID{vts[0].ID(), vts[1].ID()}
+	}
+	manager.GetVtxF = func(_ context.Context, id ids.ID) (avalanche.Vertex, error) {
+		switch id {
+		case gVtx.ID():
+			return gVtx, nil
+		case mVtx.ID():
+			return mVtx, nil
+		}
+		t.Fatalf("Unknown vertex")
+		panic("Should have errored")
+	}
+
+	te, err := newTransitive(engCfg)
+	require.NoError(err)
+
+	err = te.Start(context.Background(), 0)
+	require.NoError(err)
+
+	var reqID uint32
+	sender.SendPushQueryF = func(_ context.Context, _ set.Set[ids.NodeID], requestID uint32, _ []byte) {
+		reqID = requestID
+	}
+
+	err = te.issue(context.Background(), vtx)
+	require.NoError(err)
+
+	fakeVtxID := ids.GenerateTestID()
+	manager.GetVtxF = func(_ context.Context, id ids.ID) (avalanche.Vertex, error) {
+		require.Equal(fakeVtxID, id)
+		return nil, errMissing
+	}
+
+	sender.SendGetF = func(_ context.Context, _ ids.NodeID, requestID uint32, _ ids.ID) {
+		reqID = requestID
+	}
+
+	// Register a voter dependency on an unknown vertex.
+	err = te.Chits(context.Background(), vdr, reqID, []ids.ID{fakeVtxID})
+	require.NoError(err)
+	require.Len(te.vtxBlocked, 1)
+
+	sender.CantSendPullQuery = false
+
+	gVtxBytes := gVtx.Bytes()
+	manager.ParseVtxF = func(_ context.Context, b []byte) (avalanche.Vertex, error) {
+		require.Equal(gVtxBytes, b)
+		return gVtx, nil
+	}
+
+	// Respond with an unexpected vertex and verify that the request is
+	// correctly cleared.
+	err = te.Put(context.Background(), vdr, reqID, gVtxBytes)
+	require.NoError(err)
+	require.Empty(te.vtxBlocked)
 }
 
 func TestEngineBlockingChitRequest(t *testing.T) {
@@ -1866,7 +2111,7 @@ func TestEngineBlockingChitRequest(t *testing.T) {
 	engCfg.Validators = vals
 
 	vdr := ids.GenerateTestNodeID()
-	if err := vals.AddWeight(vdr, 1); err != nil {
+	if err := vals.Add(vdr, nil, ids.Empty, 1); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1920,8 +2165,10 @@ func TestEngineBlockingChitRequest(t *testing.T) {
 		BytesV:   []byte{2, 1, 2, 3},
 	}
 
-	manager.EdgeF = func() []ids.ID { return []ids.ID{vts[0].ID(), vts[1].ID()} }
-	manager.GetVtxF = func(id ids.ID) (avalanche.Vertex, error) {
+	manager.EdgeF = func(context.Context) []ids.ID {
+		return []ids.ID{vts[0].ID(), vts[1].ID()}
+	}
+	manager.GetVtxF = func(_ context.Context, id ids.ID) (avalanche.Vertex, error) {
 		switch id {
 		case gVtx.ID():
 			return gVtx, nil
@@ -1937,22 +2184,22 @@ func TestEngineBlockingChitRequest(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := te.Start(0); err != nil {
+	if err := te.Start(context.Background(), 0); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := te.issue(parentVtx); err != nil {
+	if err := te.issue(context.Background(), parentVtx); err != nil {
 		t.Fatal(err)
 	}
 
-	manager.GetVtxF = func(vtxID ids.ID) (avalanche.Vertex, error) {
+	manager.GetVtxF = func(_ context.Context, vtxID ids.ID) (avalanche.Vertex, error) {
 		if vtxID == blockingVtx.ID() {
 			return blockingVtx, nil
 		}
 		t.Fatalf("Unknown vertex")
 		panic("Should have errored")
 	}
-	manager.ParseVtxF = func(b []byte) (avalanche.Vertex, error) {
+	manager.ParseVtxF = func(_ context.Context, b []byte) (avalanche.Vertex, error) {
 		if bytes.Equal(b, blockingVtx.Bytes()) {
 			return blockingVtx, nil
 		}
@@ -1961,7 +2208,7 @@ func TestEngineBlockingChitRequest(t *testing.T) {
 	}
 	sender.CantSendChits = false
 
-	if err := te.PushQuery(vdr, 0, blockingVtx.Bytes()); err != nil {
+	if err := te.PushQuery(context.Background(), vdr, 0, blockingVtx.Bytes()); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1972,7 +2219,7 @@ func TestEngineBlockingChitRequest(t *testing.T) {
 	sender.CantSendPushQuery = false
 
 	missingVtx.StatusV = choices.Processing
-	if err := te.issue(missingVtx); err != nil {
+	if err := te.issue(context.Background(), missingVtx); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1988,7 +2235,7 @@ func TestEngineBlockingChitResponse(t *testing.T) {
 	engCfg.Validators = vals
 
 	vdr := ids.GenerateTestNodeID()
-	if err := vals.AddWeight(vdr, 1); err != nil {
+	if err := vals.Add(vdr, nil, ids.Empty, 1); err != nil {
 		t.Fatal(err)
 	}
 
@@ -2042,8 +2289,10 @@ func TestEngineBlockingChitResponse(t *testing.T) {
 		BytesV:   []byte{2, 1, 2, 3},
 	}
 
-	manager.EdgeF = func() []ids.ID { return []ids.ID{vts[0].ID(), vts[1].ID()} }
-	manager.GetVtxF = func(id ids.ID) (avalanche.Vertex, error) {
+	manager.EdgeF = func(context.Context) []ids.ID {
+		return []ids.ID{vts[0].ID(), vts[1].ID()}
+	}
+	manager.GetVtxF = func(_ context.Context, id ids.ID) (avalanche.Vertex, error) {
 		switch id {
 		case gVtx.ID():
 			return gVtx, nil
@@ -2059,18 +2308,18 @@ func TestEngineBlockingChitResponse(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := te.Start(0); err != nil {
+	if err := te.Start(context.Background(), 0); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := te.issue(blockingVtx); err != nil {
+	if err := te.issue(context.Background(), blockingVtx); err != nil {
 		t.Fatal(err)
 	}
 
 	queryRequestID := new(uint32)
-	sender.SendPushQueryF = func(inVdrs ids.NodeIDSet, requestID uint32, vtx []byte) {
+	sender.SendPushQueryF = func(_ context.Context, inVdrs set.Set[ids.NodeID], requestID uint32, vtx []byte) {
 		*queryRequestID = requestID
-		vdrSet := ids.NodeIDSet{}
+		vdrSet := set.Set[ids.NodeID]{}
 		vdrSet.Add(vdr)
 		if !inVdrs.Equals(vdrSet) {
 			t.Fatalf("Asking wrong validator for preference")
@@ -2080,11 +2329,11 @@ func TestEngineBlockingChitResponse(t *testing.T) {
 		}
 	}
 
-	if err := te.issue(issuedVtx); err != nil {
+	if err := te.issue(context.Background(), issuedVtx); err != nil {
 		t.Fatal(err)
 	}
 
-	manager.GetVtxF = func(id ids.ID) (avalanche.Vertex, error) {
+	manager.GetVtxF = func(_ context.Context, id ids.ID) (avalanche.Vertex, error) {
 		if id == blockingVtx.ID() {
 			return blockingVtx, nil
 		}
@@ -2092,7 +2341,7 @@ func TestEngineBlockingChitResponse(t *testing.T) {
 		panic("Should have errored")
 	}
 
-	if err := te.Chits(vdr, *queryRequestID, []ids.ID{blockingVtx.ID()}); err != nil {
+	if err := te.Chits(context.Background(), vdr, *queryRequestID, []ids.ID{blockingVtx.ID()}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -2105,7 +2354,7 @@ func TestEngineBlockingChitResponse(t *testing.T) {
 	sender.CantSendChits = false
 
 	missingVtx.StatusV = choices.Processing
-	if err := te.issue(missingVtx); err != nil {
+	if err := te.issue(context.Background(), missingVtx); err != nil {
 		t.Fatal(err)
 	}
 
@@ -2121,7 +2370,7 @@ func TestEngineMissingTx(t *testing.T) {
 	engCfg.Validators = vals
 
 	vdr := ids.GenerateTestNodeID()
-	if err := vals.AddWeight(vdr, 1); err != nil {
+	if err := vals.Add(vdr, nil, ids.Empty, 1); err != nil {
 		t.Fatal(err)
 	}
 
@@ -2175,8 +2424,10 @@ func TestEngineMissingTx(t *testing.T) {
 		BytesV:   []byte{2, 1, 2, 3},
 	}
 
-	manager.EdgeF = func() []ids.ID { return []ids.ID{vts[0].ID(), vts[1].ID()} }
-	manager.GetVtxF = func(id ids.ID) (avalanche.Vertex, error) {
+	manager.EdgeF = func(context.Context) []ids.ID {
+		return []ids.ID{vts[0].ID(), vts[1].ID()}
+	}
+	manager.GetVtxF = func(_ context.Context, id ids.ID) (avalanche.Vertex, error) {
 		switch id {
 		case gVtx.ID():
 			return gVtx, nil
@@ -2192,18 +2443,18 @@ func TestEngineMissingTx(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := te.Start(0); err != nil {
+	if err := te.Start(context.Background(), 0); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := te.issue(blockingVtx); err != nil {
+	if err := te.issue(context.Background(), blockingVtx); err != nil {
 		t.Fatal(err)
 	}
 
 	queryRequestID := new(uint32)
-	sender.SendPushQueryF = func(inVdrs ids.NodeIDSet, requestID uint32, vtx []byte) {
+	sender.SendPushQueryF = func(_ context.Context, inVdrs set.Set[ids.NodeID], requestID uint32, vtx []byte) {
 		*queryRequestID = requestID
-		vdrSet := ids.NodeIDSet{}
+		vdrSet := set.Set[ids.NodeID]{}
 		vdrSet.Add(vdr)
 		if !inVdrs.Equals(vdrSet) {
 			t.Fatalf("Asking wrong validator for preference")
@@ -2213,11 +2464,11 @@ func TestEngineMissingTx(t *testing.T) {
 		}
 	}
 
-	if err := te.issue(issuedVtx); err != nil {
+	if err := te.issue(context.Background(), issuedVtx); err != nil {
 		t.Fatal(err)
 	}
 
-	manager.GetVtxF = func(id ids.ID) (avalanche.Vertex, error) {
+	manager.GetVtxF = func(_ context.Context, id ids.ID) (avalanche.Vertex, error) {
 		if id == blockingVtx.ID() {
 			return blockingVtx, nil
 		}
@@ -2225,7 +2476,7 @@ func TestEngineMissingTx(t *testing.T) {
 		panic("Should have errored")
 	}
 
-	if err := te.Chits(vdr, *queryRequestID, []ids.ID{blockingVtx.ID()}); err != nil {
+	if err := te.Chits(context.Background(), vdr, *queryRequestID, []ids.ID{blockingVtx.ID()}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -2238,7 +2489,7 @@ func TestEngineMissingTx(t *testing.T) {
 	sender.CantSendChits = false
 
 	missingVtx.StatusV = choices.Processing
-	if err := te.issue(missingVtx); err != nil {
+	if err := te.issue(context.Background(), missingVtx); err != nil {
 		t.Fatal(err)
 	}
 
@@ -2254,7 +2505,7 @@ func TestEngineIssueBlockingTx(t *testing.T) {
 	engCfg.Validators = vals
 
 	vdr := ids.GenerateTestNodeID()
-	if err := vals.AddWeight(vdr, 1); err != nil {
+	if err := vals.Add(vdr, nil, ids.Empty, 1); err != nil {
 		t.Fatal(err)
 	}
 
@@ -2299,11 +2550,11 @@ func TestEngineIssueBlockingTx(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := te.Start(0); err != nil {
+	if err := te.Start(context.Background(), 0); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := te.issue(vtx); err != nil {
+	if err := te.issue(context.Background(), vtx); err != nil {
 		t.Fatal(err)
 	}
 
@@ -2319,7 +2570,7 @@ func TestEngineReissueAbortedVertex(t *testing.T) {
 	engCfg.Validators = vals
 
 	vdr := ids.GenerateTestNodeID()
-	if err := vals.AddWeight(vdr, 1); err != nil {
+	if err := vals.Add(vdr, nil, ids.Empty, 1); err != nil {
 		t.Fatal(err)
 	}
 
@@ -2364,11 +2615,11 @@ func TestEngineReissueAbortedVertex(t *testing.T) {
 		BytesV:   vtxBytes1,
 	}
 
-	manager.EdgeF = func() []ids.ID {
+	manager.EdgeF = func(context.Context) []ids.ID {
 		return []ids.ID{gVtx.ID()}
 	}
 
-	manager.GetVtxF = func(vtxID ids.ID) (avalanche.Vertex, error) {
+	manager.GetVtxF = func(_ context.Context, vtxID ids.ID) (avalanche.Vertex, error) {
 		if vtxID == gVtx.ID() {
 			return gVtx, nil
 		}
@@ -2381,7 +2632,7 @@ func TestEngineReissueAbortedVertex(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := te.Start(0); err != nil {
+	if err := te.Start(context.Background(), 0); err != nil {
 		t.Fatal(err)
 	}
 
@@ -2389,18 +2640,18 @@ func TestEngineReissueAbortedVertex(t *testing.T) {
 	manager.GetVtxF = nil
 
 	requestID := new(uint32)
-	sender.SendGetF = func(vID ids.NodeID, reqID uint32, vtxID ids.ID) {
+	sender.SendGetF = func(_ context.Context, vID ids.NodeID, reqID uint32, vtxID ids.ID) {
 		*requestID = reqID
 	}
 	sender.CantSendChits = false
-	manager.ParseVtxF = func(b []byte) (avalanche.Vertex, error) {
+	manager.ParseVtxF = func(_ context.Context, b []byte) (avalanche.Vertex, error) {
 		if bytes.Equal(b, vtxBytes1) {
 			return vtx1, nil
 		}
 		t.Fatalf("Unknown bytes provided")
 		panic("Unknown bytes provided")
 	}
-	manager.GetVtxF = func(vtxID ids.ID) (avalanche.Vertex, error) {
+	manager.GetVtxF = func(_ context.Context, vtxID ids.ID) (avalanche.Vertex, error) {
 		if vtxID == vtxID1 {
 			return vtx1, nil
 		}
@@ -2408,24 +2659,24 @@ func TestEngineReissueAbortedVertex(t *testing.T) {
 		panic("Unknown bytes provided")
 	}
 
-	if err := te.PushQuery(vdr, 0, vtx1.Bytes()); err != nil {
+	if err := te.PushQuery(context.Background(), vdr, 0, vtx1.Bytes()); err != nil {
 		t.Fatal(err)
 	}
 
 	sender.SendGetF = nil
 	manager.ParseVtxF = nil
 
-	if err := te.GetFailed(vdr, *requestID); err != nil {
+	if err := te.GetFailed(context.Background(), vdr, *requestID); err != nil {
 		t.Fatal(err)
 	}
 
 	requested := new(bool)
-	sender.SendGetF = func(_ ids.NodeID, _ uint32, vtxID ids.ID) {
+	sender.SendGetF = func(_ context.Context, _ ids.NodeID, _ uint32, vtxID ids.ID) {
 		if vtxID == vtxID0 {
 			*requested = true
 		}
 	}
-	manager.GetVtxF = func(vtxID ids.ID) (avalanche.Vertex, error) {
+	manager.GetVtxF = func(_ context.Context, vtxID ids.ID) (avalanche.Vertex, error) {
 		if vtxID == vtxID1 {
 			return vtx1, nil
 		}
@@ -2433,7 +2684,7 @@ func TestEngineReissueAbortedVertex(t *testing.T) {
 		panic("Unknown bytes provided")
 	}
 
-	if err := te.PullQuery(vdr, 0, vtxID1); err != nil {
+	if err := te.PullQuery(context.Background(), vdr, 0, vtxID1); err != nil {
 		t.Fatal(err)
 	}
 
@@ -2447,7 +2698,7 @@ func TestEngineBootstrappingIntoConsensus(t *testing.T) {
 
 	vals := validators.NewSet()
 	vdr := ids.GenerateTestNodeID()
-	if err := vals.AddWeight(vdr, 1); err != nil {
+	if err := vals.Add(vdr, nil, ids.Empty, 1); err != nil {
 		t.Fatal(err)
 	}
 
@@ -2535,7 +2786,7 @@ func TestEngineBootstrappingIntoConsensus(t *testing.T) {
 
 	requested := new(bool)
 	requestID := new(uint32)
-	sender.SendGetAcceptedFrontierF = func(vdrs ids.NodeIDSet, reqID uint32) {
+	sender.SendGetAcceptedFrontierF = func(_ context.Context, vdrs set.Set[ids.NodeID], reqID uint32) {
 		if vdrs.Len() != 1 {
 			t.Fatalf("Should have requested from the validators")
 		}
@@ -2548,6 +2799,7 @@ func TestEngineBootstrappingIntoConsensus(t *testing.T) {
 
 	dh := &dummyHandler{}
 	bootstrapper, err := bootstrap.New(
+		context.Background(),
 		bootCfg,
 		dh.onDoneBootstrapping,
 	)
@@ -2561,11 +2813,11 @@ func TestEngineBootstrappingIntoConsensus(t *testing.T) {
 	}
 	dh.startEngineF = te.Start
 
-	if err := bootstrapper.Start(0); err != nil {
+	if err := bootstrapper.Start(context.Background(), 0); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := bootstrapper.Connected(vdr, version.CurrentApp); err != nil {
+	if err := bootstrapper.Connected(context.Background(), vdr, version.CurrentApp); err != nil {
 		t.Fatal(err)
 	}
 
@@ -2578,21 +2830,21 @@ func TestEngineBootstrappingIntoConsensus(t *testing.T) {
 	acceptedFrontier := []ids.ID{vtxID0}
 
 	*requested = false
-	sender.SendGetAcceptedF = func(vdrs ids.NodeIDSet, reqID uint32, proposedAccepted []ids.ID) {
+	sender.SendGetAcceptedF = func(_ context.Context, vdrs set.Set[ids.NodeID], reqID uint32, proposedAccepted []ids.ID) {
 		if vdrs.Len() != 1 {
 			t.Fatalf("Should have requested from the validators")
 		}
 		if !vdrs.Contains(vdr) {
 			t.Fatalf("Should have requested from %s", vdr)
 		}
-		if !ids.Equals(acceptedFrontier, proposedAccepted) {
+		if !slices.Equal(acceptedFrontier, proposedAccepted) {
 			t.Fatalf("Wrong proposedAccepted vertices.\nExpected: %s\nGot: %s", acceptedFrontier, proposedAccepted)
 		}
 		*requested = true
 		*requestID = reqID
 	}
 
-	if err := bootstrapper.AcceptedFrontier(vdr, *requestID, acceptedFrontier); err != nil {
+	if err := bootstrapper.AcceptedFrontier(context.Background(), vdr, *requestID, acceptedFrontier); err != nil {
 		t.Fatal(err)
 	}
 
@@ -2600,7 +2852,7 @@ func TestEngineBootstrappingIntoConsensus(t *testing.T) {
 		t.Fatalf("Should have requested from the validators during AcceptedFrontier")
 	}
 
-	manager.GetVtxF = func(vtxID ids.ID) (avalanche.Vertex, error) {
+	manager.GetVtxF = func(_ context.Context, vtxID ids.ID) (avalanche.Vertex, error) {
 		if vtxID == vtxID0 {
 			return nil, errMissing
 		}
@@ -2608,7 +2860,7 @@ func TestEngineBootstrappingIntoConsensus(t *testing.T) {
 		panic("Unknown vertex requested")
 	}
 
-	sender.SendGetAncestorsF = func(inVdr ids.NodeID, reqID uint32, vtxID ids.ID) {
+	sender.SendGetAncestorsF = func(_ context.Context, inVdr ids.NodeID, reqID uint32, vtxID ids.ID) {
 		if vdr != inVdr {
 			t.Fatalf("Asking wrong validator for vertex")
 		}
@@ -2618,31 +2870,31 @@ func TestEngineBootstrappingIntoConsensus(t *testing.T) {
 		*requestID = reqID
 	}
 
-	if err := bootstrapper.Accepted(vdr, *requestID, acceptedFrontier); err != nil {
+	if err := bootstrapper.Accepted(context.Background(), vdr, *requestID, acceptedFrontier); err != nil {
 		t.Fatal(err)
 	}
 
 	manager.GetVtxF = nil
 	sender.SendGetF = nil
 
-	vm.ParseTxF = func(b []byte) (snowstorm.Tx, error) {
+	vm.ParseTxF = func(_ context.Context, b []byte) (snowstorm.Tx, error) {
 		if bytes.Equal(b, txBytes0) {
 			return tx0, nil
 		}
 		t.Fatalf("Unknown bytes provided")
 		panic("Unknown bytes provided")
 	}
-	manager.ParseVtxF = func(b []byte) (avalanche.Vertex, error) {
+	manager.ParseVtxF = func(_ context.Context, b []byte) (avalanche.Vertex, error) {
 		if bytes.Equal(b, vtxBytes0) {
 			return vtx0, nil
 		}
 		t.Fatalf("Unknown bytes provided")
 		panic("Unknown bytes provided")
 	}
-	manager.EdgeF = func() []ids.ID {
+	manager.EdgeF = func(context.Context) []ids.ID {
 		return []ids.ID{vtxID0}
 	}
-	manager.GetVtxF = func(vtxID ids.ID) (avalanche.Vertex, error) {
+	manager.GetVtxF = func(_ context.Context, vtxID ids.ID) (avalanche.Vertex, error) {
 		if vtxID == vtxID0 {
 			return vtx0, nil
 		}
@@ -2650,7 +2902,7 @@ func TestEngineBootstrappingIntoConsensus(t *testing.T) {
 		panic("Unknown bytes provided")
 	}
 
-	if err := bootstrapper.Ancestors(vdr, *requestID, [][]byte{vtxBytes0}); err != nil {
+	if err := bootstrapper.Ancestors(context.Background(), vdr, *requestID, [][]byte{vtxBytes0}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -2666,25 +2918,25 @@ func TestEngineBootstrappingIntoConsensus(t *testing.T) {
 		t.Fatalf("Should have accepted %s", vtxID0)
 	}
 
-	manager.ParseVtxF = func(b []byte) (avalanche.Vertex, error) {
+	manager.ParseVtxF = func(_ context.Context, b []byte) (avalanche.Vertex, error) {
 		if bytes.Equal(b, vtxBytes1) {
 			return vtx1, nil
 		}
 		t.Fatalf("Unknown bytes provided")
 		panic("Unknown bytes provided")
 	}
-	sender.SendChitsF = func(inVdr ids.NodeID, _ uint32, chits []ids.ID) {
+	sender.SendChitsF = func(_ context.Context, inVdr ids.NodeID, _ uint32, chits []ids.ID) {
 		if inVdr != vdr {
 			t.Fatalf("Sent to the wrong validator")
 		}
 
 		expected := []ids.ID{vtxID0}
 
-		if !ids.Equals(expected, chits) {
+		if !slices.Equal(expected, chits) {
 			t.Fatalf("Returned wrong chits")
 		}
 	}
-	sender.SendPushQueryF = func(vdrs ids.NodeIDSet, _ uint32, vtx []byte) {
+	sender.SendPushQueryF = func(_ context.Context, vdrs set.Set[ids.NodeID], _ uint32, vtx []byte) {
 		if vdrs.Len() != 1 {
 			t.Fatalf("Should have requested from the validators")
 		}
@@ -2696,7 +2948,7 @@ func TestEngineBootstrappingIntoConsensus(t *testing.T) {
 			t.Fatalf("Sent wrong query bytes")
 		}
 	}
-	manager.GetVtxF = func(vtxID ids.ID) (avalanche.Vertex, error) {
+	manager.GetVtxF = func(_ context.Context, vtxID ids.ID) (avalanche.Vertex, error) {
 		if vtxID == vtxID1 {
 			return vtx1, nil
 		}
@@ -2704,7 +2956,7 @@ func TestEngineBootstrappingIntoConsensus(t *testing.T) {
 		panic("Unknown bytes provided")
 	}
 
-	if err := te.PushQuery(vdr, 0, vtxBytes1); err != nil {
+	if err := te.PushQuery(context.Background(), vdr, 0, vtxBytes1); err != nil {
 		t.Fatal(err)
 	}
 
@@ -2722,7 +2974,7 @@ func TestEngineReBootstrapFails(t *testing.T) {
 
 	vals := validators.NewSet()
 	vdr := ids.GenerateTestNodeID()
-	if err := vals.AddWeight(vdr, 1); err != nil {
+	if err := vals.Add(vdr, nil, ids.Empty, 1); err != nil {
 		t.Fatal(err)
 	}
 
@@ -2783,18 +3035,18 @@ func TestEngineReBootstrapFails(t *testing.T) {
 
 	requested := new(bool)
 	requestID := new(uint32)
-	sender.SendGetAcceptedFrontierF = func(vdrs ids.NodeIDSet, reqID uint32) {
+	sender.SendGetAcceptedFrontierF = func(_ context.Context, vdrs set.Set[ids.NodeID], reqID uint32) {
 		// instead of triggering the timeout here, we'll just invoke the GetAcceptedFrontierFailed func
 		//
-		// s.router.GetAcceptedFrontierFailed(vID, s.ctx.ChainID, requestID)
-		// -> chain.GetAcceptedFrontierFailed(validatorID, requestID)
+		// s.router.GetAcceptedFrontierFailed(context.Background(), vID, s.ctx.ChainID, requestID)
+		// -> chain.GetAcceptedFrontierFailed(context.Background(), validatorID, requestID)
 		// ---> h.sendReliableMsg(message{
 		//			messageType: constants.GetAcceptedFrontierFailedMsg,
 		//			validatorID: validatorID,
 		//			requestID:   requestID,
 		//		})
-		// -----> h.engine.GetAcceptedFrontierFailed(msg.validatorID, msg.requestID)
-		// -------> return b.AcceptedFrontier(validatorID, requestID, nil)
+		// -----> h.engine.GetAcceptedFrontierFailed(context.Background(), msg.validatorID, msg.requestID)
+		// -------> return b.AcceptedFrontier(context.Background(), validatorID, requestID, nil)
 
 		// ensure the request is made to the correct validators
 		if vdrs.Len() != 1 {
@@ -2809,6 +3061,7 @@ func TestEngineReBootstrapFails(t *testing.T) {
 
 	dh := &dummyHandler{}
 	bootstrapper, err := bootstrap.New(
+		context.Background(),
 		bootCfg,
 		dh.onDoneBootstrapping,
 	)
@@ -2816,7 +3069,7 @@ func TestEngineReBootstrapFails(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := bootstrapper.Start(0); err != nil {
+	if err := bootstrapper.Start(context.Background(), 0); err != nil {
 		t.Fatal(err)
 	}
 
@@ -2826,7 +3079,7 @@ func TestEngineReBootstrapFails(t *testing.T) {
 
 	// reset requested
 	*requested = false
-	sender.SendGetAcceptedF = func(vdrs ids.NodeIDSet, reqID uint32, proposedAccepted []ids.ID) {
+	sender.SendGetAcceptedF = func(_ context.Context, vdrs set.Set[ids.NodeID], reqID uint32, proposedAccepted []ids.ID) {
 		if vdrs.Len() != 1 {
 			t.Fatalf("Should have requested from the validators")
 		}
@@ -2839,13 +3092,13 @@ func TestEngineReBootstrapFails(t *testing.T) {
 
 	// mimic a GetAcceptedFrontierFailedMsg
 	// only validator that was requested timed out on the request
-	if err := bootstrapper.GetAcceptedFrontierFailed(vdr, *requestID); err != nil {
+	if err := bootstrapper.GetAcceptedFrontierFailed(context.Background(), vdr, *requestID); err != nil {
 		t.Fatal(err)
 	}
 
 	// mimic a GetAcceptedFrontierFailedMsg
 	// only validator that was requested timed out on the request
-	if err := bootstrapper.GetAcceptedFrontierFailed(vdr, *requestID); err != nil {
+	if err := bootstrapper.GetAcceptedFrontierFailed(context.Background(), vdr, *requestID); err != nil {
 		t.Fatal(err)
 	}
 
@@ -2853,6 +3106,7 @@ func TestEngineReBootstrapFails(t *testing.T) {
 
 	// re-register the Transitive
 	bootstrapper2, err := bootstrap.New(
+		context.Background(),
 		bootCfg,
 		dh.onDoneBootstrapping,
 	)
@@ -2860,15 +3114,15 @@ func TestEngineReBootstrapFails(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := bootstrapper2.Start(0); err != nil {
+	if err := bootstrapper2.Start(context.Background(), 0); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := bootstrapper2.GetAcceptedFailed(vdr, *requestID); err != nil {
+	if err := bootstrapper2.GetAcceptedFailed(context.Background(), vdr, *requestID); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := bootstrapper2.GetAcceptedFailed(vdr, *requestID); err != nil {
+	if err := bootstrapper2.GetAcceptedFailed(context.Background(), vdr, *requestID); err != nil {
 		t.Fatal(err)
 	}
 
@@ -2885,7 +3139,7 @@ func TestEngineReBootstrappingIntoConsensus(t *testing.T) {
 
 	vals := validators.NewSet()
 	vdr := ids.GenerateTestNodeID()
-	if err := vals.AddWeight(vdr, 1); err != nil {
+	if err := vals.Add(vdr, nil, ids.Empty, 1); err != nil {
 		t.Fatal(err)
 	}
 
@@ -2973,7 +3227,7 @@ func TestEngineReBootstrappingIntoConsensus(t *testing.T) {
 
 	requested := new(bool)
 	requestID := new(uint32)
-	sender.SendGetAcceptedFrontierF = func(vdrs ids.NodeIDSet, reqID uint32) {
+	sender.SendGetAcceptedFrontierF = func(_ context.Context, vdrs set.Set[ids.NodeID], reqID uint32) {
 		if vdrs.Len() != 1 {
 			t.Fatalf("Should have requested from the validators")
 		}
@@ -2986,6 +3240,7 @@ func TestEngineReBootstrappingIntoConsensus(t *testing.T) {
 
 	dh := &dummyHandler{}
 	bootstrapper, err := bootstrap.New(
+		context.Background(),
 		bootCfg,
 		dh.onDoneBootstrapping,
 	)
@@ -2999,21 +3254,21 @@ func TestEngineReBootstrappingIntoConsensus(t *testing.T) {
 	}
 	dh.startEngineF = te.Start
 
-	if err := bootstrapper.Start(0); err != nil {
+	if err := bootstrapper.Start(context.Background(), 0); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := bootstrapper.Connected(vdr, version.CurrentApp); err != nil {
+	if err := bootstrapper.Connected(context.Background(), vdr, version.CurrentApp); err != nil {
 		t.Fatal(err)
 	}
 
 	// fail the AcceptedFrontier
-	if err := bootstrapper.GetAcceptedFrontierFailed(vdr, *requestID); err != nil {
+	if err := bootstrapper.GetAcceptedFrontierFailed(context.Background(), vdr, *requestID); err != nil {
 		t.Fatal(err)
 	}
 
 	// fail the GetAcceptedFailed
-	if err := bootstrapper.GetAcceptedFailed(vdr, *requestID); err != nil {
+	if err := bootstrapper.GetAcceptedFailed(context.Background(), vdr, *requestID); err != nil {
 		t.Fatal(err)
 	}
 
@@ -3024,21 +3279,21 @@ func TestEngineReBootstrappingIntoConsensus(t *testing.T) {
 	acceptedFrontier := []ids.ID{vtxID0}
 
 	*requested = false
-	sender.SendGetAcceptedF = func(vdrs ids.NodeIDSet, reqID uint32, proposedAccepted []ids.ID) {
+	sender.SendGetAcceptedF = func(_ context.Context, vdrs set.Set[ids.NodeID], reqID uint32, proposedAccepted []ids.ID) {
 		if vdrs.Len() != 1 {
 			t.Fatalf("Should have requested from the validators")
 		}
 		if !vdrs.Contains(vdr) {
 			t.Fatalf("Should have requested from %s", vdr)
 		}
-		if !ids.Equals(acceptedFrontier, proposedAccepted) {
+		if !slices.Equal(acceptedFrontier, proposedAccepted) {
 			t.Fatalf("Wrong proposedAccepted vertices.\nExpected: %s\nGot: %s", acceptedFrontier, proposedAccepted)
 		}
 		*requested = true
 		*requestID = reqID
 	}
 
-	if err := bootstrapper.AcceptedFrontier(vdr, *requestID, acceptedFrontier); err != nil {
+	if err := bootstrapper.AcceptedFrontier(context.Background(), vdr, *requestID, acceptedFrontier); err != nil {
 		t.Fatal(err)
 	}
 
@@ -3046,7 +3301,7 @@ func TestEngineReBootstrappingIntoConsensus(t *testing.T) {
 		t.Fatalf("Should have requested from the validators during AcceptedFrontier")
 	}
 
-	manager.GetVtxF = func(vtxID ids.ID) (avalanche.Vertex, error) {
+	manager.GetVtxF = func(_ context.Context, vtxID ids.ID) (avalanche.Vertex, error) {
 		if vtxID == vtxID0 {
 			return nil, errMissing
 		}
@@ -3054,7 +3309,7 @@ func TestEngineReBootstrappingIntoConsensus(t *testing.T) {
 		panic("Unknown vertex requested")
 	}
 
-	sender.SendGetAncestorsF = func(inVdr ids.NodeID, reqID uint32, vtxID ids.ID) {
+	sender.SendGetAncestorsF = func(_ context.Context, inVdr ids.NodeID, reqID uint32, vtxID ids.ID) {
 		if vdr != inVdr {
 			t.Fatalf("Asking wrong validator for vertex")
 		}
@@ -3064,30 +3319,30 @@ func TestEngineReBootstrappingIntoConsensus(t *testing.T) {
 		*requestID = reqID
 	}
 
-	if err := bootstrapper.Accepted(vdr, *requestID, acceptedFrontier); err != nil {
+	if err := bootstrapper.Accepted(context.Background(), vdr, *requestID, acceptedFrontier); err != nil {
 		t.Fatal(err)
 	}
 
 	manager.GetVtxF = nil
 
-	vm.ParseTxF = func(b []byte) (snowstorm.Tx, error) {
+	vm.ParseTxF = func(_ context.Context, b []byte) (snowstorm.Tx, error) {
 		if bytes.Equal(b, txBytes0) {
 			return tx0, nil
 		}
 		t.Fatalf("Unknown bytes provided")
 		panic("Unknown bytes provided")
 	}
-	manager.ParseVtxF = func(b []byte) (avalanche.Vertex, error) {
+	manager.ParseVtxF = func(_ context.Context, b []byte) (avalanche.Vertex, error) {
 		if bytes.Equal(b, vtxBytes0) {
 			return vtx0, nil
 		}
 		t.Fatalf("Unknown bytes provided")
 		panic("Unknown bytes provided")
 	}
-	manager.EdgeF = func() []ids.ID {
+	manager.EdgeF = func(context.Context) []ids.ID {
 		return []ids.ID{vtxID0}
 	}
-	manager.GetVtxF = func(vtxID ids.ID) (avalanche.Vertex, error) {
+	manager.GetVtxF = func(_ context.Context, vtxID ids.ID) (avalanche.Vertex, error) {
 		if vtxID == vtxID0 {
 			return vtx0, nil
 		}
@@ -3095,7 +3350,7 @@ func TestEngineReBootstrappingIntoConsensus(t *testing.T) {
 		panic("Unknown bytes provided")
 	}
 
-	if err := bootstrapper.Ancestors(vdr, *requestID, [][]byte{vtxBytes0}); err != nil {
+	if err := bootstrapper.Ancestors(context.Background(), vdr, *requestID, [][]byte{vtxBytes0}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -3113,25 +3368,25 @@ func TestEngineReBootstrappingIntoConsensus(t *testing.T) {
 		t.Fatalf("Should have accepted %s", vtxID0)
 	}
 
-	manager.ParseVtxF = func(b []byte) (avalanche.Vertex, error) {
+	manager.ParseVtxF = func(_ context.Context, b []byte) (avalanche.Vertex, error) {
 		if bytes.Equal(b, vtxBytes1) {
 			return vtx1, nil
 		}
 		t.Fatalf("Unknown bytes provided")
 		panic("Unknown bytes provided")
 	}
-	sender.SendChitsF = func(inVdr ids.NodeID, _ uint32, chits []ids.ID) {
+	sender.SendChitsF = func(_ context.Context, inVdr ids.NodeID, _ uint32, chits []ids.ID) {
 		if inVdr != vdr {
 			t.Fatalf("Sent to the wrong validator")
 		}
 
 		expected := []ids.ID{vtxID1}
 
-		if !ids.Equals(expected, chits) {
+		if !slices.Equal(expected, chits) {
 			t.Fatalf("Returned wrong chits")
 		}
 	}
-	sender.SendPushQueryF = func(vdrs ids.NodeIDSet, _ uint32, vtx []byte) {
+	sender.SendPushQueryF = func(_ context.Context, vdrs set.Set[ids.NodeID], _ uint32, vtx []byte) {
 		if vdrs.Len() != 1 {
 			t.Fatalf("Should have requested from the validators")
 		}
@@ -3143,7 +3398,7 @@ func TestEngineReBootstrappingIntoConsensus(t *testing.T) {
 			t.Fatalf("Sent wrong query bytes")
 		}
 	}
-	manager.GetVtxF = func(vtxID ids.ID) (avalanche.Vertex, error) {
+	manager.GetVtxF = func(_ context.Context, vtxID ids.ID) (avalanche.Vertex, error) {
 		if vtxID == vtxID1 {
 			return vtx1, nil
 		}
@@ -3151,7 +3406,7 @@ func TestEngineReBootstrappingIntoConsensus(t *testing.T) {
 		panic("Unknown bytes provided")
 	}
 
-	if err := bootstrapper.PushQuery(vdr, 0, vtxBytes1); err != nil {
+	if err := bootstrapper.PushQuery(context.Background(), vdr, 0, vtxBytes1); err != nil {
 		t.Fatal(err)
 	}
 
@@ -3168,7 +3423,7 @@ func TestEngineUndeclaredDependencyDeadlock(t *testing.T) {
 	engCfg.Validators = vals
 
 	vdr := ids.GenerateTestNodeID()
-	if err := vals.AddWeight(vdr, 1); err != nil {
+	if err := vals.Add(vdr, nil, ids.Empty, 1); err != nil {
 		t.Fatal(err)
 	}
 
@@ -3222,7 +3477,7 @@ func TestEngineUndeclaredDependencyDeadlock(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := te.Start(0); err != nil {
+	if err := te.Start(context.Background(), 0); err != nil {
 		t.Fatal(err)
 	}
 
@@ -3230,23 +3485,23 @@ func TestEngineUndeclaredDependencyDeadlock(t *testing.T) {
 	te.Sender = sender
 
 	reqID := new(uint32)
-	sender.SendPushQueryF = func(_ ids.NodeIDSet, requestID uint32, _ []byte) {
+	sender.SendPushQueryF = func(_ context.Context, _ set.Set[ids.NodeID], requestID uint32, _ []byte) {
 		*reqID = requestID
 	}
 
-	if err := te.issue(vtx0); err != nil {
+	if err := te.issue(context.Background(), vtx0); err != nil {
 		t.Fatal(err)
 	}
 
-	sender.SendPushQueryF = func(ids.NodeIDSet, uint32, []byte) {
+	sender.SendPushQueryF = func(context.Context, set.Set[ids.NodeID], uint32, []byte) {
 		t.Fatalf("should have failed verification")
 	}
 
-	if err := te.issue(vtx1); err != nil {
+	if err := te.issue(context.Background(), vtx1); err != nil {
 		t.Fatal(err)
 	}
 
-	manager.GetVtxF = func(vtxID ids.ID) (avalanche.Vertex, error) {
+	manager.GetVtxF = func(_ context.Context, vtxID ids.ID) (avalanche.Vertex, error) {
 		switch vtxID {
 		case vtx0.ID():
 			return vtx0, nil
@@ -3256,7 +3511,7 @@ func TestEngineUndeclaredDependencyDeadlock(t *testing.T) {
 		return nil, errors.New("Unknown vtx")
 	}
 
-	if err := te.Chits(vdr, *reqID, []ids.ID{vtx1.ID()}); err != nil {
+	if err := te.Chits(context.Background(), vdr, *reqID, []ids.ID{vtx1.ID()}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -3272,7 +3527,7 @@ func TestEnginePartiallyValidVertex(t *testing.T) {
 	engCfg.Validators = vals
 
 	vdr := ids.GenerateTestNodeID()
-	if err := vals.AddWeight(vdr, 1); err != nil {
+	if err := vals.Add(vdr, nil, ids.Empty, 1); err != nil {
 		t.Fatal(err)
 	}
 
@@ -3317,12 +3572,12 @@ func TestEnginePartiallyValidVertex(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := te.Start(0); err != nil {
+	if err := te.Start(context.Background(), 0); err != nil {
 		t.Fatal(err)
 	}
 
 	expectedVtxBytes := []byte{1}
-	manager.BuildVtxF = func(_ []ids.ID, txs []snowstorm.Tx) (avalanche.Vertex, error) {
+	manager.BuildVtxF = func(_ context.Context, _ []ids.ID, txs []snowstorm.Tx) (avalanche.Vertex, error) {
 		return &avalanche.TestVertex{
 			TestDecidable: choices.TestDecidable{
 				IDV:     ids.GenerateTestID(),
@@ -3338,13 +3593,13 @@ func TestEnginePartiallyValidVertex(t *testing.T) {
 	sender := &common.SenderTest{T: t}
 	te.Sender = sender
 
-	sender.SendPushQueryF = func(_ ids.NodeIDSet, _ uint32, vtx []byte) {
+	sender.SendPushQueryF = func(_ context.Context, _ set.Set[ids.NodeID], _ uint32, vtx []byte) {
 		if !bytes.Equal(expectedVtxBytes, vtx) {
 			t.Fatalf("wrong vertex queried")
 		}
 	}
 
-	if err := te.issue(vtx); err != nil {
+	if err := te.issue(context.Background(), vtx); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -3369,12 +3624,14 @@ func TestEngineGossip(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := te.Start(0); err != nil {
+	if err := te.Start(context.Background(), 0); err != nil {
 		t.Fatal(err)
 	}
 
-	manager.EdgeF = func() []ids.ID { return []ids.ID{gVtx.ID()} }
-	manager.GetVtxF = func(vtxID ids.ID) (avalanche.Vertex, error) {
+	manager.EdgeF = func(context.Context) []ids.ID {
+		return []ids.ID{gVtx.ID()}
+	}
+	manager.GetVtxF = func(_ context.Context, vtxID ids.ID) (avalanche.Vertex, error) {
 		if vtxID == gVtx.ID() {
 			return gVtx, nil
 		}
@@ -3383,14 +3640,14 @@ func TestEngineGossip(t *testing.T) {
 	}
 
 	called := new(bool)
-	sender.SendGossipF = func(vtxBytes []byte) {
+	sender.SendGossipF = func(_ context.Context, vtxBytes []byte) {
 		*called = true
 		if !bytes.Equal(vtxBytes, gVtx.Bytes()) {
 			t.Fatal(errUnknownVertex)
 		}
 	}
 
-	if err := te.Gossip(); err != nil {
+	if err := te.Gossip(context.Background()); err != nil {
 		t.Fatal(err)
 	}
 
@@ -3408,10 +3665,10 @@ func TestEngineInvalidVertexIgnoredFromUnexpectedPeer(t *testing.T) {
 	vdr := ids.GenerateTestNodeID()
 	secondVdr := ids.GenerateTestNodeID()
 
-	if err := vals.AddWeight(vdr, 1); err != nil {
+	if err := vals.Add(vdr, nil, ids.Empty, 1); err != nil {
 		t.Fatal(err)
 	}
-	if err := vals.AddWeight(secondVdr, 1); err != nil {
+	if err := vals.Add(secondVdr, nil, ids.Empty, 1); err != nil {
 		t.Fatal(err)
 	}
 
@@ -3470,12 +3727,12 @@ func TestEngineInvalidVertexIgnoredFromUnexpectedPeer(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := te.Start(0); err != nil {
+	if err := te.Start(context.Background(), 0); err != nil {
 		t.Fatal(err)
 	}
 
 	parsed := new(bool)
-	manager.ParseVtxF = func(b []byte) (avalanche.Vertex, error) {
+	manager.ParseVtxF = func(_ context.Context, b []byte) (avalanche.Vertex, error) {
 		if bytes.Equal(b, vtx1.Bytes()) {
 			*parsed = true
 			return vtx1, nil
@@ -3483,7 +3740,7 @@ func TestEngineInvalidVertexIgnoredFromUnexpectedPeer(t *testing.T) {
 		return nil, errUnknownVertex
 	}
 
-	manager.GetVtxF = func(vtxID ids.ID) (avalanche.Vertex, error) {
+	manager.GetVtxF = func(_ context.Context, vtxID ids.ID) (avalanche.Vertex, error) {
 		if !*parsed {
 			return nil, errUnknownVertex
 		}
@@ -3495,7 +3752,7 @@ func TestEngineInvalidVertexIgnoredFromUnexpectedPeer(t *testing.T) {
 	}
 
 	reqID := new(uint32)
-	sender.SendGetF = func(reqVdr ids.NodeID, requestID uint32, vtxID ids.ID) {
+	sender.SendGetF = func(_ context.Context, reqVdr ids.NodeID, requestID uint32, vtxID ids.ID) {
 		*reqID = requestID
 		if reqVdr != vdr {
 			t.Fatalf("Wrong validator requested")
@@ -3505,16 +3762,16 @@ func TestEngineInvalidVertexIgnoredFromUnexpectedPeer(t *testing.T) {
 		}
 	}
 
-	if err := te.PushQuery(vdr, 0, vtx1.Bytes()); err != nil {
+	if err := te.PushQuery(context.Background(), vdr, 0, vtx1.Bytes()); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := te.Put(secondVdr, *reqID, []byte{3}); err != nil {
+	if err := te.Put(context.Background(), secondVdr, *reqID, []byte{3}); err != nil {
 		t.Fatal(err)
 	}
 
 	*parsed = false
-	manager.ParseVtxF = func(b []byte) (avalanche.Vertex, error) {
+	manager.ParseVtxF = func(_ context.Context, b []byte) (avalanche.Vertex, error) {
 		if bytes.Equal(b, vtx0.Bytes()) {
 			*parsed = true
 			return vtx0, nil
@@ -3522,7 +3779,7 @@ func TestEngineInvalidVertexIgnoredFromUnexpectedPeer(t *testing.T) {
 		return nil, errUnknownVertex
 	}
 
-	manager.GetVtxF = func(vtxID ids.ID) (avalanche.Vertex, error) {
+	manager.GetVtxF = func(_ context.Context, vtxID ids.ID) (avalanche.Vertex, error) {
 		if !*parsed {
 			return nil, errUnknownVertex
 		}
@@ -3537,7 +3794,7 @@ func TestEngineInvalidVertexIgnoredFromUnexpectedPeer(t *testing.T) {
 
 	vtx0.StatusV = choices.Processing
 
-	if err := te.Put(vdr, *reqID, vtx0.Bytes()); err != nil {
+	if err := te.Put(context.Background(), vdr, *reqID, vtx0.Bytes()); err != nil {
 		t.Fatal(err)
 	}
 
@@ -3554,7 +3811,7 @@ func TestEnginePushQueryRequestIDConflict(t *testing.T) {
 	engCfg.Validators = vals
 
 	vdr := ids.GenerateTestNodeID()
-	if err := vals.AddWeight(vdr, 1); err != nil {
+	if err := vals.Add(vdr, nil, ids.Empty, 1); err != nil {
 		t.Fatal(err)
 	}
 
@@ -3614,12 +3871,12 @@ func TestEnginePushQueryRequestIDConflict(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := te.Start(0); err != nil {
+	if err := te.Start(context.Background(), 0); err != nil {
 		t.Fatal(err)
 	}
 
 	parsed := new(bool)
-	manager.ParseVtxF = func(b []byte) (avalanche.Vertex, error) {
+	manager.ParseVtxF = func(_ context.Context, b []byte) (avalanche.Vertex, error) {
 		if bytes.Equal(b, vtx1.Bytes()) {
 			*parsed = true
 			return vtx1, nil
@@ -3627,7 +3884,7 @@ func TestEnginePushQueryRequestIDConflict(t *testing.T) {
 		return nil, errUnknownVertex
 	}
 
-	manager.GetVtxF = func(vtxID ids.ID) (avalanche.Vertex, error) {
+	manager.GetVtxF = func(_ context.Context, vtxID ids.ID) (avalanche.Vertex, error) {
 		if !*parsed {
 			return nil, errUnknownVertex
 		}
@@ -3639,7 +3896,7 @@ func TestEnginePushQueryRequestIDConflict(t *testing.T) {
 	}
 
 	reqID := new(uint32)
-	sender.SendGetF = func(reqVdr ids.NodeID, requestID uint32, vtxID ids.ID) {
+	sender.SendGetF = func(_ context.Context, reqVdr ids.NodeID, requestID uint32, vtxID ids.ID) {
 		*reqID = requestID
 		if reqVdr != vdr {
 			t.Fatalf("Wrong validator requested")
@@ -3649,19 +3906,19 @@ func TestEnginePushQueryRequestIDConflict(t *testing.T) {
 		}
 	}
 
-	if err := te.PushQuery(vdr, 0, vtx1.Bytes()); err != nil {
+	if err := te.PushQuery(context.Background(), vdr, 0, vtx1.Bytes()); err != nil {
 		t.Fatal(err)
 	}
 
 	sender.SendGetF = nil
 	sender.CantSendGet = false
 
-	if err := te.PushQuery(vdr, *reqID, []byte{3}); err != nil {
+	if err := te.PushQuery(context.Background(), vdr, *reqID, []byte{3}); err != nil {
 		t.Fatal(err)
 	}
 
 	*parsed = false
-	manager.ParseVtxF = func(b []byte) (avalanche.Vertex, error) {
+	manager.ParseVtxF = func(_ context.Context, b []byte) (avalanche.Vertex, error) {
 		if bytes.Equal(b, vtx0.Bytes()) {
 			*parsed = true
 			return vtx0, nil
@@ -3669,7 +3926,7 @@ func TestEnginePushQueryRequestIDConflict(t *testing.T) {
 		return nil, errUnknownVertex
 	}
 
-	manager.GetVtxF = func(vtxID ids.ID) (avalanche.Vertex, error) {
+	manager.GetVtxF = func(_ context.Context, vtxID ids.ID) (avalanche.Vertex, error) {
 		if !*parsed {
 			return nil, errUnknownVertex
 		}
@@ -3684,7 +3941,7 @@ func TestEnginePushQueryRequestIDConflict(t *testing.T) {
 
 	vtx0.StatusV = choices.Processing
 
-	if err := te.Put(vdr, *reqID, vtx0.Bytes()); err != nil {
+	if err := te.Put(context.Background(), vdr, *reqID, vtx0.Bytes()); err != nil {
 		t.Fatal(err)
 	}
 
@@ -3704,7 +3961,7 @@ func TestEngineAggressivePolling(t *testing.T) {
 	engCfg.Validators = vals
 
 	vdr := ids.GenerateTestNodeID()
-	if err := vals.AddWeight(vdr, 1); err != nil {
+	if err := vals.Add(vdr, nil, ids.Empty, 1); err != nil {
 		t.Fatal(err)
 	}
 
@@ -3758,13 +4015,13 @@ func TestEngineAggressivePolling(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := te.Start(0); err != nil {
+	if err := te.Start(context.Background(), 0); err != nil {
 		t.Fatal(err)
 	}
 
 	vm.CantSetState = true
 	parsed := new(bool)
-	manager.ParseVtxF = func(b []byte) (avalanche.Vertex, error) {
+	manager.ParseVtxF = func(_ context.Context, b []byte) (avalanche.Vertex, error) {
 		if bytes.Equal(b, vtx.Bytes()) {
 			*parsed = true
 			return vtx, nil
@@ -3772,7 +4029,7 @@ func TestEngineAggressivePolling(t *testing.T) {
 		return nil, errUnknownVertex
 	}
 
-	manager.GetVtxF = func(vtxID ids.ID) (avalanche.Vertex, error) {
+	manager.GetVtxF = func(_ context.Context, vtxID ids.ID) (avalanche.Vertex, error) {
 		if !*parsed {
 			return nil, errUnknownVertex
 		}
@@ -3784,14 +4041,18 @@ func TestEngineAggressivePolling(t *testing.T) {
 	}
 
 	numPushQueries := new(int)
-	sender.SendPushQueryF = func(ids.NodeIDSet, uint32, []byte) { *numPushQueries++ }
+	sender.SendPushQueryF = func(context.Context, set.Set[ids.NodeID], uint32, []byte) {
+		*numPushQueries++
+	}
 
 	numPullQueries := new(int)
-	sender.SendPullQueryF = func(ids.NodeIDSet, uint32, ids.ID) { *numPullQueries++ }
+	sender.SendPullQueryF = func(context.Context, set.Set[ids.NodeID], uint32, ids.ID) {
+		*numPullQueries++
+	}
 
 	vm.CantPendingTxs = false
 
-	if err := te.Put(vdr, 0, vtx.Bytes()); err != nil {
+	if err := te.Put(context.Background(), vdr, 0, vtx.Bytes()); err != nil {
 		t.Fatal(err)
 	}
 
@@ -3818,7 +4079,7 @@ func TestEngineDuplicatedIssuance(t *testing.T) {
 	engCfg.Validators = vals
 
 	vdr := ids.GenerateTestNodeID()
-	if err := vals.AddWeight(vdr, 1); err != nil {
+	if err := vals.Add(vdr, nil, ids.Empty, 1); err != nil {
 		t.Fatal(err)
 	}
 
@@ -3856,8 +4117,10 @@ func TestEngineDuplicatedIssuance(t *testing.T) {
 	}
 	tx.InputIDsV = append(tx.InputIDsV, utxos[0])
 
-	manager.EdgeF = func() []ids.ID { return []ids.ID{gVtx.ID(), mVtx.ID()} }
-	manager.GetVtxF = func(id ids.ID) (avalanche.Vertex, error) {
+	manager.EdgeF = func(context.Context) []ids.ID {
+		return []ids.ID{gVtx.ID(), mVtx.ID()}
+	}
+	manager.GetVtxF = func(_ context.Context, id ids.ID) (avalanche.Vertex, error) {
 		switch id {
 		case gVtx.ID():
 			return gVtx, nil
@@ -3874,13 +4137,13 @@ func TestEngineDuplicatedIssuance(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := te.Start(0); err != nil {
+	if err := te.Start(context.Background(), 0); err != nil {
 		t.Fatal(err)
 	}
 
 	vm.CantSetState = true
 	lastVtx := new(avalanche.TestVertex)
-	manager.BuildVtxF = func(_ []ids.ID, txs []snowstorm.Tx) (avalanche.Vertex, error) {
+	manager.BuildVtxF = func(_ context.Context, _ []ids.ID, txs []snowstorm.Tx) (avalanche.Vertex, error) {
 		lastVtx = &avalanche.TestVertex{
 			TestDecidable: choices.TestDecidable{
 				IDV:     ids.GenerateTestID(),
@@ -3896,8 +4159,10 @@ func TestEngineDuplicatedIssuance(t *testing.T) {
 
 	sender.CantSendPushQuery = false
 
-	vm.PendingTxsF = func() []snowstorm.Tx { return []snowstorm.Tx{tx} }
-	if err := te.Notify(common.PendingTxs); err != nil {
+	vm.PendingTxsF = func(context.Context) []snowstorm.Tx {
+		return []snowstorm.Tx{tx}
+	}
+	if err := te.Notify(context.Background(), common.PendingTxs); err != nil {
 		t.Fatal(err)
 	}
 
@@ -3905,12 +4170,12 @@ func TestEngineDuplicatedIssuance(t *testing.T) {
 		t.Fatalf("Should have issued txs differently")
 	}
 
-	manager.BuildVtxF = func([]ids.ID, []snowstorm.Tx) (avalanche.Vertex, error) {
+	manager.BuildVtxF = func(context.Context, []ids.ID, []snowstorm.Tx) (avalanche.Vertex, error) {
 		t.Fatalf("shouldn't have attempted to issue a duplicated tx")
 		return nil, nil
 	}
 
-	if err := te.Notify(common.PendingTxs); err != nil {
+	if err := te.Notify(context.Background(), common.PendingTxs); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -3928,10 +4193,10 @@ func TestEngineDoubleChit(t *testing.T) {
 	vdr0 := ids.GenerateTestNodeID()
 	vdr1 := ids.GenerateTestNodeID()
 
-	if err := vals.AddWeight(vdr0, 1); err != nil {
+	if err := vals.Add(vdr0, nil, ids.Empty, 1); err != nil {
 		t.Fatal(err)
 	}
-	if err := vals.AddWeight(vdr1, 1); err != nil {
+	if err := vals.Add(vdr1, nil, ids.Empty, 1); err != nil {
 		t.Fatal(err)
 	}
 
@@ -3973,8 +4238,10 @@ func TestEngineDoubleChit(t *testing.T) {
 		BytesV:   []byte{1, 1, 2, 3},
 	}
 
-	manager.EdgeF = func() []ids.ID { return []ids.ID{vts[0].ID(), vts[1].ID()} }
-	manager.GetVtxF = func(id ids.ID) (avalanche.Vertex, error) {
+	manager.EdgeF = func(context.Context) []ids.ID {
+		return []ids.ID{vts[0].ID(), vts[1].ID()}
+	}
+	manager.GetVtxF = func(_ context.Context, id ids.ID) (avalanche.Vertex, error) {
 		switch id {
 		case gVtx.ID():
 			return gVtx, nil
@@ -3990,12 +4257,12 @@ func TestEngineDoubleChit(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := te.Start(0); err != nil {
+	if err := te.Start(context.Background(), 0); err != nil {
 		t.Fatal(err)
 	}
 
 	reqID := new(uint32)
-	sender.SendPushQueryF = func(inVdrs ids.NodeIDSet, requestID uint32, vtxBytes []byte) {
+	sender.SendPushQueryF = func(_ context.Context, inVdrs set.Set[ids.NodeID], requestID uint32, vtxBytes []byte) {
 		*reqID = requestID
 		if inVdrs.Len() != 2 {
 			t.Fatalf("Wrong number of validators")
@@ -4004,7 +4271,7 @@ func TestEngineDoubleChit(t *testing.T) {
 			t.Fatalf("Wrong vertex requested")
 		}
 	}
-	manager.GetVtxF = func(id ids.ID) (avalanche.Vertex, error) {
+	manager.GetVtxF = func(_ context.Context, id ids.ID) (avalanche.Vertex, error) {
 		if id == vtx.ID() {
 			return vtx, nil
 		}
@@ -4012,7 +4279,7 @@ func TestEngineDoubleChit(t *testing.T) {
 		panic("Should have errored")
 	}
 
-	if err := te.issue(vtx); err != nil {
+	if err := te.issue(context.Background(), vtx); err != nil {
 		t.Fatal(err)
 	}
 
@@ -4022,7 +4289,7 @@ func TestEngineDoubleChit(t *testing.T) {
 		t.Fatalf("Wrong tx status: %s ; expected: %s", status, choices.Processing)
 	}
 
-	if err := te.Chits(vdr0, *reqID, votes); err != nil {
+	if err := te.Chits(context.Background(), vdr0, *reqID, votes); err != nil {
 		t.Fatal(err)
 	}
 
@@ -4030,7 +4297,7 @@ func TestEngineDoubleChit(t *testing.T) {
 		t.Fatalf("Wrong tx status: %s ; expected: %s", status, choices.Processing)
 	}
 
-	if err := te.Chits(vdr0, *reqID, votes); err != nil {
+	if err := te.Chits(context.Background(), vdr0, *reqID, votes); err != nil {
 		t.Fatal(err)
 	}
 
@@ -4038,7 +4305,7 @@ func TestEngineDoubleChit(t *testing.T) {
 		t.Fatalf("Wrong tx status: %s ; expected: %s", status, choices.Processing)
 	}
 
-	if err := te.Chits(vdr1, *reqID, votes); err != nil {
+	if err := te.Chits(context.Background(), vdr1, *reqID, votes); err != nil {
 		t.Fatal(err)
 	}
 
@@ -4054,7 +4321,7 @@ func TestEngineBubbleVotes(t *testing.T) {
 	engCfg.Validators = vals
 
 	vdr := ids.GenerateTestNodeID()
-	err := vals.AddWeight(vdr, 1)
+	err := vals.Add(vdr, nil, ids.Empty, 1)
 	require.NoError(t, err)
 
 	sender := &common.SenderTest{T: t}
@@ -4131,8 +4398,10 @@ func TestEngineBubbleVotes(t *testing.T) {
 		BytesV:   []byte{2},
 	}
 
-	manager.EdgeF = func() []ids.ID { return nil }
-	manager.GetVtxF = func(id ids.ID) (avalanche.Vertex, error) {
+	manager.EdgeF = func(context.Context) []ids.ID {
+		return nil
+	}
+	manager.GetVtxF = func(_ context.Context, id ids.ID) (avalanche.Vertex, error) {
 		switch id {
 		case vtx.ID():
 			return vtx, nil
@@ -4152,13 +4421,13 @@ func TestEngineBubbleVotes(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := te.Start(0); err != nil {
+	if err := te.Start(context.Background(), 0); err != nil {
 		t.Fatal(err)
 	}
 
 	queryReqID := new(uint32)
 	queried := new(bool)
-	sender.SendPushQueryF = func(inVdrs ids.NodeIDSet, requestID uint32, vtxBytes []byte) {
+	sender.SendPushQueryF = func(_ context.Context, inVdrs set.Set[ids.NodeID], requestID uint32, vtxBytes []byte) {
 		require.Len(t, inVdrs, 1, "wrong number of validators")
 		*queryReqID = requestID
 		require.Equal(t, vtx.Bytes(), vtxBytes, "wrong vertex requested")
@@ -4167,14 +4436,14 @@ func TestEngineBubbleVotes(t *testing.T) {
 
 	getReqID := new(uint32)
 	fetched := new(bool)
-	sender.SendGetF = func(inVdr ids.NodeID, requestID uint32, vtxID ids.ID) {
+	sender.SendGetF = func(_ context.Context, inVdr ids.NodeID, requestID uint32, vtxID ids.ID) {
 		require.Equal(t, vdr, inVdr, "wrong validator")
 		*getReqID = requestID
 		require.Equal(t, missingVtx.ID(), vtxID, "wrong vertex requested")
 		*fetched = true
 	}
 
-	issued, err := te.issueFrom(vdr, pendingVtx1)
+	issued, err := te.issueFrom(context.Background(), vdr, pendingVtx1)
 	require.NoError(t, err)
 	require.False(t, issued, "shouldn't have been able to issue %s", pendingVtx1.ID())
 	require.True(t, *queried, "should have queried for %s", vtx.ID())
@@ -4182,13 +4451,13 @@ func TestEngineBubbleVotes(t *testing.T) {
 
 	// can't apply votes yet because pendingVtx0 isn't issued because missingVtx
 	// is missing
-	err = te.Chits(vdr, *queryReqID, []ids.ID{pendingVtx1.ID()})
+	err = te.Chits(context.Background(), vdr, *queryReqID, []ids.ID{pendingVtx1.ID()})
 	require.NoError(t, err)
 	require.Equal(t, choices.Processing, tx0.Status(), "wrong tx status")
 	require.Equal(t, choices.Processing, tx1.Status(), "wrong tx status")
 
 	// vote for pendingVtx1 should be bubbled up to pendingVtx0 and then to vtx
-	err = te.GetFailed(vdr, *getReqID)
+	err = te.GetFailed(context.Background(), vdr, *getReqID)
 	require.NoError(t, err)
 	require.Equal(t, choices.Accepted, tx0.Status(), "wrong tx status")
 	require.Equal(t, choices.Processing, tx1.Status(), "wrong tx status")
@@ -4210,7 +4479,7 @@ func TestEngineIssue(t *testing.T) {
 	engCfg.Validators = vals
 
 	vdr := ids.GenerateTestNodeID()
-	if err := vals.AddWeight(vdr, 1); err != nil {
+	if err := vals.Add(vdr, nil, ids.Empty, 1); err != nil {
 		t.Fatal(err)
 	}
 
@@ -4255,8 +4524,10 @@ func TestEngineIssue(t *testing.T) {
 		InputIDsV:     utxos[1:],
 	}
 
-	manager.EdgeF = func() []ids.ID { return []ids.ID{gVtx.ID(), mVtx.ID()} }
-	manager.GetVtxF = func(id ids.ID) (avalanche.Vertex, error) {
+	manager.EdgeF = func(context.Context) []ids.ID {
+		return []ids.ID{gVtx.ID(), mVtx.ID()}
+	}
+	manager.GetVtxF = func(_ context.Context, id ids.ID) (avalanche.Vertex, error) {
 		switch id {
 		case gVtx.ID():
 			return gVtx, nil
@@ -4273,14 +4544,14 @@ func TestEngineIssue(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := te.Start(0); err != nil {
+	if err := te.Start(context.Background(), 0); err != nil {
 		t.Fatal(err)
 	}
 
 	vm.CantSetState = true
 	numBuilt := 0
 	vtxID := ids.GenerateTestID()
-	manager.BuildVtxF = func(_ []ids.ID, txs []snowstorm.Tx) (avalanche.Vertex, error) {
+	manager.BuildVtxF = func(_ context.Context, _ []ids.ID, txs []snowstorm.Tx) (avalanche.Vertex, error) {
 		numBuilt++
 		vtx := &avalanche.TestVertex{
 			TestDecidable: choices.TestDecidable{
@@ -4293,7 +4564,7 @@ func TestEngineIssue(t *testing.T) {
 			BytesV:   []byte{1},
 		}
 
-		manager.GetVtxF = func(id ids.ID) (avalanche.Vertex, error) {
+		manager.GetVtxF = func(_ context.Context, id ids.ID) (avalanche.Vertex, error) {
 			switch id {
 			case gVtx.ID():
 				return gVtx, nil
@@ -4310,12 +4581,14 @@ func TestEngineIssue(t *testing.T) {
 	}
 
 	var queryRequestID uint32
-	sender.SendPushQueryF = func(_ ids.NodeIDSet, requestID uint32, _ []byte) {
+	sender.SendPushQueryF = func(_ context.Context, _ set.Set[ids.NodeID], requestID uint32, _ []byte) {
 		queryRequestID = requestID
 	}
 
-	vm.PendingTxsF = func() []snowstorm.Tx { return []snowstorm.Tx{tx0, tx1} }
-	if err := te.Notify(common.PendingTxs); err != nil {
+	vm.PendingTxsF = func(context.Context) []snowstorm.Tx {
+		return []snowstorm.Tx{tx0, tx1}
+	}
+	if err := te.Notify(context.Background(), common.PendingTxs); err != nil {
 		t.Fatal(err)
 	}
 
@@ -4323,7 +4596,7 @@ func TestEngineIssue(t *testing.T) {
 		t.Fatalf("Should have issued txs differently")
 	}
 
-	if err := te.Chits(vdr, queryRequestID, []ids.ID{vtxID}); err != nil {
+	if err := te.Chits(context.Background(), vdr, queryRequestID, []ids.ID{vtxID}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -4352,7 +4625,7 @@ func TestAbandonTx(t *testing.T) {
 
 	engCfg.Validators = validators.NewSet()
 	vdr := ids.GenerateTestNodeID()
-	if err := engCfg.Validators.AddWeight(vdr, 1); err != nil {
+	if err := engCfg.Validators.Add(vdr, nil, ids.Empty, 1); err != nil {
 		t.Fatal(err)
 	}
 
@@ -4373,7 +4646,7 @@ func TestAbandonTx(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := te.Start(0); err != nil {
+	if err := te.Start(context.Background(), 0); err != nil {
 		t.Fatal(err)
 	}
 
@@ -4433,16 +4706,16 @@ func TestAbandonTx(t *testing.T) {
 	// Cause the engine to send a Get request for vtx1, vtx0, and some other vtx that doesn't exist
 	sender.CantSendGet = false
 	sender.CantSendChits = false
-	err = te.PullQuery(vdr, 0, vtx1.ID())
+	err = te.PullQuery(context.Background(), vdr, 0, vtx1.ID())
 	require.NoError(err)
-	err = te.PullQuery(vdr, 0, vtx0.ID())
+	err = te.PullQuery(context.Background(), vdr, 0, vtx0.ID())
 	require.NoError(err)
-	err = te.PullQuery(vdr, 0, ids.GenerateTestID())
+	err = te.PullQuery(context.Background(), vdr, 0, ids.GenerateTestID())
 	require.NoError(err)
 
 	// Give the engine vtx1. It should wait to issue vtx1
 	// until tx0 is issued, because tx1 depends on tx0.
-	manager.ParseVtxF = func(b []byte) (avalanche.Vertex, error) {
+	manager.ParseVtxF = func(_ context.Context, b []byte) (avalanche.Vertex, error) {
 		if bytes.Equal(b, vtx1.BytesV) {
 			vtx1.StatusV = choices.Processing
 			return vtx1, nil
@@ -4450,7 +4723,7 @@ func TestAbandonTx(t *testing.T) {
 		require.FailNow("should have asked to parse vtx1")
 		return nil, errors.New("should have asked to parse vtx1")
 	}
-	err = te.Put(vdr, 0, vtx1.Bytes())
+	err = te.Put(context.Background(), vdr, 0, vtx1.Bytes())
 	require.NoError(err)
 
 	// Verify that vtx1 is waiting to be issued.
@@ -4458,7 +4731,7 @@ func TestAbandonTx(t *testing.T) {
 
 	// Give the engine vtx0. It should try to issue vtx0
 	// but then abandon it because tx0 fails verification.
-	manager.ParseVtxF = func(b []byte) (avalanche.Vertex, error) {
+	manager.ParseVtxF = func(_ context.Context, b []byte) (avalanche.Vertex, error) {
 		if bytes.Equal(b, vtx0.BytesV) {
 			vtx0.StatusV = choices.Processing
 			return vtx0, nil
@@ -4466,7 +4739,7 @@ func TestAbandonTx(t *testing.T) {
 		require.FailNow("should have asked to parse vtx0")
 		return nil, errors.New("should have asked to parse vtx0")
 	}
-	err = te.Put(vdr, 0, vtx0.Bytes())
+	err = te.Put(context.Background(), vdr, 0, vtx0.Bytes())
 	require.NoError(err)
 
 	// Despite the fact that there is still an outstanding vertex request,
@@ -4492,7 +4765,6 @@ func TestSendMixedQuery(t *testing.T) {
 				sender := &common.SenderTest{T: t}
 				engCfg.Sender = sender
 				sender.Default(true)
-				vdrSet := engCfg.Validators
 				manager := vertex.NewTestManager(t)
 				engCfg.Manager = manager
 				// Override the parameters k, MixedQueryNumPushVdr, MixedQueryNumPushNonVdr,
@@ -4506,23 +4778,26 @@ func TestSendMixedQuery(t *testing.T) {
 					t.Fatal(err)
 				}
 				startReqID := uint32(0)
-				if err := te.Start(startReqID); err != nil {
+				if err := te.Start(context.Background(), startReqID); err != nil {
 					t.Fatal(err)
 				}
 
-				vdrsList := []validators.Validator{}
-				vdrs := ids.NodeIDSet{}
-				for i := 0; i < te.Config.Params.K; i++ {
-					vdr := ids.GenerateTestNodeID()
-					vdrs.Add(vdr)
-					vdrsList = append(vdrsList, validators.NewValidator(vdr, 1))
+				vdrs := set.Set[ids.NodeID]{}
+				te.Validators = validators.NewSet()
+				for i := 0; i < engCfg.Params.K; i++ {
+					vdrID := ids.GenerateTestNodeID()
+					vdrs.Add(vdrID)
+					err := te.Validators.Add(vdrID, nil, ids.Empty, 1)
+					if err != nil {
+						t.Fatal(err)
+					}
 				}
 				if tt.isVdr {
-					vdrs.Add(te.Ctx.NodeID)
-					vdrsList = append(vdrsList, validators.NewValidator(te.Ctx.NodeID, 1))
-				}
-				if err := vdrSet.Set(vdrsList); err != nil {
-					t.Fatal(err)
+					vdrs.Add(engCfg.Ctx.NodeID)
+					err := te.Validators.Add(engCfg.Ctx.NodeID, nil, ids.Empty, 1)
+					if err != nil {
+						t.Fatal(err)
+					}
 				}
 
 				// [blk1] is a child of [gBlk] and passes verification
@@ -4540,7 +4815,7 @@ func TestSendMixedQuery(t *testing.T) {
 					BytesV: []byte{1},
 				}
 
-				manager.ParseVtxF = func(b []byte) (avalanche.Vertex, error) {
+				manager.ParseVtxF = func(_ context.Context, b []byte) (avalanche.Vertex, error) {
 					switch {
 					case bytes.Equal(b, vtx1.Bytes()):
 						return vtx1, nil
@@ -4552,8 +4827,8 @@ func TestSendMixedQuery(t *testing.T) {
 
 				pullQuerySent := new(bool)
 				pullQueryReqID := new(uint32)
-				pullQueriedVdrs := ids.NodeIDSet{}
-				sender.SendPullQueryF = func(inVdrs ids.NodeIDSet, requestID uint32, vtxID ids.ID) {
+				pullQueriedVdrs := set.Set[ids.NodeID]{}
+				sender.SendPullQueryF = func(_ context.Context, inVdrs set.Set[ids.NodeID], requestID uint32, vtxID ids.ID) {
 					switch {
 					case *pullQuerySent:
 						t.Fatalf("Asked multiple times")
@@ -4567,8 +4842,8 @@ func TestSendMixedQuery(t *testing.T) {
 
 				pushQuerySent := new(bool)
 				pushQueryReqID := new(uint32)
-				pushQueriedVdrs := ids.NodeIDSet{}
-				sender.SendPushQueryF = func(inVdrs ids.NodeIDSet, requestID uint32, vtx []byte) {
+				pushQueriedVdrs := set.Set[ids.NodeID]{}
+				sender.SendPushQueryF = func(_ context.Context, inVdrs set.Set[ids.NodeID], requestID uint32, vtx []byte) {
 					switch {
 					case *pushQuerySent:
 						t.Fatal("Asked multiple times")
@@ -4582,7 +4857,7 @@ func TestSendMixedQuery(t *testing.T) {
 
 				// Give the engine vtx1. It should insert it into consensus and send a mixed query
 				// consisting of 12 pull queries and 8 push queries.
-				if err := te.Put(vdrSet.List()[0].ID(), constants.GossipMsgRequestID, vtx1.Bytes()); err != nil {
+				if err := te.Put(context.Background(), te.Validators.List()[0].NodeID, constants.GossipMsgRequestID, vtx1.Bytes()); err != nil {
 					t.Fatal(err)
 				}
 

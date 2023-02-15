@@ -12,7 +12,7 @@ import (
 	"github.com/MetalBlockchain/metalgo/vms/platformvm/txs"
 )
 
-var _ txs.Visitor = &backendVisitor{}
+var _ txs.Visitor = (*backendVisitor)(nil)
 
 // backendVisitor handles accepting of transactions for the backend
 type backendVisitor struct {
@@ -21,8 +21,13 @@ type backendVisitor struct {
 	txID ids.ID
 }
 
-func (*backendVisitor) AdvanceTimeTx(*txs.AdvanceTimeTx) error         { return errUnsupportedTxType }
-func (*backendVisitor) RewardValidatorTx(*txs.RewardValidatorTx) error { return errUnsupportedTxType }
+func (*backendVisitor) AdvanceTimeTx(*txs.AdvanceTimeTx) error {
+	return errUnsupportedTxType
+}
+
+func (*backendVisitor) RewardValidatorTx(*txs.RewardValidatorTx) error {
+	return errUnsupportedTxType
+}
 
 func (b *backendVisitor) AddValidatorTx(tx *txs.AddValidatorTx) error {
 	return b.baseTx(&tx.BaseTx)

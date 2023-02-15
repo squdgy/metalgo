@@ -14,6 +14,7 @@ import (
 	"github.com/MetalBlockchain/metalgo/snow/choices"
 	"github.com/MetalBlockchain/metalgo/tests"
 	"github.com/MetalBlockchain/metalgo/tests/e2e"
+	"github.com/MetalBlockchain/metalgo/utils/set"
 	"github.com/MetalBlockchain/metalgo/vms/avm"
 	"github.com/MetalBlockchain/metalgo/vms/components/avax"
 	"github.com/MetalBlockchain/metalgo/vms/secp256k1fx"
@@ -59,7 +60,9 @@ var _ = e2e.DescribeXChain("[Virtuous Transfer Tx AVAX]", func() {
 				needPermute := round > 3
 				if needPermute {
 					rand.Seed(time.Now().UnixNano())
-					rand.Shuffle(len(testKeys), func(i, j int) { testKeys[i], testKeys[j] = testKeys[j], testKeys[i] })
+					rand.Shuffle(len(testKeys), func(i, j int) {
+						testKeys[i], testKeys[j] = testKeys[j], testKeys[i]
+					})
 				}
 				keyChain := secp256k1fx.NewKeychain(testKeys...)
 
@@ -83,7 +86,7 @@ var _ = e2e.DescribeXChain("[Virtuous Transfer Tx AVAX]", func() {
 
 					wallets[i] = primary.NewWalletWithOptions(
 						baseWallet,
-						common.WithCustomAddresses(ids.ShortSet{
+						common.WithCustomAddresses(set.Set[ids.ShortID]{
 							testKeys[i].PublicKey().Address(): struct{}{},
 						}),
 					)

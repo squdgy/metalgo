@@ -11,7 +11,7 @@ import (
 	"github.com/MetalBlockchain/metalgo/vms/components/avax"
 )
 
-var _ txs.Visitor = &executeTx{}
+var _ txs.Visitor = (*executeTx)(nil)
 
 type executeTx struct {
 	tx           *txs.Tx
@@ -20,7 +20,7 @@ type executeTx struct {
 	parser       txs.Parser
 }
 
-func (et *executeTx) BaseTx(t *txs.BaseTx) error {
+func (et *executeTx) BaseTx(*txs.BaseTx) error {
 	return et.batch.Write()
 }
 

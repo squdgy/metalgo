@@ -14,7 +14,7 @@ var (
 	errNilAssetID   = errors.New("nil asset ID is not valid")
 	errEmptyAssetID = errors.New("empty asset ID is not valid")
 
-	_ verify.Verifiable = &Asset{}
+	_ verify.Verifiable = (*Asset)(nil)
 )
 
 type Asset struct {
@@ -22,7 +22,9 @@ type Asset struct {
 }
 
 // AssetID returns the ID of the contained asset
-func (asset *Asset) AssetID() ids.ID { return asset.ID }
+func (asset *Asset) AssetID() ids.ID {
+	return asset.ID
+}
 
 func (asset *Asset) Verify() error {
 	switch {

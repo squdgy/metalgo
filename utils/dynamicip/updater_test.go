@@ -15,7 +15,7 @@ import (
 	"github.com/MetalBlockchain/metalgo/utils/logging"
 )
 
-var _ Resolver = &mockResolver{}
+var _ Resolver = (*mockResolver)(nil)
 
 type mockResolver struct {
 	onResolve func() (net.IP, error)
@@ -64,7 +64,9 @@ func TestNewUpdater(t *testing.T) {
 		Port: uint16(originalPort),
 	}
 	require.Eventually(
-		func() bool { return expectedIP.Equal(dynamicIP.IPPort()) },
+		func() bool {
+			return expectedIP.Equal(dynamicIP.IPPort())
+		},
 		5*time.Second,
 		updateFreq,
 	)

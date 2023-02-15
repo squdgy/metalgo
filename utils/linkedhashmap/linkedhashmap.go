@@ -10,7 +10,7 @@ import (
 	"github.com/MetalBlockchain/metalgo/utils"
 )
 
-var _ LinkedHashmap[int, struct{}] = &linkedHashmap[int, struct{}]{}
+var _ LinkedHashmap[int, struct{}] = (*linkedHashmap[int, struct{}])(nil)
 
 // Hashmap provides an O(1) mapping from a comparable key to any value.
 // Comparable is defined by https://golang.org/ref/spec#Comparison_operators.
@@ -120,7 +120,9 @@ func (lh *linkedHashmap[K, V]) delete(key K) {
 	}
 }
 
-func (lh *linkedHashmap[K, V]) len() int { return len(lh.entryMap) }
+func (lh *linkedHashmap[K, V]) len() int {
+	return len(lh.entryMap)
+}
 
 func (lh *linkedHashmap[K, V]) oldest() (K, V, bool) {
 	if val := lh.entryList.Front(); val != nil {

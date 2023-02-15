@@ -5,6 +5,7 @@ package bootstrap
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"testing"
 
@@ -25,6 +26,7 @@ import (
 	"github.com/MetalBlockchain/metalgo/snow/engine/snowman/getter"
 	"github.com/MetalBlockchain/metalgo/snow/validators"
 	"github.com/MetalBlockchain/metalgo/utils"
+	"github.com/MetalBlockchain/metalgo/utils/set"
 	"github.com/MetalBlockchain/metalgo/version"
 )
 
@@ -46,15 +48,19 @@ func newConfig(t *testing.T) (Config, ids.NodeID, *common.SenderTest, *block.Tes
 
 	isBootstrapped := false
 	subnet := &common.SubnetTest{
-		T:               t,
-		IsBootstrappedF: func() bool { return isBootstrapped },
-		BootstrappedF:   func(ids.ID) { isBootstrapped = true },
+		T: t,
+		IsBootstrappedF: func() bool {
+			return isBootstrapped
+		},
+		BootstrappedF: func(ids.ID) {
+			isBootstrapped = true
+		},
 	}
 
 	sender.CantSendGetAcceptedFrontier = false
 
 	peer := ids.GenerateTestNodeID()
-	if err := peers.AddWeight(peer, 1); err != nil {
+	if err := peers.Add(peer, nil, ids.Empty, 1); err != nil {
 		t.Fatal(err)
 	}
 
@@ -62,7 +68,7 @@ func newConfig(t *testing.T) (Config, ids.NodeID, *common.SenderTest, *block.Tes
 	startupTracker := tracker.NewStartup(peerTracker, peers.Weight()/2+1)
 	peers.RegisterCallbackListener(startupTracker)
 
-	if err := startupTracker.Connected(peer, version.CurrentApp); err != nil {
+	if err := startupTracker.Connected(context.Background(), peer, version.CurrentApp); err != nil {
 		t.Fatal(err)
 	}
 
@@ -152,43 +158,50 @@ func TestBootstrapperStartsOnlyIfEnoughStakeIsConnected(t *testing.T) {
 		BytesV:  blkBytes0,
 	}
 	vm.CantLastAccepted = false
-	vm.LastAcceptedF = func() (ids.ID, error) { return blk0.ID(), nil }
-	vm.GetBlockF = func(blkID ids.ID) (snowman.Block, error) {
+	vm.LastAcceptedF = func(context.Context) (ids.ID, error) {
+		return blk0.ID(), nil
+	}
+	vm.GetBlockF = func(_ context.Context, blkID ids.ID) (snowman.Block, error) {
 		require.Equal(blk0.ID(), blkID)
 		return blk0, nil
 	}
 
 	// create bootstrapper
-	dummyCallback := func(lastReqID uint32) error { cfg.Ctx.SetState(snow.NormalOp); return nil }
-	bs, err := New(cfg, dummyCallback)
+	dummyCallback := func(context.Context, uint32) error {
+		cfg.Ctx.SetState(snow.NormalOp)
+		return nil
+	}
+	bs, err := New(context.Background(), cfg, dummyCallback)
 	require.NoError(err)
 
 	vm.CantSetState = false
 	vm.CantConnected = true
-	vm.ConnectedF = func(ids.NodeID, *version.Application) error { return nil }
+	vm.ConnectedF = func(context.Context, ids.NodeID, *version.Application) error {
+		return nil
+	}
 
 	frontierRequested := false
 	sender.CantSendGetAcceptedFrontier = false
-	sender.SendGetAcceptedFrontierF = func(ss ids.NodeIDSet, u uint32) {
+	sender.SendGetAcceptedFrontierF = func(context.Context, set.Set[ids.NodeID], uint32) {
 		frontierRequested = true
 	}
 
 	// attempt starting bootstrapper with no stake connected. Bootstrapper should stall.
-	require.NoError(bs.Start(0))
+	require.NoError(bs.Start(context.Background(), 0))
 	require.False(frontierRequested)
 
 	// attempt starting bootstrapper with not enough stake connected. Bootstrapper should stall.
 	vdr0 := ids.GenerateTestNodeID()
-	require.NoError(peers.AddWeight(vdr0, startupAlpha/2))
-	require.NoError(bs.Connected(vdr0, version.CurrentApp))
+	require.NoError(peers.Add(vdr0, nil, ids.Empty, startupAlpha/2))
+	require.NoError(bs.Connected(context.Background(), vdr0, version.CurrentApp))
 
-	require.NoError(bs.Start(0))
+	require.NoError(bs.Start(context.Background(), 0))
 	require.False(frontierRequested)
 
 	// finally attempt starting bootstrapper with enough stake connected. Frontiers should be requested.
 	vdr := ids.GenerateTestNodeID()
-	require.NoError(peers.AddWeight(vdr, startupAlpha))
-	require.NoError(bs.Connected(vdr, version.CurrentApp))
+	require.NoError(peers.Add(vdr, nil, ids.Empty, startupAlpha))
+	require.NoError(bs.Connected(context.Background(), vdr, version.CurrentApp))
 	require.True(frontierRequested)
 }
 
@@ -221,28 +234,34 @@ func TestBootstrapperSingleFrontier(t *testing.T) {
 	}
 
 	vm.CantLastAccepted = false
-	vm.LastAcceptedF = func() (ids.ID, error) { return blk0.ID(), nil }
-	vm.GetBlockF = func(blkID ids.ID) (snowman.Block, error) {
+	vm.LastAcceptedF = func(context.Context) (ids.ID, error) {
+		return blk0.ID(), nil
+	}
+	vm.GetBlockF = func(_ context.Context, blkID ids.ID) (snowman.Block, error) {
 		require.Equal(t, blk0.ID(), blkID)
 		return blk0, nil
 	}
 
 	bs, err := New(
+		context.Background(),
 		config,
-		func(lastReqID uint32) error { config.Ctx.SetState(snow.NormalOp); return nil },
+		func(context.Context, uint32) error {
+			config.Ctx.SetState(snow.NormalOp)
+			return nil
+		},
 	)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	vm.CantSetState = false
-	if err := bs.Start(0); err != nil {
+	if err := bs.Start(context.Background(), 0); err != nil {
 		t.Fatal(err)
 	}
 
 	acceptedIDs := []ids.ID{blkID1}
 
-	vm.GetBlockF = func(blkID ids.ID) (snowman.Block, error) {
+	vm.GetBlockF = func(_ context.Context, blkID ids.ID) (snowman.Block, error) {
 		switch blkID {
 		case blkID1:
 			return blk1, nil
@@ -253,7 +272,7 @@ func TestBootstrapperSingleFrontier(t *testing.T) {
 			panic(database.ErrNotFound)
 		}
 	}
-	vm.ParseBlockF = func(blkBytes []byte) (snowman.Block, error) {
+	vm.ParseBlockF = func(_ context.Context, blkBytes []byte) (snowman.Block, error) {
 		switch {
 		case bytes.Equal(blkBytes, blkBytes1):
 			return blk1, nil
@@ -264,7 +283,7 @@ func TestBootstrapperSingleFrontier(t *testing.T) {
 		return nil, errUnknownBlock
 	}
 
-	err = bs.ForceAccepted(acceptedIDs)
+	err = bs.ForceAccepted(context.Background(), acceptedIDs)
 	switch {
 	case err != nil: // should finish
 		t.Fatal(err)
@@ -319,28 +338,34 @@ func TestBootstrapperUnknownByzantineResponse(t *testing.T) {
 
 	vm.CantSetState = false
 	vm.CantLastAccepted = false
-	vm.LastAcceptedF = func() (ids.ID, error) { return blk0.ID(), nil }
-	vm.GetBlockF = func(blkID ids.ID) (snowman.Block, error) {
+	vm.LastAcceptedF = func(context.Context) (ids.ID, error) {
+		return blk0.ID(), nil
+	}
+	vm.GetBlockF = func(_ context.Context, blkID ids.ID) (snowman.Block, error) {
 		require.Equal(t, blk0.ID(), blkID)
 		return blk0, nil
 	}
 
 	bs, err := New(
+		context.Background(),
 		config,
-		func(lastReqID uint32) error { config.Ctx.SetState(snow.NormalOp); return nil },
+		func(context.Context, uint32) error {
+			config.Ctx.SetState(snow.NormalOp)
+			return nil
+		},
 	)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if err := bs.Start(0); err != nil {
+	if err := bs.Start(context.Background(), 0); err != nil {
 		t.Fatal(err)
 	}
 
 	acceptedIDs := []ids.ID{blkID2}
 
 	parsedBlk1 := false
-	vm.GetBlockF = func(blkID ids.ID) (snowman.Block, error) {
+	vm.GetBlockF = func(_ context.Context, blkID ids.ID) (snowman.Block, error) {
 		switch blkID {
 		case blkID0:
 			return blk0, nil
@@ -356,7 +381,7 @@ func TestBootstrapperUnknownByzantineResponse(t *testing.T) {
 			panic(database.ErrNotFound)
 		}
 	}
-	vm.ParseBlockF = func(blkBytes []byte) (snowman.Block, error) {
+	vm.ParseBlockF = func(_ context.Context, blkBytes []byte) (snowman.Block, error) {
 		switch {
 		case bytes.Equal(blkBytes, blkBytes0):
 			return blk0, nil
@@ -372,7 +397,7 @@ func TestBootstrapperUnknownByzantineResponse(t *testing.T) {
 	}
 
 	requestID := new(uint32)
-	sender.SendGetAncestorsF = func(vdr ids.NodeID, reqID uint32, vtxID ids.ID) {
+	sender.SendGetAncestorsF = func(_ context.Context, vdr ids.NodeID, reqID uint32, vtxID ids.ID) {
 		if vdr != peerID {
 			t.Fatalf("Should have requested block from %s, requested from %s", peerID, vdr)
 		}
@@ -385,30 +410,30 @@ func TestBootstrapperUnknownByzantineResponse(t *testing.T) {
 	}
 
 	vm.CantSetState = false
-	if err := bs.ForceAccepted(acceptedIDs); err != nil { // should request blk1
+	if err := bs.ForceAccepted(context.Background(), acceptedIDs); err != nil { // should request blk1
 		t.Fatal(err)
 	}
 
 	oldReqID := *requestID
-	if err := bs.Ancestors(peerID, *requestID+1, [][]byte{blkBytes1}); err != nil { // respond with wrong request ID
+	if err := bs.Ancestors(context.Background(), peerID, *requestID+1, [][]byte{blkBytes1}); err != nil { // respond with wrong request ID
 		t.Fatal(err)
 	} else if oldReqID != *requestID {
 		t.Fatal("should not have sent new request")
 	}
 
-	if err := bs.Ancestors(ids.NodeID{1, 2, 3}, *requestID, [][]byte{blkBytes1}); err != nil { // respond from wrong peer
+	if err := bs.Ancestors(context.Background(), ids.NodeID{1, 2, 3}, *requestID, [][]byte{blkBytes1}); err != nil { // respond from wrong peer
 		t.Fatal(err)
 	} else if oldReqID != *requestID {
 		t.Fatal("should not have sent new request")
 	}
 
-	if err := bs.Ancestors(peerID, *requestID, [][]byte{blkBytes0}); err != nil { // respond with wrong block
+	if err := bs.Ancestors(context.Background(), peerID, *requestID, [][]byte{blkBytes0}); err != nil { // respond with wrong block
 		t.Fatal(err)
 	} else if oldReqID == *requestID {
 		t.Fatal("should have sent new request")
 	}
 
-	err = bs.Ancestors(peerID, *requestID, [][]byte{blkBytes1})
+	err = bs.Ancestors(context.Background(), peerID, *requestID, [][]byte{blkBytes1})
 	switch {
 	case err != nil: // respond with right block
 		t.Fatal(err)
@@ -474,22 +499,28 @@ func TestBootstrapperPartialFetch(t *testing.T) {
 	}
 
 	vm.CantLastAccepted = false
-	vm.LastAcceptedF = func() (ids.ID, error) { return blk0.ID(), nil }
-	vm.GetBlockF = func(blkID ids.ID) (snowman.Block, error) {
+	vm.LastAcceptedF = func(context.Context) (ids.ID, error) {
+		return blk0.ID(), nil
+	}
+	vm.GetBlockF = func(_ context.Context, blkID ids.ID) (snowman.Block, error) {
 		require.Equal(t, blk0.ID(), blkID)
 		return blk0, nil
 	}
 
 	bs, err := New(
+		context.Background(),
 		config,
-		func(lastReqID uint32) error { config.Ctx.SetState(snow.NormalOp); return nil },
+		func(context.Context, uint32) error {
+			config.Ctx.SetState(snow.NormalOp)
+			return nil
+		},
 	)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	vm.CantSetState = false
-	if err := bs.Start(0); err != nil {
+	if err := bs.Start(context.Background(), 0); err != nil {
 		t.Fatal(err)
 	}
 
@@ -497,7 +528,7 @@ func TestBootstrapperPartialFetch(t *testing.T) {
 
 	parsedBlk1 := false
 	parsedBlk2 := false
-	vm.GetBlockF = func(blkID ids.ID) (snowman.Block, error) {
+	vm.GetBlockF = func(_ context.Context, blkID ids.ID) (snowman.Block, error) {
 		switch blkID {
 		case blkID0:
 			return blk0, nil
@@ -518,7 +549,7 @@ func TestBootstrapperPartialFetch(t *testing.T) {
 			panic(database.ErrNotFound)
 		}
 	}
-	vm.ParseBlockF = func(blkBytes []byte) (snowman.Block, error) {
+	vm.ParseBlockF = func(_ context.Context, blkBytes []byte) (snowman.Block, error) {
 		switch {
 		case bytes.Equal(blkBytes, blkBytes0):
 			return blk0, nil
@@ -539,7 +570,7 @@ func TestBootstrapperPartialFetch(t *testing.T) {
 
 	requestID := new(uint32)
 	requested := ids.Empty
-	sender.SendGetAncestorsF = func(vdr ids.NodeID, reqID uint32, vtxID ids.ID) {
+	sender.SendGetAncestorsF = func(_ context.Context, vdr ids.NodeID, reqID uint32, vtxID ids.ID) {
 		if vdr != peerID {
 			t.Fatalf("Should have requested block from %s, requested from %s", peerID, vdr)
 		}
@@ -552,17 +583,17 @@ func TestBootstrapperPartialFetch(t *testing.T) {
 		requested = vtxID
 	}
 
-	if err := bs.ForceAccepted(acceptedIDs); err != nil { // should request blk2
+	if err := bs.ForceAccepted(context.Background(), acceptedIDs); err != nil { // should request blk2
 		t.Fatal(err)
 	}
 
-	if err := bs.Ancestors(peerID, *requestID, [][]byte{blkBytes2}); err != nil { // respond with blk2
+	if err := bs.Ancestors(context.Background(), peerID, *requestID, [][]byte{blkBytes2}); err != nil { // respond with blk2
 		t.Fatal(err)
 	} else if requested != blkID1 {
 		t.Fatal("should have requested blk1")
 	}
 
-	if err := bs.Ancestors(peerID, *requestID, [][]byte{blkBytes1}); err != nil { // respond with blk1
+	if err := bs.Ancestors(context.Background(), peerID, *requestID, [][]byte{blkBytes1}); err != nil { // respond with blk1
 		t.Fatal(err)
 	} else if requested != blkID1 {
 		t.Fatal("should not have requested another block")
@@ -632,22 +663,28 @@ func TestBootstrapperEmptyResponse(t *testing.T) {
 	}
 
 	vm.CantLastAccepted = false
-	vm.LastAcceptedF = func() (ids.ID, error) { return blk0.ID(), nil }
-	vm.GetBlockF = func(blkID ids.ID) (snowman.Block, error) {
+	vm.LastAcceptedF = func(context.Context) (ids.ID, error) {
+		return blk0.ID(), nil
+	}
+	vm.GetBlockF = func(_ context.Context, blkID ids.ID) (snowman.Block, error) {
 		require.Equal(t, blk0.ID(), blkID)
 		return blk0, nil
 	}
 
 	bs, err := New(
+		context.Background(),
 		config,
-		func(lastReqID uint32) error { config.Ctx.SetState(snow.NormalOp); return nil },
+		func(context.Context, uint32) error {
+			config.Ctx.SetState(snow.NormalOp)
+			return nil
+		},
 	)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	vm.CantSetState = false
-	if err := bs.Start(0); err != nil {
+	if err := bs.Start(context.Background(), 0); err != nil {
 		t.Fatal(err)
 	}
 
@@ -655,7 +692,7 @@ func TestBootstrapperEmptyResponse(t *testing.T) {
 
 	parsedBlk1 := false
 	parsedBlk2 := false
-	vm.GetBlockF = func(blkID ids.ID) (snowman.Block, error) {
+	vm.GetBlockF = func(_ context.Context, blkID ids.ID) (snowman.Block, error) {
 		switch blkID {
 		case blkID0:
 			return blk0, nil
@@ -676,7 +713,7 @@ func TestBootstrapperEmptyResponse(t *testing.T) {
 			panic(database.ErrNotFound)
 		}
 	}
-	vm.ParseBlockF = func(blkBytes []byte) (snowman.Block, error) {
+	vm.ParseBlockF = func(_ context.Context, blkBytes []byte) (snowman.Block, error) {
 		switch {
 		case bytes.Equal(blkBytes, blkBytes0):
 			return blk0, nil
@@ -698,14 +735,14 @@ func TestBootstrapperEmptyResponse(t *testing.T) {
 	requestedVdr := ids.EmptyNodeID
 	requestID := uint32(0)
 	requestedBlock := ids.Empty
-	sender.SendGetAncestorsF = func(vdr ids.NodeID, reqID uint32, blkID ids.ID) {
+	sender.SendGetAncestorsF = func(_ context.Context, vdr ids.NodeID, reqID uint32, blkID ids.ID) {
 		requestedVdr = vdr
 		requestID = reqID
 		requestedBlock = blkID
 	}
 
 	// should request blk2
-	err = bs.ForceAccepted(acceptedIDs)
+	err = bs.ForceAccepted(context.Background(), acceptedIDs)
 	switch {
 	case err != nil:
 		t.Fatal(err)
@@ -722,7 +759,7 @@ func TestBootstrapperEmptyResponse(t *testing.T) {
 	newPeerID = ids.GenerateTestNodeID()
 	bs.(*bootstrapper).fetchFrom.Add(newPeerID)
 
-	if err := bs.Ancestors(peerID, requestID, [][]byte{blkBytes2}); err != nil { // respond with blk2
+	if err := bs.Ancestors(context.Background(), peerID, requestID, [][]byte{blkBytes2}); err != nil { // respond with blk2
 		t.Fatal(err)
 	} else if requestedBlock != blkID1 {
 		t.Fatal("should have requested blk1")
@@ -731,7 +768,7 @@ func TestBootstrapperEmptyResponse(t *testing.T) {
 	peerToBlacklist := requestedVdr
 
 	// respond with empty
-	err = bs.Ancestors(peerToBlacklist, requestID, nil)
+	err = bs.Ancestors(context.Background(), peerToBlacklist, requestID, nil)
 	switch {
 	case err != nil:
 		t.Fatal(err)
@@ -741,7 +778,7 @@ func TestBootstrapperEmptyResponse(t *testing.T) {
 		t.Fatal("should have requested blk1")
 	}
 
-	if err := bs.Ancestors(requestedVdr, requestID, [][]byte{blkBytes1}); err != nil { // respond with blk1
+	if err := bs.Ancestors(context.Background(), requestedVdr, requestID, [][]byte{blkBytes1}); err != nil { // respond with blk1
 		t.Fatal(err)
 	}
 
@@ -812,21 +849,27 @@ func TestBootstrapperAncestors(t *testing.T) {
 
 	vm.CantSetState = false
 	vm.CantLastAccepted = false
-	vm.LastAcceptedF = func() (ids.ID, error) { return blk0.ID(), nil }
-	vm.GetBlockF = func(blkID ids.ID) (snowman.Block, error) {
+	vm.LastAcceptedF = func(context.Context) (ids.ID, error) {
+		return blk0.ID(), nil
+	}
+	vm.GetBlockF = func(_ context.Context, blkID ids.ID) (snowman.Block, error) {
 		require.Equal(t, blk0.ID(), blkID)
 		return blk0, nil
 	}
 
 	bs, err := New(
+		context.Background(),
 		config,
-		func(lastReqID uint32) error { config.Ctx.SetState(snow.NormalOp); return nil },
+		func(context.Context, uint32) error {
+			config.Ctx.SetState(snow.NormalOp)
+			return nil
+		},
 	)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if err := bs.Start(0); err != nil {
+	if err := bs.Start(context.Background(), 0); err != nil {
 		t.Fatal(err)
 	}
 
@@ -834,7 +877,7 @@ func TestBootstrapperAncestors(t *testing.T) {
 
 	parsedBlk1 := false
 	parsedBlk2 := false
-	vm.GetBlockF = func(blkID ids.ID) (snowman.Block, error) {
+	vm.GetBlockF = func(_ context.Context, blkID ids.ID) (snowman.Block, error) {
 		switch blkID {
 		case blkID0:
 			return blk0, nil
@@ -855,7 +898,7 @@ func TestBootstrapperAncestors(t *testing.T) {
 			panic(database.ErrNotFound)
 		}
 	}
-	vm.ParseBlockF = func(blkBytes []byte) (snowman.Block, error) {
+	vm.ParseBlockF = func(_ context.Context, blkBytes []byte) (snowman.Block, error) {
 		switch {
 		case bytes.Equal(blkBytes, blkBytes0):
 			return blk0, nil
@@ -876,7 +919,7 @@ func TestBootstrapperAncestors(t *testing.T) {
 
 	requestID := new(uint32)
 	requested := ids.Empty
-	sender.SendGetAncestorsF = func(vdr ids.NodeID, reqID uint32, vtxID ids.ID) {
+	sender.SendGetAncestorsF = func(_ context.Context, vdr ids.NodeID, reqID uint32, vtxID ids.ID) {
 		if vdr != peerID {
 			t.Fatalf("Should have requested block from %s, requested from %s", peerID, vdr)
 		}
@@ -889,11 +932,11 @@ func TestBootstrapperAncestors(t *testing.T) {
 		requested = vtxID
 	}
 
-	if err := bs.ForceAccepted(acceptedIDs); err != nil { // should request blk2
+	if err := bs.ForceAccepted(context.Background(), acceptedIDs); err != nil { // should request blk2
 		t.Fatal(err)
 	}
 
-	if err := bs.Ancestors(peerID, *requestID, [][]byte{blkBytes2, blkBytes1}); err != nil { // respond with blk2 and blk1
+	if err := bs.Ancestors(context.Background(), peerID, *requestID, [][]byte{blkBytes2, blkBytes1}); err != nil { // respond with blk2 and blk1
 		t.Fatal(err)
 	} else if requested != blkID2 {
 		t.Fatal("should not have requested another block")
@@ -950,27 +993,33 @@ func TestBootstrapperFinalized(t *testing.T) {
 	}
 
 	vm.CantLastAccepted = false
-	vm.LastAcceptedF = func() (ids.ID, error) { return blk0.ID(), nil }
-	vm.GetBlockF = func(blkID ids.ID) (snowman.Block, error) {
+	vm.LastAcceptedF = func(context.Context) (ids.ID, error) {
+		return blk0.ID(), nil
+	}
+	vm.GetBlockF = func(_ context.Context, blkID ids.ID) (snowman.Block, error) {
 		require.Equal(t, blk0.ID(), blkID)
 		return blk0, nil
 	}
 	bs, err := New(
+		context.Background(),
 		config,
-		func(lastReqID uint32) error { config.Ctx.SetState(snow.NormalOp); return nil },
+		func(context.Context, uint32) error {
+			config.Ctx.SetState(snow.NormalOp)
+			return nil
+		},
 	)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	vm.CantSetState = false
-	if err := bs.Start(0); err != nil {
+	if err := bs.Start(context.Background(), 0); err != nil {
 		t.Fatal(err)
 	}
 
 	parsedBlk1 := false
 	parsedBlk2 := false
-	vm.GetBlockF = func(blkID ids.ID) (snowman.Block, error) {
+	vm.GetBlockF = func(_ context.Context, blkID ids.ID) (snowman.Block, error) {
 		switch blkID {
 		case blkID0:
 			return blk0, nil
@@ -989,7 +1038,7 @@ func TestBootstrapperFinalized(t *testing.T) {
 			panic(database.ErrNotFound)
 		}
 	}
-	vm.ParseBlockF = func(blkBytes []byte) (snowman.Block, error) {
+	vm.ParseBlockF = func(_ context.Context, blkBytes []byte) (snowman.Block, error) {
 		switch {
 		case bytes.Equal(blkBytes, blkBytes0):
 			return blk0, nil
@@ -1007,14 +1056,14 @@ func TestBootstrapperFinalized(t *testing.T) {
 	}
 
 	requestIDs := map[ids.ID]uint32{}
-	sender.SendGetAncestorsF = func(vdr ids.NodeID, reqID uint32, vtxID ids.ID) {
+	sender.SendGetAncestorsF = func(_ context.Context, vdr ids.NodeID, reqID uint32, vtxID ids.ID) {
 		if vdr != peerID {
 			t.Fatalf("Should have requested block from %s, requested from %s", peerID, vdr)
 		}
 		requestIDs[vtxID] = reqID
 	}
 
-	if err := bs.ForceAccepted([]ids.ID{blkID1, blkID2}); err != nil { // should request blk2 and blk1
+	if err := bs.ForceAccepted(context.Background(), []ids.ID{blkID1, blkID2}); err != nil { // should request blk2 and blk1
 		t.Fatal(err)
 	}
 
@@ -1023,7 +1072,7 @@ func TestBootstrapperFinalized(t *testing.T) {
 		t.Fatalf("should have requested blk2")
 	}
 
-	if err := bs.Ancestors(peerID, reqIDBlk2, [][]byte{blkBytes2, blkBytes1}); err != nil {
+	if err := bs.Ancestors(context.Background(), peerID, reqIDBlk2, [][]byte{blkBytes2, blkBytes1}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1100,12 +1149,14 @@ func TestRestartBootstrapping(t *testing.T) {
 	}
 
 	vm.CantLastAccepted = false
-	vm.LastAcceptedF = func() (ids.ID, error) { return blk0.ID(), nil }
+	vm.LastAcceptedF = func(context.Context) (ids.ID, error) {
+		return blk0.ID(), nil
+	}
 	parsedBlk1 := false
 	parsedBlk2 := false
 	parsedBlk3 := false
 	parsedBlk4 := false
-	vm.GetBlockF = func(blkID ids.ID) (snowman.Block, error) {
+	vm.GetBlockF = func(_ context.Context, blkID ids.ID) (snowman.Block, error) {
 		switch blkID {
 		case blkID0:
 			return blk0, nil
@@ -1134,7 +1185,7 @@ func TestRestartBootstrapping(t *testing.T) {
 			panic(database.ErrNotFound)
 		}
 	}
-	vm.ParseBlockF = func(blkBytes []byte) (snowman.Block, error) {
+	vm.ParseBlockF = func(_ context.Context, blkBytes []byte) (snowman.Block, error) {
 		switch {
 		case bytes.Equal(blkBytes, blkBytes0):
 			return blk0, nil
@@ -1160,8 +1211,12 @@ func TestRestartBootstrapping(t *testing.T) {
 	}
 
 	bsIntf, err := New(
+		context.Background(),
 		config,
-		func(lastReqID uint32) error { config.Ctx.SetState(snow.NormalOp); return nil },
+		func(context.Context, uint32) error {
+			config.Ctx.SetState(snow.NormalOp)
+			return nil
+		},
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -1172,12 +1227,12 @@ func TestRestartBootstrapping(t *testing.T) {
 	}
 
 	vm.CantSetState = false
-	if err := bs.Start(0); err != nil {
+	if err := bs.Start(context.Background(), 0); err != nil {
 		t.Fatal(err)
 	}
 
 	requestIDs := map[ids.ID]uint32{}
-	sender.SendGetAncestorsF = func(vdr ids.NodeID, reqID uint32, vtxID ids.ID) {
+	sender.SendGetAncestorsF = func(_ context.Context, vdr ids.NodeID, reqID uint32, vtxID ids.ID) {
 		if vdr != peerID {
 			t.Fatalf("Should have requested block from %s, requested from %s", peerID, vdr)
 		}
@@ -1185,7 +1240,7 @@ func TestRestartBootstrapping(t *testing.T) {
 	}
 
 	// Force Accept blk3
-	if err := bs.ForceAccepted([]ids.ID{blkID3}); err != nil { // should request blk3
+	if err := bs.ForceAccepted(context.Background(), []ids.ID{blkID3}); err != nil { // should request blk3
 		t.Fatal(err)
 	}
 
@@ -1194,7 +1249,7 @@ func TestRestartBootstrapping(t *testing.T) {
 		t.Fatalf("should have requested blk3")
 	}
 
-	if err := bs.Ancestors(peerID, reqID, [][]byte{blkBytes3, blkBytes2}); err != nil {
+	if err := bs.Ancestors(context.Background(), peerID, reqID, [][]byte{blkBytes3, blkBytes2}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1208,7 +1263,7 @@ func TestRestartBootstrapping(t *testing.T) {
 	}
 	requestIDs = map[ids.ID]uint32{}
 
-	if err := bs.ForceAccepted([]ids.ID{blkID4}); err != nil {
+	if err := bs.ForceAccepted(context.Background(), []ids.ID{blkID4}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1221,7 +1276,7 @@ func TestRestartBootstrapping(t *testing.T) {
 		t.Fatal("should have requested blk4 as new accepted frontier")
 	}
 
-	if err := bs.Ancestors(peerID, blk1RequestID, [][]byte{blkBytes1}); err != nil {
+	if err := bs.Ancestors(context.Background(), peerID, blk1RequestID, [][]byte{blkBytes1}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1229,7 +1284,7 @@ func TestRestartBootstrapping(t *testing.T) {
 		t.Fatal("Bootstrapping should not have finished with outstanding request for blk4")
 	}
 
-	if err := bs.Ancestors(peerID, blk4RequestID, [][]byte{blkBytes4}); err != nil {
+	if err := bs.Ancestors(context.Background(), peerID, blk4RequestID, [][]byte{blkBytes4}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1270,8 +1325,10 @@ func TestBootstrapOldBlockAfterStateSync(t *testing.T) {
 		BytesV:  utils.RandomBytes(32),
 	}
 
-	vm.LastAcceptedF = func() (ids.ID, error) { return blk1.ID(), nil }
-	vm.GetBlockF = func(blkID ids.ID) (snowman.Block, error) {
+	vm.LastAcceptedF = func(context.Context) (ids.ID, error) {
+		return blk1.ID(), nil
+	}
+	vm.GetBlockF = func(_ context.Context, blkID ids.ID) (snowman.Block, error) {
 		switch blkID {
 		case blk0.ID():
 			return nil, database.ErrNotFound
@@ -1282,7 +1339,7 @@ func TestBootstrapOldBlockAfterStateSync(t *testing.T) {
 			panic(database.ErrNotFound)
 		}
 	}
-	vm.ParseBlockF = func(blkBytes []byte) (snowman.Block, error) {
+	vm.ParseBlockF = func(_ context.Context, blkBytes []byte) (snowman.Block, error) {
 		switch {
 		case bytes.Equal(blkBytes, blk0.Bytes()):
 			return blk0, nil
@@ -1294,8 +1351,12 @@ func TestBootstrapOldBlockAfterStateSync(t *testing.T) {
 	}
 
 	bsIntf, err := New(
+		context.Background(),
 		config,
-		func(lastReqID uint32) error { config.Ctx.SetState(snow.NormalOp); return nil },
+		func(context.Context, uint32) error {
+			config.Ctx.SetState(snow.NormalOp)
+			return nil
+		},
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -1306,12 +1367,12 @@ func TestBootstrapOldBlockAfterStateSync(t *testing.T) {
 	}
 
 	vm.CantSetState = false
-	if err := bs.Start(0); err != nil {
+	if err := bs.Start(context.Background(), 0); err != nil {
 		t.Fatal(err)
 	}
 
 	requestIDs := map[ids.ID]uint32{}
-	sender.SendGetAncestorsF = func(vdr ids.NodeID, reqID uint32, vtxID ids.ID) {
+	sender.SendGetAncestorsF = func(_ context.Context, vdr ids.NodeID, reqID uint32, vtxID ids.ID) {
 		if vdr != peerID {
 			t.Fatalf("Should have requested block from %s, requested from %s", peerID, vdr)
 		}
@@ -1319,7 +1380,7 @@ func TestBootstrapOldBlockAfterStateSync(t *testing.T) {
 	}
 
 	// Force Accept, the already transitively accepted, blk0
-	if err := bs.ForceAccepted([]ids.ID{blk0.ID()}); err != nil { // should request blk0
+	if err := bs.ForceAccepted(context.Background(), []ids.ID{blk0.ID()}); err != nil { // should request blk0
 		t.Fatal(err)
 	}
 
@@ -1328,7 +1389,7 @@ func TestBootstrapOldBlockAfterStateSync(t *testing.T) {
 		t.Fatalf("should have requested blk0")
 	}
 
-	if err := bs.Ancestors(peerID, reqID, [][]byte{blk0.Bytes()}); err != nil {
+	if err := bs.Ancestors(context.Background(), peerID, reqID, [][]byte{blk0.Bytes()}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1372,11 +1433,17 @@ func TestBootstrapContinueAfterHalt(t *testing.T) {
 		BytesV:  utils.RandomBytes(32),
 	}
 
-	vm.LastAcceptedF = func() (ids.ID, error) { return blk0.ID(), nil }
+	vm.LastAcceptedF = func(context.Context) (ids.ID, error) {
+		return blk0.ID(), nil
+	}
 
 	bsIntf, err := New(
+		context.Background(),
 		config,
-		func(lastReqID uint32) error { config.Ctx.SetState(snow.NormalOp); return nil },
+		func(context.Context, uint32) error {
+			config.Ctx.SetState(snow.NormalOp)
+			return nil
+		},
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -1386,12 +1453,12 @@ func TestBootstrapContinueAfterHalt(t *testing.T) {
 		t.Fatal("unexpected bootstrapper type")
 	}
 
-	vm.GetBlockF = func(blkID ids.ID) (snowman.Block, error) {
+	vm.GetBlockF = func(_ context.Context, blkID ids.ID) (snowman.Block, error) {
 		switch blkID {
 		case blk0.ID():
 			return blk0, nil
 		case blk1.ID():
-			bs.Halt()
+			bs.Halt(context.Background())
 			return blk1, nil
 		case blk2.ID():
 			return blk2, nil
@@ -1402,11 +1469,11 @@ func TestBootstrapContinueAfterHalt(t *testing.T) {
 	}
 
 	vm.CantSetState = false
-	if err := bs.Start(0); err != nil {
+	if err := bs.Start(context.Background(), 0); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := bs.ForceAccepted([]ids.ID{blk2.ID()}); err != nil {
+	if err := bs.ForceAccepted(context.Background(), []ids.ID{blk2.ID()}); err != nil {
 		t.Fatal(err)
 	}
 

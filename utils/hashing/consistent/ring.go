@@ -12,8 +12,8 @@ import (
 )
 
 var (
-	_ Ring       = &hashRing{}
-	_ btree.Item = &ringItem{}
+	_ Ring       = (*hashRing)(nil)
+	_ btree.Item = (*ringItem)(nil)
 
 	errEmptyRing = errors.New("ring doesn't have any members")
 )
@@ -278,4 +278,6 @@ type ringItem struct {
 	value Hashable
 }
 
-func (r ringItem) Less(than btree.Item) bool { return r.hash < than.(ringItem).hash }
+func (r ringItem) Less(than btree.Item) bool {
+	return r.hash < than.(ringItem).hash
+}

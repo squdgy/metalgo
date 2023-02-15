@@ -10,8 +10,8 @@ import (
 )
 
 var (
-	_ DialThrottler = &dialThrottler{}
-	_ DialThrottler = &noDialThrottler{}
+	_ DialThrottler = (*dialThrottler)(nil)
+	_ DialThrottler = (*noDialThrottler)(nil)
 )
 
 type DialThrottler interface {
@@ -40,6 +40,6 @@ func NewNoDialThrottler() DialThrottler {
 	return noDialThrottler{}
 }
 
-func (t noDialThrottler) Acquire(context.Context) error {
+func (noDialThrottler) Acquire(context.Context) error {
 	return nil
 }

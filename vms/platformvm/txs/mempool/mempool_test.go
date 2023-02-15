@@ -22,11 +22,11 @@ import (
 	"github.com/MetalBlockchain/metalgo/vms/secp256k1fx"
 )
 
-var _ BlockTimer = &noopBlkTimer{}
+var _ BlockTimer = (*noopBlkTimer)(nil)
 
 type noopBlkTimer struct{}
 
-func (bt *noopBlkTimer) ResetBlockTimer() {}
+func (*noopBlkTimer) ResetBlockTimer() {}
 
 var preFundedKeys = crypto.BuildTestKeys()
 
@@ -67,7 +67,7 @@ func TestDecisionTxsInMempool(t *testing.T) {
 	require.NoError(err)
 
 	// txs must not already there before we start
-	require.False(mpool.HasApricotDecisionTxs())
+	require.False(mpool.HasTxs())
 
 	for _, tx := range decisionTxs {
 		// tx not already there
@@ -84,7 +84,7 @@ func TestDecisionTxsInMempool(t *testing.T) {
 		require.Equal(tx, retrieved)
 
 		// we can peek it
-		peeked := mpool.PeekApricotDecisionTxs(math.MaxInt)
+		peeked := mpool.PeekTxs(math.MaxInt)
 
 		// tx will be among those peeked,
 		// in NO PARTICULAR ORDER

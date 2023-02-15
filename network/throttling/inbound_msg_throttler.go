@@ -15,7 +15,7 @@ import (
 	"github.com/MetalBlockchain/metalgo/utils/logging"
 )
 
-var _ InboundMsgThrottler = &inboundMsgThrottler{}
+var _ InboundMsgThrottler = (*inboundMsgThrottler)(nil)
 
 // InboundMsgThrottler rate-limits inbound messages from the network.
 type InboundMsgThrottler interface {
@@ -93,7 +93,6 @@ func NewInboundMsgThrottler(
 		fmt.Sprintf("%s_cpu", namespace),
 		registerer,
 		throttlerConfig.CPUThrottlerConfig,
-		vdrs,
 		resourceTracker.CPUTracker(),
 		cpuTargeter,
 	)
@@ -104,7 +103,6 @@ func NewInboundMsgThrottler(
 		fmt.Sprintf("%s_disk", namespace),
 		registerer,
 		throttlerConfig.DiskThrottlerConfig,
-		vdrs,
 		resourceTracker.DiskTracker(),
 		diskTargeter,
 	)

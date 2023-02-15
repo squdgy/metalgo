@@ -4,13 +4,12 @@
 package avm
 
 import (
-	"github.com/MetalBlockchain/metalgo/utils/constants"
 	"github.com/MetalBlockchain/metalgo/vms/avm/txs"
 	"github.com/MetalBlockchain/metalgo/vms/components/avax"
 	"github.com/MetalBlockchain/metalgo/vms/components/verify"
 )
 
-var _ txs.Visitor = &txSemanticVerify{}
+var _ txs.Visitor = (*txSemanticVerify)(nil)
 
 // SemanticVerify that this transaction is well-formed.
 type txSemanticVerify struct {
@@ -90,7 +89,6 @@ func (t *txSemanticVerify) ExportTx(tx *txs.ExportTx) error {
 		}
 	}
 
-	now := t.vm.clock.Time()
 	for _, out := range tx.ExportedOuts {
 		fxIndex, err := t.vm.getFx(out.Out)
 		if err != nil {
@@ -98,17 +96,6 @@ func (t *txSemanticVerify) ExportTx(tx *txs.ExportTx) error {
 		}
 
 		assetID := out.AssetID()
-		if !t.vm.IsBanffActivated(now) {
-			// TODO: Remove this check once the Banff network upgrade is
-			//       complete.
-			//
-			// Banff network upgrade allows exporting of all assets to the
-			// P-chain.
-			if assetID != t.vm.ctx.AVAXAssetID && tx.DestinationChain == constants.PlatformChainID {
-				return errWrongAssetID
-			}
-		}
-
 		if !t.vm.verifyFxUsage(fxIndex, assetID) {
 			return errIncompatibleFx
 		}

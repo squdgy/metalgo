@@ -12,10 +12,12 @@ import (
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 
+	"golang.org/x/exp/maps"
+
 	"gopkg.in/natefinch/lumberjack.v2"
 )
 
-var _ Factory = &factory{}
+var _ Factory = (*factory)(nil)
 
 // Factory creates new instances of different types of Logger
 type Factory interface {
@@ -167,11 +169,7 @@ func (f *factory) GetLoggerNames() []string {
 	f.lock.RLock()
 	defer f.lock.RUnlock()
 
-	names := make([]string, 0, len(f.loggers))
-	for name := range f.loggers {
-		names = append(names, name)
-	}
-	return names
+	return maps.Keys(f.loggers)
 }
 
 func (f *factory) Close() {

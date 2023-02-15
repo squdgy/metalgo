@@ -31,7 +31,7 @@ var (
 	errDuplicatedVersion = errors.New("duplicated codec version")
 )
 
-var _ Manager = &manager{}
+var _ Manager = (*manager)(nil)
 
 // Manager describes the functionality for managing codec versions.
 type Manager interface {
@@ -61,7 +61,9 @@ func NewManager(maxSize int) Manager {
 }
 
 // NewDefaultManager returns a new codec manager.
-func NewDefaultManager() Manager { return NewManager(defaultMaxSize) }
+func NewDefaultManager() Manager {
+	return NewManager(defaultMaxSize)
+}
 
 type manager struct {
 	lock    sync.RWMutex

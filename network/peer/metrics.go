@@ -62,25 +62,20 @@ func NewMessageMetrics(
 		metrics.Register(msg.SentBytes),
 	)
 
-	if op.Compressible() {
-		msg.SavedReceivedBytes = metric.NewAveragerWithErrs(
-			namespace,
-			fmt.Sprintf("%s_compression_saved_received_bytes", op),
-			fmt.Sprintf("bytes saved (not received) due to compression of %s messages", op),
-			metrics,
-			errs,
-		)
-		msg.SavedSentBytes = metric.NewAveragerWithErrs(
-			namespace,
-			fmt.Sprintf("%s_compression_saved_sent_bytes", op),
-			fmt.Sprintf("bytes saved (not sent) due to compression of %s messages", op),
-			metrics,
-			errs,
-		)
-	} else {
-		msg.SavedReceivedBytes = metric.NewNoAverager()
-		msg.SavedSentBytes = metric.NewNoAverager()
-	}
+	msg.SavedReceivedBytes = metric.NewAveragerWithErrs(
+		namespace,
+		fmt.Sprintf("%s_compression_saved_received_bytes", op),
+		fmt.Sprintf("bytes saved (not received) due to compression of %s messages", op),
+		metrics,
+		errs,
+	)
+	msg.SavedSentBytes = metric.NewAveragerWithErrs(
+		namespace,
+		fmt.Sprintf("%s_compression_saved_sent_bytes", op),
+		fmt.Sprintf("bytes saved (not sent) due to compression of %s messages", op),
+		metrics,
+		errs,
+	)
 	return msg
 }
 
@@ -122,8 +117,7 @@ func NewMetrics(
 	return m, errs.Err
 }
 
-// Sent updates the metrics for having sent [msg] and removes a reference from
-// the [msg].
+// Sent updates the metrics for having sent [msg].
 func (m *Metrics) Sent(msg message.OutboundMessage) {
 	op := msg.Op()
 	msgMetrics := m.MessageMetrics[op]
@@ -132,7 +126,6 @@ func (m *Metrics) Sent(msg message.OutboundMessage) {
 			"unknown message being sent",
 			zap.Stringer("messageOp", op),
 		)
-		msg.DecRef()
 		return
 	}
 	msgMetrics.NumSent.Inc()
@@ -141,7 +134,6 @@ func (m *Metrics) Sent(msg message.OutboundMessage) {
 	if saved := msg.BytesSavedCompression(); saved != 0 {
 		msgMetrics.SavedSentBytes.Observe(float64(saved))
 	}
-	msg.DecRef()
 }
 
 func (m *Metrics) MultipleSendsFailed(op message.Op, count int) {
@@ -157,8 +149,7 @@ func (m *Metrics) MultipleSendsFailed(op message.Op, count int) {
 	msgMetrics.NumFailed.Add(float64(count))
 }
 
-// SendFailed updates the metrics for having failed to send [msg] and removes a
-// reference from the [msg].
+// SendFailed updates the metrics for having failed to send [msg].
 func (m *Metrics) SendFailed(msg message.OutboundMessage) {
 	op := msg.Op()
 	msgMetrics := m.MessageMetrics[op]
@@ -167,11 +158,9 @@ func (m *Metrics) SendFailed(msg message.OutboundMessage) {
 			"unknown message failed to be sent",
 			zap.Stringer("messageOp", op),
 		)
-		msg.DecRef()
 		return
 	}
 	msgMetrics.NumFailed.Inc()
-	msg.DecRef()
 }
 
 func (m *Metrics) Received(msg message.InboundMessage, msgLen uint32) {

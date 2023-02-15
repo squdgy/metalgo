@@ -4,6 +4,7 @@
 package indexer
 
 import (
+	"context"
 	"errors"
 	"testing"
 
@@ -15,7 +16,7 @@ var (
 	errGetWrappingBlk = errors.New("unexpectedly called GetWrappingBlk")
 	errCommit         = errors.New("unexpectedly called Commit")
 
-	_ BlockServer = &TestBlockServer{}
+	_ BlockServer = (*TestBlockServer)(nil)
 )
 
 // TestBatchedVM is a BatchedVM that is useful for testing.
@@ -25,13 +26,13 @@ type TestBlockServer struct {
 	CantGetFullPostForkBlock bool
 	CantCommit               bool
 
-	GetFullPostForkBlockF func(blkID ids.ID) (snowman.Block, error)
+	GetFullPostForkBlockF func(ctx context.Context, blkID ids.ID) (snowman.Block, error)
 	CommitF               func() error
 }
 
-func (tsb *TestBlockServer) GetFullPostForkBlock(blkID ids.ID) (snowman.Block, error) {
+func (tsb *TestBlockServer) GetFullPostForkBlock(ctx context.Context, blkID ids.ID) (snowman.Block, error) {
 	if tsb.GetFullPostForkBlockF != nil {
-		return tsb.GetFullPostForkBlockF(blkID)
+		return tsb.GetFullPostForkBlockF(ctx, blkID)
 	}
 	if tsb.CantGetFullPostForkBlock && tsb.T != nil {
 		tsb.T.Fatal(errGetWrappingBlk)

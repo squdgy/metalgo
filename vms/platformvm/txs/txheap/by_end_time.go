@@ -9,7 +9,7 @@ import (
 	"github.com/MetalBlockchain/metalgo/vms/platformvm/txs"
 )
 
-var _ TimedHeap = &byEndTime{}
+var _ TimedHeap = (*byEndTime)(nil)
 
 type byEndTime struct {
 	txHeap

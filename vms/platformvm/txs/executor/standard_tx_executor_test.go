@@ -38,7 +38,7 @@ import (
 const _ time.Duration = math.MaxUint32 * time.Second
 
 func TestStandardTxExecutorAddValidatorTxEmptyID(t *testing.T) {
-	env := newEnvironment()
+	env := newEnvironment( /*postBanff*/ false)
 	env.ctx.Lock.Lock()
 	defer func() {
 		if err := shutdownEnvironment(env); err != nil {
@@ -55,7 +55,7 @@ func TestStandardTxExecutorAddValidatorTxEmptyID(t *testing.T) {
 	}{
 		{ // Case: Before banff
 			banffTime:     chainTime.Add(1),
-			expectedError: errIssuedAddStakerTxBeforeBanff,
+			expectedError: errEmptyNodeID,
 		},
 		{ // Case: At banff
 			banffTime:     chainTime,
@@ -125,11 +125,14 @@ func TestStandardTxExecutorAddDelegator(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		staker := state.NewCurrentStaker(
+		staker, err := state.NewCurrentStaker(
 			tx.ID(),
 			tx.Unsigned.(*txs.AddValidatorTx),
 			0,
 		)
+		if err != nil {
+			t.Fatal(err)
+		}
 
 		target.state.PutCurrentValidator(staker)
 		target.state.AddTx(tx, status.Committed)
@@ -156,11 +159,14 @@ func TestStandardTxExecutorAddDelegator(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		staker := state.NewCurrentStaker(
+		staker, err := state.NewCurrentStaker(
 			tx.ID(),
 			tx.Unsigned.(*txs.AddValidatorTx),
 			0,
 		)
+		if err != nil {
+			t.Fatal(err)
+		}
 
 		target.state.PutCurrentValidator(staker)
 		target.state.AddTx(tx, status.Committed)
@@ -170,7 +176,7 @@ func TestStandardTxExecutorAddDelegator(t *testing.T) {
 		}
 	}
 
-	dummyH := newEnvironment()
+	dummyH := newEnvironment( /*postBanff*/ false)
 	currentTimestamp := dummyH.state.GetTimestamp()
 
 	type test struct {
@@ -338,7 +344,7 @@ func TestStandardTxExecutorAddDelegator(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.description, func(t *testing.T) {
-			freshTH := newEnvironment()
+			freshTH := newEnvironment( /*postBanff*/ false)
 			freshTH.config.ApricotPhase3Time = tt.AP3Time
 			defer func() {
 				if err := shutdownEnvironment(freshTH); err != nil {
@@ -398,7 +404,7 @@ func TestStandardTxExecutorAddDelegator(t *testing.T) {
 }
 
 func TestStandardTxExecutorAddSubnetValidator(t *testing.T) {
-	env := newEnvironment()
+	env := newEnvironment( /*postBanff*/ false)
 	env.ctx.Lock.Lock()
 	defer func() {
 		if err := shutdownEnvironment(env); err != nil {
@@ -484,13 +490,13 @@ func TestStandardTxExecutorAddSubnetValidator(t *testing.T) {
 	pendingDSValidatorID := ids.NodeID(key.PublicKey().Address())
 
 	// starts validating primary network 10 seconds after genesis
-	DSStartTime := defaultGenesisTime.Add(10 * time.Second)
-	DSEndTime := DSStartTime.Add(5 * defaultMinStakingDuration)
+	dsStartTime := defaultGenesisTime.Add(10 * time.Second)
+	dsEndTime := dsStartTime.Add(5 * defaultMinStakingDuration)
 
 	addDSTx, err := env.txBuilder.NewAddValidatorTx(
 		env.config.MinValidatorStake, // stake amount
-		uint64(DSStartTime.Unix()),   // start time
-		uint64(DSEndTime.Unix()),     // end time
+		uint64(dsStartTime.Unix()),   // start time
+		uint64(dsEndTime.Unix()),     // end time
 		pendingDSValidatorID,         // node ID
 		nodeID,                       // reward address
 		reward.PercentDenominator,    // shares
@@ -505,8 +511,8 @@ func TestStandardTxExecutorAddSubnetValidator(t *testing.T) {
 		// Case: Proposed validator isn't in pending or current validator sets
 		tx, err := env.txBuilder.NewAddSubnetValidatorTx(
 			defaultWeight,
-			uint64(DSStartTime.Unix()), // start validating subnet before primary network
-			uint64(DSEndTime.Unix()),
+			uint64(dsStartTime.Unix()), // start validating subnet before primary network
+			uint64(dsEndTime.Unix()),
 			pendingDSValidatorID,
 			testSubnet1.ID(),
 			[]*crypto.PrivateKeySECP256K1R{testSubnet1ControlKeys[0], testSubnet1ControlKeys[1]},
@@ -532,11 +538,14 @@ func TestStandardTxExecutorAddSubnetValidator(t *testing.T) {
 		}
 	}
 
-	staker := state.NewCurrentStaker(
+	staker, err := state.NewCurrentStaker(
 		addDSTx.ID(),
 		addDSTx.Unsigned.(*txs.AddValidatorTx),
 		0,
 	)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	env.state.PutCurrentValidator(staker)
 	env.state.AddTx(addDSTx, status.Committed)
@@ -553,8 +562,8 @@ func TestStandardTxExecutorAddSubnetValidator(t *testing.T) {
 		// but starts validating subnet before primary network
 		tx, err := env.txBuilder.NewAddSubnetValidatorTx(
 			defaultWeight,
-			uint64(DSStartTime.Unix())-1, // start validating subnet before primary network
-			uint64(DSEndTime.Unix()),
+			uint64(dsStartTime.Unix())-1, // start validating subnet before primary network
+			uint64(dsEndTime.Unix()),
 			pendingDSValidatorID,
 			testSubnet1.ID(),
 			[]*crypto.PrivateKeySECP256K1R{testSubnet1ControlKeys[0], testSubnet1ControlKeys[1]},
@@ -585,8 +594,8 @@ func TestStandardTxExecutorAddSubnetValidator(t *testing.T) {
 		// but stops validating subnet after primary network
 		tx, err := env.txBuilder.NewAddSubnetValidatorTx(
 			defaultWeight,
-			uint64(DSStartTime.Unix()),
-			uint64(DSEndTime.Unix())+1, // stop validating subnet after stopping validating primary network
+			uint64(dsStartTime.Unix()),
+			uint64(dsEndTime.Unix())+1, // stop validating subnet after stopping validating primary network
 			pendingDSValidatorID,
 			testSubnet1.ID(),
 			[]*crypto.PrivateKeySECP256K1R{testSubnet1ControlKeys[0], testSubnet1ControlKeys[1]},
@@ -617,8 +626,8 @@ func TestStandardTxExecutorAddSubnetValidator(t *testing.T) {
 		// period validating subnet is subset of time validating primary network
 		tx, err := env.txBuilder.NewAddSubnetValidatorTx(
 			defaultWeight,
-			uint64(DSStartTime.Unix()), // same start time as for primary network
-			uint64(DSEndTime.Unix()),   // same end time as for primary network
+			uint64(dsStartTime.Unix()), // same start time as for primary network
+			uint64(dsEndTime.Unix()),   // same end time as for primary network
 			pendingDSValidatorID,
 			testSubnet1.ID(),
 			[]*crypto.PrivateKeySECP256K1R{testSubnet1ControlKeys[0], testSubnet1ControlKeys[1]},
@@ -697,11 +706,14 @@ func TestStandardTxExecutorAddSubnetValidator(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	staker = state.NewCurrentStaker(
+	staker, err = state.NewCurrentStaker(
 		subnetTx.ID(),
 		subnetTx.Unsigned.(*txs.AddSubnetValidatorTx),
 		0,
 	)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	env.state.PutCurrentValidator(staker)
 	env.state.AddTx(subnetTx, status.Committed)
@@ -869,11 +881,14 @@ func TestStandardTxExecutorAddSubnetValidator(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		staker = state.NewCurrentStaker(
+		staker, err = state.NewCurrentStaker(
 			subnetTx.ID(),
 			subnetTx.Unsigned.(*txs.AddSubnetValidatorTx),
 			0,
 		)
+		if err != nil {
+			t.Fatal(err)
+		}
 
 		env.state.PutCurrentValidator(staker)
 		env.state.AddTx(tx, status.Committed)
@@ -900,7 +915,7 @@ func TestStandardTxExecutorAddSubnetValidator(t *testing.T) {
 }
 
 func TestStandardTxExecutorAddValidator(t *testing.T) {
-	env := newEnvironment()
+	env := newEnvironment( /*postBanff*/ false)
 	env.ctx.Lock.Lock()
 	defer func() {
 		if err := shutdownEnvironment(env); err != nil {
@@ -1025,11 +1040,14 @@ func TestStandardTxExecutorAddValidator(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		staker := state.NewCurrentStaker(
+		staker, err := state.NewCurrentStaker(
 			tx.ID(),
 			tx.Unsigned.(*txs.AddValidatorTx),
 			0,
 		)
+		if err != nil {
+			t.Fatal(err)
+		}
 
 		env.state.PutCurrentValidator(staker)
 		env.state.AddTx(tx, status.Committed)
@@ -1211,7 +1229,6 @@ func TestStandardExecutorRemoveSubnetValidatorTx(t *testing.T) {
 				env := newValidRemoveSubnetValidatorTxVerifyEnv(t, ctrl)
 
 				// Set dependency expectations.
-				env.state.EXPECT().GetTimestamp().Return(env.banffTime.Add(time.Second)).Times(1)
 				env.state.EXPECT().GetCurrentValidator(env.unsignedTx.Subnet, env.unsignedTx.NodeID).Return(env.staker, nil).Times(1)
 				subnetOwner := fx.NewMockOwner(ctrl)
 				subnetTx := &txs.Tx{
@@ -1246,34 +1263,12 @@ func TestStandardExecutorRemoveSubnetValidatorTx(t *testing.T) {
 			shouldErr: false,
 		},
 		{
-			name: "not yet banff time",
-			newExecutor: func(ctrl *gomock.Controller) (*txs.RemoveSubnetValidatorTx, *StandardTxExecutor) {
-				env := newValidRemoveSubnetValidatorTxVerifyEnv(t, ctrl)
-				env.state = state.NewMockDiff(ctrl)
-				env.state.EXPECT().GetTimestamp().Return(env.banffTime.Add(-1 * time.Second)).Times(1)
-				e := &StandardTxExecutor{
-					Backend: &Backend{
-						Config: &config.Config{
-							BanffTime: env.banffTime,
-						},
-						Ctx: &snow.Context{},
-					},
-					State: env.state,
-					Tx:    env.tx,
-				}
-				return env.unsignedTx, e
-			},
-			shouldErr:   true,
-			expectedErr: errRemoveSubnetValidatorTxBeforeBanff,
-		},
-		{
 			name: "tx fails syntactic verification",
 			newExecutor: func(ctrl *gomock.Controller) (*txs.RemoveSubnetValidatorTx, *StandardTxExecutor) {
 				env := newValidRemoveSubnetValidatorTxVerifyEnv(t, ctrl)
 				// Setting the subnet ID to the Primary Network ID makes the tx fail syntactic verification
 				env.tx.Unsigned.(*txs.RemoveSubnetValidatorTx).Subnet = constants.PrimaryNetworkID
 				env.state = state.NewMockDiff(ctrl)
-				env.state.EXPECT().GetTimestamp().Return(env.banffTime).Times(1)
 				e := &StandardTxExecutor{
 					Backend: &Backend{
 						Config: &config.Config{
@@ -1297,7 +1292,6 @@ func TestStandardExecutorRemoveSubnetValidatorTx(t *testing.T) {
 			newExecutor: func(ctrl *gomock.Controller) (*txs.RemoveSubnetValidatorTx, *StandardTxExecutor) {
 				env := newValidRemoveSubnetValidatorTxVerifyEnv(t, ctrl)
 				env.state = state.NewMockDiff(ctrl)
-				env.state.EXPECT().GetTimestamp().Return(env.banffTime).Times(1)
 				env.state.EXPECT().GetCurrentValidator(env.unsignedTx.Subnet, env.unsignedTx.NodeID).Return(nil, database.ErrNotFound)
 				env.state.EXPECT().GetPendingValidator(env.unsignedTx.Subnet, env.unsignedTx.NodeID).Return(nil, database.ErrNotFound)
 				e := &StandardTxExecutor{
@@ -1328,7 +1322,6 @@ func TestStandardExecutorRemoveSubnetValidatorTx(t *testing.T) {
 				staker.Priority = txs.SubnetPermissionlessValidatorCurrentPriority
 
 				// Set dependency expectations.
-				env.state.EXPECT().GetTimestamp().Return(env.banffTime.Add(time.Second)).Times(1)
 				env.state.EXPECT().GetCurrentValidator(env.unsignedTx.Subnet, env.unsignedTx.NodeID).Return(&staker, nil).Times(1)
 				e := &StandardTxExecutor{
 					Backend: &Backend{
@@ -1356,7 +1349,6 @@ func TestStandardExecutorRemoveSubnetValidatorTx(t *testing.T) {
 				// Remove credentials
 				env.tx.Creds = nil
 				env.state = state.NewMockDiff(ctrl)
-				env.state.EXPECT().GetTimestamp().Return(env.banffTime).Times(1)
 				env.state.EXPECT().GetCurrentValidator(env.unsignedTx.Subnet, env.unsignedTx.NodeID).Return(env.staker, nil)
 				e := &StandardTxExecutor{
 					Backend: &Backend{
@@ -1382,7 +1374,6 @@ func TestStandardExecutorRemoveSubnetValidatorTx(t *testing.T) {
 			newExecutor: func(ctrl *gomock.Controller) (*txs.RemoveSubnetValidatorTx, *StandardTxExecutor) {
 				env := newValidRemoveSubnetValidatorTxVerifyEnv(t, ctrl)
 				env.state = state.NewMockDiff(ctrl)
-				env.state.EXPECT().GetTimestamp().Return(env.banffTime).Times(1)
 				env.state.EXPECT().GetCurrentValidator(env.unsignedTx.Subnet, env.unsignedTx.NodeID).Return(env.staker, nil)
 				env.state.EXPECT().GetTx(env.unsignedTx.Subnet).Return(nil, status.Unknown, database.ErrNotFound)
 				e := &StandardTxExecutor{
@@ -1409,7 +1400,6 @@ func TestStandardExecutorRemoveSubnetValidatorTx(t *testing.T) {
 			newExecutor: func(ctrl *gomock.Controller) (*txs.RemoveSubnetValidatorTx, *StandardTxExecutor) {
 				env := newValidRemoveSubnetValidatorTxVerifyEnv(t, ctrl)
 				env.state = state.NewMockDiff(ctrl)
-				env.state.EXPECT().GetTimestamp().Return(env.banffTime).Times(1)
 				env.state.EXPECT().GetCurrentValidator(env.unsignedTx.Subnet, env.unsignedTx.NodeID).Return(env.staker, nil)
 				subnetOwner := fx.NewMockOwner(ctrl)
 				subnetTx := &txs.Tx{
@@ -1443,7 +1433,6 @@ func TestStandardExecutorRemoveSubnetValidatorTx(t *testing.T) {
 			newExecutor: func(ctrl *gomock.Controller) (*txs.RemoveSubnetValidatorTx, *StandardTxExecutor) {
 				env := newValidRemoveSubnetValidatorTxVerifyEnv(t, ctrl)
 				env.state = state.NewMockDiff(ctrl)
-				env.state.EXPECT().GetTimestamp().Return(env.banffTime).Times(1)
 				env.state.EXPECT().GetCurrentValidator(env.unsignedTx.Subnet, env.unsignedTx.NodeID).Return(env.staker, nil)
 				subnetOwner := fx.NewMockOwner(ctrl)
 				subnetTx := &txs.Tx{
@@ -1616,33 +1605,12 @@ func TestStandardExecutorTransformSubnetTx(t *testing.T) {
 
 	tests := []test{
 		{
-			name: "not yet banff time",
-			newExecutor: func(ctrl *gomock.Controller) (*txs.TransformSubnetTx, *StandardTxExecutor) {
-				env := newValidTransformSubnetTxVerifyEnv(t, ctrl)
-				env.state = state.NewMockDiff(ctrl)
-				env.state.EXPECT().GetTimestamp().Return(env.banffTime.Add(-1 * time.Second)).Times(1)
-				e := &StandardTxExecutor{
-					Backend: &Backend{
-						Config: &config.Config{
-							BanffTime: env.banffTime,
-						},
-						Ctx: &snow.Context{},
-					},
-					State: env.state,
-					Tx:    env.tx,
-				}
-				return env.unsignedTx, e
-			},
-			err: errTransformSubnetTxBeforeBanff,
-		},
-		{
 			name: "tx fails syntactic verification",
 			newExecutor: func(ctrl *gomock.Controller) (*txs.TransformSubnetTx, *StandardTxExecutor) {
 				env := newValidTransformSubnetTxVerifyEnv(t, ctrl)
 				// Setting the tx to nil makes the tx fail syntactic verification
 				env.tx.Unsigned = (*txs.TransformSubnetTx)(nil)
 				env.state = state.NewMockDiff(ctrl)
-				env.state.EXPECT().GetTimestamp().Return(env.banffTime).Times(1)
 				e := &StandardTxExecutor{
 					Backend: &Backend{
 						Config: &config.Config{
@@ -1667,7 +1635,6 @@ func TestStandardExecutorTransformSubnetTx(t *testing.T) {
 				env := newValidTransformSubnetTxVerifyEnv(t, ctrl)
 				env.unsignedTx.MaxStakeDuration = math.MaxUint32
 				env.state = state.NewMockDiff(ctrl)
-				env.state.EXPECT().GetTimestamp().Return(env.banffTime).Times(1)
 				e := &StandardTxExecutor{
 					Backend: &Backend{
 						Config: &config.Config{
@@ -1693,7 +1660,6 @@ func TestStandardExecutorTransformSubnetTx(t *testing.T) {
 				// Remove credentials
 				env.tx.Creds = nil
 				env.state = state.NewMockDiff(ctrl)
-				env.state.EXPECT().GetTimestamp().Return(env.banffTime).Times(1)
 				e := &StandardTxExecutor{
 					Backend: &Backend{
 						Config: &config.Config{
@@ -1718,7 +1684,6 @@ func TestStandardExecutorTransformSubnetTx(t *testing.T) {
 			newExecutor: func(ctrl *gomock.Controller) (*txs.TransformSubnetTx, *StandardTxExecutor) {
 				env := newValidTransformSubnetTxVerifyEnv(t, ctrl)
 				env.state = state.NewMockDiff(ctrl)
-				env.state.EXPECT().GetTimestamp().Return(env.banffTime).Times(1)
 				subnetOwner := fx.NewMockOwner(ctrl)
 				subnetTx := &txs.Tx{
 					Unsigned: &txs.CreateSubnetTx{
@@ -1756,7 +1721,6 @@ func TestStandardExecutorTransformSubnetTx(t *testing.T) {
 				env := newValidTransformSubnetTxVerifyEnv(t, ctrl)
 
 				// Set dependency expectations.
-				env.state.EXPECT().GetTimestamp().Return(env.banffTime.Add(time.Second)).Times(1)
 				subnetOwner := fx.NewMockOwner(ctrl)
 				subnetTx := &txs.Tx{
 					Unsigned: &txs.CreateSubnetTx{

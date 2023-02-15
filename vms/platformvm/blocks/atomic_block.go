@@ -11,7 +11,7 @@ import (
 	"github.com/MetalBlockchain/metalgo/vms/platformvm/txs"
 )
 
-var _ Block = &ApricotAtomicBlock{}
+var _ Block = (*ApricotAtomicBlock)(nil)
 
 // ApricotAtomicBlock being accepted results in the atomic transaction contained
 // in the block to be accepted and committed to the chain.
@@ -32,8 +32,13 @@ func (b *ApricotAtomicBlock) InitCtx(ctx *snow.Context) {
 	b.Tx.Unsigned.InitCtx(ctx)
 }
 
-func (b *ApricotAtomicBlock) Txs() []*txs.Tx        { return []*txs.Tx{b.Tx} }
-func (b *ApricotAtomicBlock) Visit(v Visitor) error { return v.ApricotAtomicBlock(b) }
+func (b *ApricotAtomicBlock) Txs() []*txs.Tx {
+	return []*txs.Tx{b.Tx}
+}
+
+func (b *ApricotAtomicBlock) Visit(v Visitor) error {
+	return v.ApricotAtomicBlock(b)
+}
 
 func NewApricotAtomicBlock(
 	parentID ids.ID,

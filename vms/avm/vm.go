@@ -19,31 +19,34 @@ import (
 
 	"go.uber.org/zap"
 
-	"github.com/MetalBlockchain/metalgo/cache"
-	"github.com/MetalBlockchain/metalgo/database"
-	"github.com/MetalBlockchain/metalgo/database/manager"
-	"github.com/MetalBlockchain/metalgo/database/versiondb"
-	"github.com/MetalBlockchain/metalgo/ids"
-	"github.com/MetalBlockchain/metalgo/pubsub"
-	"github.com/MetalBlockchain/metalgo/snow"
-	"github.com/MetalBlockchain/metalgo/snow/choices"
-	"github.com/MetalBlockchain/metalgo/snow/consensus/snowstorm"
-	"github.com/MetalBlockchain/metalgo/snow/engine/avalanche/vertex"
-	"github.com/MetalBlockchain/metalgo/snow/engine/common"
-	"github.com/MetalBlockchain/metalgo/utils/crypto"
-	"github.com/MetalBlockchain/metalgo/utils/json"
-	"github.com/MetalBlockchain/metalgo/utils/set"
-	"github.com/MetalBlockchain/metalgo/utils/timer"
-	"github.com/MetalBlockchain/metalgo/utils/timer/mockable"
-	"github.com/MetalBlockchain/metalgo/version"
-	"github.com/MetalBlockchain/metalgo/vms/avm/states"
-	"github.com/MetalBlockchain/metalgo/vms/avm/txs"
-	"github.com/MetalBlockchain/metalgo/vms/components/avax"
-	"github.com/MetalBlockchain/metalgo/vms/components/index"
-	"github.com/MetalBlockchain/metalgo/vms/components/keystore"
-	"github.com/MetalBlockchain/metalgo/vms/components/verify"
-	"github.com/MetalBlockchain/metalgo/vms/nftfx"
-	"github.com/MetalBlockchain/metalgo/vms/secp256k1fx"
+	"github.com/ava-labs/avalanchego/cache"
+	"github.com/ava-labs/avalanchego/database"
+	"github.com/ava-labs/avalanchego/database/manager"
+	"github.com/ava-labs/avalanchego/database/versiondb"
+	"github.com/ava-labs/avalanchego/ids"
+	"github.com/ava-labs/avalanchego/pubsub"
+	"github.com/ava-labs/avalanchego/snow"
+	"github.com/ava-labs/avalanchego/snow/choices"
+	"github.com/ava-labs/avalanchego/snow/consensus/snowman"
+	"github.com/ava-labs/avalanchego/snow/consensus/snowstorm"
+	"github.com/ava-labs/avalanchego/snow/engine/avalanche/vertex"
+	"github.com/ava-labs/avalanchego/snow/engine/common"
+	"github.com/ava-labs/avalanchego/utils/crypto"
+	"github.com/ava-labs/avalanchego/utils/json"
+	"github.com/ava-labs/avalanchego/utils/set"
+	"github.com/ava-labs/avalanchego/utils/timer"
+	"github.com/ava-labs/avalanchego/utils/timer/mockable"
+	"github.com/ava-labs/avalanchego/utils/wrappers"
+	"github.com/ava-labs/avalanchego/version"
+	"github.com/ava-labs/avalanchego/vms/avm/blocks"
+	"github.com/ava-labs/avalanchego/vms/avm/states"
+	"github.com/ava-labs/avalanchego/vms/avm/txs"
+	"github.com/ava-labs/avalanchego/vms/components/avax"
+	"github.com/ava-labs/avalanchego/vms/components/index"
+	"github.com/ava-labs/avalanchego/vms/components/keystore"
+	"github.com/ava-labs/avalanchego/vms/components/verify"
+	"github.com/ava-labs/avalanchego/vms/nftfx"
+	"github.com/ava-labs/avalanchego/vms/secp256k1fx"
 
 	safemath "github.com/MetalBlockchain/metalgo/utils/math"
 	extensions "github.com/MetalBlockchain/metalgo/vms/avm/fxs"
@@ -62,11 +65,14 @@ var (
 	errGenesisAssetMustHaveState = errors.New("genesis asset must have non-empty state")
 	errBootstrapping             = errors.New("chain is currently bootstrapping")
 	errInsufficientFunds         = errors.New("insufficient funds")
+	errUnimplemented             = errors.New("unimplemented")
 
 	_ vertex.DAGVM = (*VM)(nil)
 )
 
 type VM struct {
+	common.AppHandler
+
 	Factory
 	metrics
 	avax.AddressManager
@@ -79,7 +85,7 @@ type VM struct {
 	// Used to check local time
 	clock mockable.Clock
 
-	parser txs.Parser
+	parser blocks.Parser
 
 	pubsub *pubsub.Server
 
@@ -93,7 +99,7 @@ type VM struct {
 	feeAssetID ids.ID
 
 	// Asset ID --> Bit set with fx IDs the asset supports
-	assetToFxCache *cache.LRU
+	assetToFxCache *cache.LRU[ids.ID, set.Bits64]
 
 	// Transaction issuing
 	timer        *timer.Timer
@@ -111,7 +117,7 @@ type VM struct {
 
 	addressTxsIndexer index.AddressTxsIndexer
 
-	uniqueTxs cache.Deduplicator
+	uniqueTxs cache.Deduplicator[ids.ID, *UniqueTx]
 }
 
 func (*VM) Connected(context.Context, ids.NodeID, *version.Application) error {
@@ -124,7 +130,7 @@ func (*VM) Disconnected(context.Context, ids.NodeID) error {
 
 /*
  ******************************************************************************
- ******************************** Avalanche API *******************************
+ ********************************* Common VM **********************************
  ******************************************************************************
  */
 
@@ -144,6 +150,8 @@ func (vm *VM) Initialize(
 	fxs []*common.Fx,
 	_ common.AppSender,
 ) error {
+	vm.AppHandler = common.NewNoOpAppHandler(ctx.Log)
+
 	avmConfig := Config{}
 	if len(configBytes) > 0 {
 		if err := stdjson.Unmarshal(configBytes, &avmConfig); err != nil {
@@ -171,7 +179,7 @@ func (vm *VM) Initialize(
 	vm.toEngine = toEngine
 	vm.baseDB = db
 	vm.db = versiondb.New(db)
-	vm.assetToFxCache = &cache.LRU{Size: assetToFxCacheSize}
+	vm.assetToFxCache = &cache.LRU[ids.ID, set.Bits64]{Size: assetToFxCacheSize}
 
 	vm.pubsub = pubsub.New(ctx.Log)
 
@@ -193,7 +201,7 @@ func (vm *VM) Initialize(
 	}
 
 	vm.typeToFxIndex = map[reflect.Type]int{}
-	vm.parser, err = txs.NewCustomParser(
+	vm.parser, err = blocks.NewCustomParser(
 		vm.typeToFxIndex,
 		&vm.clock,
 		ctx.Log,
@@ -225,7 +233,7 @@ func (vm *VM) Initialize(
 	go ctx.Log.RecoverAndPanic(vm.timer.Dispatch)
 	vm.batchTimeout = batchTimeout
 
-	vm.uniqueTxs = &cache.EvictableLRU{
+	vm.uniqueTxs = &cache.EvictableLRU[ids.ID, *UniqueTx]{
 		Size: txDeduplicatorSize,
 	}
 	vm.walletService.vm = vm
@@ -246,7 +254,7 @@ func (vm *VM) Initialize(
 			return fmt.Errorf("failed to initialize disabled indexer: %w", err)
 		}
 	}
-	return vm.db.Commit()
+	return vm.state.Commit()
 }
 
 // onBootstrapStarted is called by the consensus engine when it starts bootstrapping this chain
@@ -291,7 +299,12 @@ func (vm *VM) Shutdown(context.Context) error {
 	vm.timer.Stop()
 	vm.ctx.Lock.Lock()
 
-	return vm.baseDB.Close()
+	errs := wrappers.Errs{}
+	errs.Add(
+		vm.state.Close(),
+		vm.baseDB.Close(),
+	)
+	return errs.Err
 }
 
 func (*VM) Version(context.Context) (string, error) {
@@ -337,6 +350,43 @@ func (*VM) CreateStaticHandlers(context.Context) (map[string]*common.HTTPHandler
 	return map[string]*common.HTTPHandler{
 		"": {LockOptions: common.WriteLock, Handler: newServer},
 	}, newServer.RegisterService(staticService, "avm")
+}
+
+/*
+ ******************************************************************************
+ ********************************** Chain VM **********************************
+ ******************************************************************************
+ */
+
+func (*VM) GetBlock(context.Context, ids.ID) (snowman.Block, error) {
+	return nil, errUnimplemented
+}
+
+func (*VM) ParseBlock(context.Context, []byte) (snowman.Block, error) {
+	return nil, errUnimplemented
+}
+
+func (*VM) BuildBlock(context.Context) (snowman.Block, error) {
+	return nil, errUnimplemented
+}
+
+func (*VM) SetPreference(context.Context, ids.ID) error {
+	return errUnimplemented
+}
+
+func (*VM) LastAccepted(context.Context) (ids.ID, error) {
+	return ids.Empty, errUnimplemented
+}
+
+/*
+ ******************************************************************************
+ *********************************** DAG VM ***********************************
+ ******************************************************************************
+ */
+
+func (vm *VM) Linearize(_ context.Context, stopVertexID ids.ID) error {
+	time := version.GetXChainMigrationTime(vm.ctx.NetworkID)
+	return vm.state.InitializeChainState(stopVertexID, time)
 }
 
 func (vm *VM) PendingTxs(context.Context) []snowstorm.Tx {
@@ -440,10 +490,10 @@ func (vm *VM) initGenesis(genesisBytes []byte) error {
 			return errGenesisAssetMustHaveState
 		}
 
-		tx := txs.Tx{
+		tx := &txs.Tx{
 			Unsigned: &genesisTx.CreateAssetTx,
 		}
-		if err := vm.parser.InitializeGenesisTx(&tx); err != nil {
+		if err := vm.parser.InitializeGenesisTx(tx); err != nil {
 			return err
 		}
 
@@ -453,9 +503,7 @@ func (vm *VM) initGenesis(genesisBytes []byte) error {
 		}
 
 		if !stateInitialized {
-			if err := vm.initState(tx); err != nil {
-				return err
-			}
+			vm.initState(tx)
 		}
 		if index == 0 {
 			vm.ctx.Log.Info("fee asset is established",
@@ -473,27 +521,20 @@ func (vm *VM) initGenesis(genesisBytes []byte) error {
 	return nil
 }
 
-func (vm *VM) initState(tx txs.Tx) error {
+func (vm *VM) initState(tx *txs.Tx) {
 	txID := tx.ID()
 	vm.ctx.Log.Info("initializing genesis asset",
 		zap.Stringer("txID", txID),
 	)
-	if err := vm.state.PutTx(txID, &tx); err != nil {
-		return err
-	}
-	if err := vm.state.PutStatus(txID, choices.Accepted); err != nil {
-		return err
-	}
+	vm.state.AddTx(tx)
+	vm.state.AddStatus(txID, choices.Accepted)
 	for _, utxo := range tx.UTXOs() {
-		if err := vm.state.PutUTXO(utxo); err != nil {
-			return err
-		}
+		vm.state.AddUTXO(utxo)
 	}
-	return nil
 }
 
 func (vm *VM) parseTx(bytes []byte) (*UniqueTx, error) {
-	rawTx, err := vm.parser.Parse(bytes)
+	rawTx, err := vm.parser.ParseTx(bytes)
 	if err != nil {
 		return nil, err
 	}
@@ -510,13 +551,9 @@ func (vm *VM) parseTx(bytes []byte) (*UniqueTx, error) {
 	}
 
 	if tx.Status() == choices.Unknown {
-		if err := vm.state.PutTx(tx.ID(), tx.Tx); err != nil {
-			return nil, err
-		}
-		if err := tx.setStatus(choices.Processing); err != nil {
-			return nil, err
-		}
-		return tx, vm.db.Commit()
+		vm.state.AddTx(tx.Tx)
+		tx.setStatus(choices.Processing)
+		return tx, vm.state.Commit()
 	}
 
 	return tx, nil
@@ -569,9 +606,8 @@ func (vm *VM) getFx(val interface{}) (int, error) {
 
 func (vm *VM) verifyFxUsage(fxID int, assetID ids.ID) bool {
 	// Check cache to see whether this asset supports this fx
-	fxIDsIntf, assetInCache := vm.assetToFxCache.Get(assetID)
-	if assetInCache {
-		return fxIDsIntf.(set.Bits64).Contains(uint(fxID))
+	if fxIDs, ok := vm.assetToFxCache.Get(assetID); ok {
+		return fxIDs.Contains(uint(fxID))
 	}
 	// Caches doesn't say whether this asset support this fx.
 	// Get the tx that created the asset and check.
@@ -1049,39 +1085,7 @@ func (vm *VM) lookupAssetID(asset string) (ids.ID, error) {
 	return ids.ID{}, fmt.Errorf("asset '%s' not found", asset)
 }
 
-func (*VM) CrossChainAppRequest(context.Context, ids.ID, uint32, time.Time, []byte) error {
-	return nil
-}
-
-func (*VM) CrossChainAppRequestFailed(context.Context, ids.ID, uint32) error {
-	return nil
-}
-
-func (*VM) CrossChainAppResponse(context.Context, ids.ID, uint32, []byte) error {
-	return nil
-}
-
-// This VM doesn't (currently) have any app-specific messages
-func (*VM) AppRequest(context.Context, ids.NodeID, uint32, time.Time, []byte) error {
-	return nil
-}
-
-// This VM doesn't (currently) have any app-specific messages
-func (*VM) AppResponse(context.Context, ids.NodeID, uint32, []byte) error {
-	return nil
-}
-
-// This VM doesn't (currently) have any app-specific messages
-func (*VM) AppRequestFailed(context.Context, ids.NodeID, uint32) error {
-	return nil
-}
-
-// This VM doesn't (currently) have any app-specific messages
-func (*VM) AppGossip(context.Context, ids.NodeID, []byte) error {
-	return nil
-}
-
 // UniqueTx de-duplicates the transaction.
 func (vm *VM) DeduplicateTx(tx *UniqueTx) *UniqueTx {
-	return vm.uniqueTxs.Deduplicate(tx).(*UniqueTx)
+	return vm.uniqueTxs.Deduplicate(tx)
 }

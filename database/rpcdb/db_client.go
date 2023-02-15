@@ -7,6 +7,8 @@ import (
 	"context"
 	"encoding/json"
 
+	"golang.org/x/exp/slices"
+
 	"google.golang.org/protobuf/types/known/emptypb"
 
 	"github.com/MetalBlockchain/metalgo/database"
@@ -28,7 +30,7 @@ var (
 type DatabaseClient struct {
 	client rpcdbpb.DatabaseClient
 
-	closed utils.AtomicBool
+	closed utils.Atomic[bool]
 }
 
 // NewClient returns a database instance connected to a remote database instance
@@ -44,7 +46,7 @@ func (db *DatabaseClient) Has(key []byte) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	return resp.Has, errCodeToError[resp.Err]
+	return resp.Has, errEnumToError[resp.Err]
 }
 
 // Get attempts to return the value that was mapped to the key that was provided
@@ -55,7 +57,7 @@ func (db *DatabaseClient) Get(key []byte) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return resp.Value, errCodeToError[resp.Err]
+	return resp.Value, errEnumToError[resp.Err]
 }
 
 // Put attempts to set the value this key maps to
@@ -67,7 +69,7 @@ func (db *DatabaseClient) Put(key, value []byte) error {
 	if err != nil {
 		return err
 	}
-	return errCodeToError[resp.Err]
+	return errEnumToError[resp.Err]
 }
 
 // Delete attempts to remove any mapping from the key
@@ -78,7 +80,7 @@ func (db *DatabaseClient) Delete(key []byte) error {
 	if err != nil {
 		return err
 	}
-	return errCodeToError[resp.Err]
+	return errEnumToError[resp.Err]
 }
 
 // NewBatch returns a new batch
@@ -122,17 +124,17 @@ func (db *DatabaseClient) Compact(start, limit []byte) error {
 	if err != nil {
 		return err
 	}
-	return errCodeToError[resp.Err]
+	return errEnumToError[resp.Err]
 }
 
 // Close attempts to close the database
 func (db *DatabaseClient) Close() error {
-	db.closed.SetValue(true)
+	db.closed.Set(true)
 	resp, err := db.client.Close(context.Background(), &rpcdbpb.CloseRequest{})
 	if err != nil {
 		return err
 	}
-	return errCodeToError[resp.Err]
+	return errEnumToError[resp.Err]
 }
 
 func (db *DatabaseClient) HealthCheck(ctx context.Context) (interface{}, error) {
@@ -157,13 +159,13 @@ type batch struct {
 }
 
 func (b *batch) Put(key, value []byte) error {
-	b.writes = append(b.writes, keyValue{utils.CopyBytes(key), utils.CopyBytes(value), false})
+	b.writes = append(b.writes, keyValue{slices.Clone(key), slices.Clone(value), false})
 	b.size += len(key) + len(value)
 	return nil
 }
 
 func (b *batch) Delete(key []byte) error {
-	b.writes = append(b.writes, keyValue{utils.CopyBytes(key), nil, true})
+	b.writes = append(b.writes, keyValue{slices.Clone(key), nil, true})
 	b.size += len(key)
 	return nil
 }
@@ -199,7 +201,7 @@ func (b *batch) Write() error {
 	if err != nil {
 		return err
 	}
-	return errCodeToError[resp.Err]
+	return errEnumToError[resp.Err]
 }
 
 func (b *batch) Reset() {
@@ -239,7 +241,7 @@ type iterator struct {
 // Next attempts to move the iterator to the next element and returns if this
 // succeeded
 func (it *iterator) Next() bool {
-	if it.db.closed.GetValue() {
+	if it.db.closed.Get() {
 		it.data = nil
 		it.errs.Add(database.ErrClosed)
 		return false
@@ -273,7 +275,7 @@ func (it *iterator) Error() error {
 	if err != nil {
 		it.errs.Add(err)
 	} else {
-		it.errs.Add(errCodeToError[resp.Err])
+		it.errs.Add(errEnumToError[resp.Err])
 	}
 	return it.errs.Err
 }
@@ -302,6 +304,6 @@ func (it *iterator) Release() {
 	if err != nil {
 		it.errs.Add(err)
 	} else {
-		it.errs.Add(errCodeToError[resp.Err])
+		it.errs.Add(errEnumToError[resp.Err])
 	}
 }

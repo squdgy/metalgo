@@ -8,14 +8,16 @@ import (
 	"math"
 	"testing"
 
-	"github.com/MetalBlockchain/metalgo/ids"
-	"github.com/MetalBlockchain/metalgo/snow/choices"
-	"github.com/MetalBlockchain/metalgo/snow/engine/common"
-	"github.com/MetalBlockchain/metalgo/utils/crypto"
-	"github.com/MetalBlockchain/metalgo/utils/units"
-	"github.com/MetalBlockchain/metalgo/vms/avm/txs"
-	"github.com/MetalBlockchain/metalgo/vms/components/avax"
-	"github.com/MetalBlockchain/metalgo/vms/secp256k1fx"
+	"github.com/stretchr/testify/require"
+
+	"github.com/ava-labs/avalanchego/ids"
+	"github.com/ava-labs/avalanchego/snow/choices"
+	"github.com/ava-labs/avalanchego/snow/engine/common"
+	"github.com/ava-labs/avalanchego/utils/crypto"
+	"github.com/ava-labs/avalanchego/utils/units"
+	"github.com/ava-labs/avalanchego/vms/avm/txs"
+	"github.com/ava-labs/avalanchego/vms/components/avax"
+	"github.com/ava-labs/avalanchego/vms/secp256k1fx"
 )
 
 func TestSetsAndGets(t *testing.T) {
@@ -75,25 +77,21 @@ func TestSetsAndGets(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := state.PutUTXO(utxo); err != nil {
-		t.Fatal(err)
-	}
-	if err := state.PutTx(ids.Empty, tx); err != nil {
-		t.Fatal(err)
-	}
-	if err := state.PutStatus(ids.Empty, choices.Accepted); err != nil {
-		t.Fatal(err)
-	}
+	txID := tx.ID()
+
+	state.AddUTXO(utxo)
+	state.AddTx(tx)
+	state.AddStatus(txID, choices.Accepted)
 
 	resultUTXO, err := state.GetUTXO(utxoID)
 	if err != nil {
 		t.Fatal(err)
 	}
-	resultTx, err := state.GetTx(ids.Empty)
+	resultTx, err := state.GetTx(txID)
 	if err != nil {
 		t.Fatal(err)
 	}
-	resultStatus, err := state.GetStatus(ids.Empty)
+	resultStatus, err := state.GetStatus(txID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -142,12 +140,8 @@ func TestFundingNoAddresses(t *testing.T) {
 		Out:   &avax.TestVerifiable{},
 	}
 
-	if err := state.PutUTXO(utxo); err != nil {
-		t.Fatal(err)
-	}
-	if err := state.DeleteUTXO(utxo.InputID()); err != nil {
-		t.Fatal(err)
-	}
+	state.AddUTXO(utxo)
+	state.DeleteUTXO(utxo.InputID())
 }
 
 func TestFundingAddresses(t *testing.T) {
@@ -185,27 +179,18 @@ func TestFundingAddresses(t *testing.T) {
 		},
 	}
 
-	if err := state.PutUTXO(utxo); err != nil {
-		t.Fatal(err)
-	}
+	state.AddUTXO(utxo)
+	require.NoError(t, state.Commit())
+
 	utxos, err := state.UTXOIDs([]byte{0}, ids.Empty, math.MaxInt32)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(utxos) != 1 {
-		t.Fatalf("Should have returned 1 utxoIDs")
-	}
-	if utxoID := utxos[0]; utxoID != utxo.InputID() {
-		t.Fatalf("Returned wrong utxoID")
-	}
-	if err := state.DeleteUTXO(utxo.InputID()); err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
+	require.Len(t, utxos, 1)
+	require.Equal(t, utxo.InputID(), utxos[0])
+
+	state.DeleteUTXO(utxo.InputID())
+	require.NoError(t, state.Commit())
+
 	utxos, err = state.UTXOIDs([]byte{0}, ids.Empty, math.MaxInt32)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(utxos) != 0 {
-		t.Fatalf("Should have returned 0 utxoIDs")
-	}
+	require.NoError(t, err)
+	require.Empty(t, utxos)
 }

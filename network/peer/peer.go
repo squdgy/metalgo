@@ -17,17 +17,16 @@ import (
 
 	"go.uber.org/zap"
 
-	"github.com/MetalBlockchain/metalgo/ids"
-	"github.com/MetalBlockchain/metalgo/message"
-	"github.com/MetalBlockchain/metalgo/utils"
-	"github.com/MetalBlockchain/metalgo/utils/constants"
-	"github.com/MetalBlockchain/metalgo/utils/ips"
-	"github.com/MetalBlockchain/metalgo/utils/json"
-	"github.com/MetalBlockchain/metalgo/utils/set"
-	"github.com/MetalBlockchain/metalgo/utils/wrappers"
-	"github.com/MetalBlockchain/metalgo/version"
-
-	p2ppb "github.com/MetalBlockchain/metalgo/proto/pb/p2p"
+	"github.com/ava-labs/avalanchego/ids"
+	"github.com/ava-labs/avalanchego/message"
+	"github.com/ava-labs/avalanchego/proto/pb/p2p"
+	"github.com/ava-labs/avalanchego/utils"
+	"github.com/ava-labs/avalanchego/utils/constants"
+	"github.com/ava-labs/avalanchego/utils/ips"
+	"github.com/ava-labs/avalanchego/utils/json"
+	"github.com/ava-labs/avalanchego/utils/set"
+	"github.com/ava-labs/avalanchego/utils/wrappers"
+	"github.com/ava-labs/avalanchego/version"
 )
 
 var (
@@ -138,14 +137,14 @@ type peer struct {
 	// True if this peer has sent us a valid Version message and
 	// is running a compatible version.
 	// Only modified on the connection's reader routine.
-	gotVersion utils.AtomicBool
+	gotVersion utils.Atomic[bool]
 
 	// True if the peer:
 	// * Has sent us a Version message
 	// * Has sent us a PeerList message
 	// * Is running a compatible version
 	// Only modified on the connection's reader routine.
-	finishedHandshake utils.AtomicBool
+	finishedHandshake utils.Atomic[bool]
 
 	// onFinishHandshake is closed when the peer finishes the p2p handshake.
 	onFinishHandshake chan struct{}
@@ -227,7 +226,7 @@ func (p *peer) LastReceived() time.Time {
 }
 
 func (p *peer) Ready() bool {
-	return p.finishedHandshake.GetValue()
+	return p.finishedHandshake.Get()
 }
 
 func (p *peer) AwaitReady(ctx context.Context) error {
@@ -243,8 +242,8 @@ func (p *peer) AwaitReady(ctx context.Context) error {
 
 func (p *peer) Info() Info {
 	publicIPStr := ""
-	if !p.ip.IP.IP.IsZero() {
-		publicIPStr = p.ip.IP.IP.String()
+	if !p.ip.IsZero() {
+		publicIPStr = p.ip.IPPort.String()
 	}
 
 	trackedSubnets := p.trackedSubnets.List()
@@ -501,9 +500,9 @@ func (p *peer) writeMessages() {
 	msg, err := p.MessageCreator.Version(
 		p.NetworkID,
 		p.Clock.Unix(),
-		mySignedIP.IP.IP,
+		mySignedIP.IPPort,
 		p.VersionCompatibility.Version().String(),
-		mySignedIP.IP.Timestamp,
+		mySignedIP.Timestamp,
 		mySignedIP.Signature,
 		p.MySubnets.List(),
 	)
@@ -639,7 +638,7 @@ func (p *peer) sendNetworkMessages() {
 				return
 			}
 
-			if p.finishedHandshake.GetValue() {
+			if p.finishedHandshake.Get() {
 				if err := p.VersionCompatibility.Compatible(p.version); err != nil {
 					p.Log.Debug("disconnecting from peer",
 						zap.String("reason", "version not compatible"),
@@ -669,28 +668,28 @@ func (p *peer) sendNetworkMessages() {
 
 func (p *peer) handle(msg message.InboundMessage) {
 	switch m := msg.Message().(type) { // Network-related message types
-	case *p2ppb.Ping:
+	case *p2p.Ping:
 		p.handlePing(m)
 		msg.OnFinishedHandling()
 		return
-	case *p2ppb.Pong:
+	case *p2p.Pong:
 		p.handlePong(m)
 		msg.OnFinishedHandling()
 		return
-	case *p2ppb.Version:
+	case *p2p.Version:
 		p.handleVersion(m)
 		msg.OnFinishedHandling()
 		return
-	case *p2ppb.PeerList:
+	case *p2p.PeerList:
 		p.handlePeerList(m)
 		msg.OnFinishedHandling()
 		return
-	case *p2ppb.PeerListAck:
+	case *p2p.PeerListAck:
 		p.handlePeerListAck(m)
 		msg.OnFinishedHandling()
 		return
 	}
-	if !p.finishedHandshake.GetValue() {
+	if !p.finishedHandshake.Get() {
 		p.Log.Debug(
 			"dropping message",
 			zap.String("reason", "handshake isn't finished"),
@@ -705,7 +704,7 @@ func (p *peer) handle(msg message.InboundMessage) {
 	p.Router.HandleInbound(context.Background(), msg)
 }
 
-func (p *peer) handlePing(_ *p2ppb.Ping) {
+func (p *peer) handlePing(*p2p.Ping) {
 	primaryUptime, err := p.UptimeCalculator.CalculateUptimePercent(
 		p.id,
 		constants.PrimaryNetworkID,
@@ -719,7 +718,7 @@ func (p *peer) handlePing(_ *p2ppb.Ping) {
 		primaryUptime = 0
 	}
 
-	subnetUptimes := make([]*p2ppb.SubnetUptime, 0, p.trackedSubnets.Len())
+	subnetUptimes := make([]*p2p.SubnetUptime, 0, p.trackedSubnets.Len())
 	for subnetID := range p.trackedSubnets {
 		subnetUptime, err := p.UptimeCalculator.CalculateUptimePercent(p.id, subnetID)
 		if err != nil {
@@ -732,7 +731,7 @@ func (p *peer) handlePing(_ *p2ppb.Ping) {
 		}
 
 		subnetID := subnetID
-		subnetUptimes = append(subnetUptimes, &p2ppb.SubnetUptime{
+		subnetUptimes = append(subnetUptimes, &p2p.SubnetUptime{
 			SubnetId: subnetID[:],
 			Uptime:   uint32(subnetUptime * 100),
 		})
@@ -750,7 +749,7 @@ func (p *peer) handlePing(_ *p2ppb.Ping) {
 	p.Send(p.onClosingCtx, msg)
 }
 
-func (p *peer) handlePong(msg *p2ppb.Pong) {
+func (p *peer) handlePong(msg *p2p.Pong) {
 	if msg.Uptime > 100 {
 		p.Log.Debug("dropping pong message with invalid uptime",
 			zap.Stringer("nodeID", p.id),
@@ -794,8 +793,8 @@ func (p *peer) observeUptime(subnetID ids.ID, uptime uint32) {
 	p.observedUptimesLock.Unlock()
 }
 
-func (p *peer) handleVersion(msg *p2ppb.Version) {
-	if p.gotVersion.GetValue() {
+func (p *peer) handleVersion(msg *p2p.Version) {
+	if p.gotVersion.Get() {
 		// TODO: this should never happen, should we close the connection here?
 		p.Log.Verbo("dropping duplicated version message",
 			zap.Stringer("nodeID", p.id),
@@ -909,8 +908,8 @@ func (p *peer) handleVersion(msg *p2ppb.Version) {
 	}
 
 	p.ip = &SignedIP{
-		IP: UnsignedIP{
-			IP: ips.IPPort{
+		UnsignedIP: UnsignedIP{
+			IPPort: ips.IPPort{
 				IP:   msg.IpAddr,
 				Port: uint16(msg.IpPort),
 			},
@@ -927,7 +926,7 @@ func (p *peer) handleVersion(msg *p2ppb.Version) {
 		return
 	}
 
-	p.gotVersion.SetValue(true)
+	p.gotVersion.Set(true)
 
 	peerIPs, err := p.Network.Peers(p.id)
 	if err != nil {
@@ -957,14 +956,14 @@ func (p *peer) handleVersion(msg *p2ppb.Version) {
 	}
 }
 
-func (p *peer) handlePeerList(msg *p2ppb.PeerList) {
-	if !p.finishedHandshake.GetValue() {
-		if !p.gotVersion.GetValue() {
+func (p *peer) handlePeerList(msg *p2p.PeerList) {
+	if !p.finishedHandshake.Get() {
+		if !p.gotVersion.Get() {
 			return
 		}
 
 		p.Network.Connected(p.id)
-		p.finishedHandshake.SetValue(true)
+		p.finishedHandshake.Set(true)
 		close(p.onFinishHandshake)
 	}
 
@@ -1058,7 +1057,7 @@ func (p *peer) handlePeerList(msg *p2ppb.PeerList) {
 	}
 }
 
-func (p *peer) handlePeerListAck(msg *p2ppb.PeerListAck) {
+func (p *peer) handlePeerListAck(msg *p2p.PeerListAck) {
 	err := p.Network.MarkTracked(p.id, msg.PeerAcks)
 	if err != nil {
 		p.Log.Debug("message with invalid field",

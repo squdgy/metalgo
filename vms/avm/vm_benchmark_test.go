@@ -9,11 +9,13 @@ import (
 	"math/rand"
 	"testing"
 
-	"github.com/MetalBlockchain/metalgo/ids"
-	"github.com/MetalBlockchain/metalgo/utils/set"
-	"github.com/MetalBlockchain/metalgo/vms/components/avax"
-	"github.com/MetalBlockchain/metalgo/vms/components/keystore"
-	"github.com/MetalBlockchain/metalgo/vms/secp256k1fx"
+	"github.com/stretchr/testify/require"
+
+	"github.com/ava-labs/avalanchego/ids"
+	"github.com/ava-labs/avalanchego/utils/set"
+	"github.com/ava-labs/avalanchego/vms/components/avax"
+	"github.com/ava-labs/avalanchego/vms/components/keystore"
+	"github.com/ava-labs/avalanchego/vms/secp256k1fx"
 )
 
 func BenchmarkLoadUser(b *testing.B) {
@@ -96,31 +98,20 @@ func GetAllUTXOsBenchmark(b *testing.B, utxoCount int) {
 			},
 		}
 
-		if err := vm.state.PutUTXO(utxo); err != nil {
-			b.Fatal(err)
-		}
+		vm.state.AddUTXO(utxo)
 	}
+	require.NoError(b, vm.state.Commit())
 
 	addrsSet := set.Set[ids.ShortID]{}
 	addrsSet.Add(addr)
-
-	var (
-		err               error
-		notPaginatedUTXOs []*avax.UTXO
-	)
 
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
 		// Fetch all UTXOs older version
-		notPaginatedUTXOs, err = avax.GetAllUTXOs(vm.state, addrsSet)
-		if err != nil {
-			b.Fatal(err)
-		}
-
-		if len(notPaginatedUTXOs) != utxoCount {
-			b.Fatalf("Wrong number of utxos. Expected (%d) returned (%d)", utxoCount, len(notPaginatedUTXOs))
-		}
+		notPaginatedUTXOs, err := avax.GetAllUTXOs(vm.state, addrsSet)
+		require.NoError(b, err)
+		require.Len(b, notPaginatedUTXOs, utxoCount)
 	}
 }
 

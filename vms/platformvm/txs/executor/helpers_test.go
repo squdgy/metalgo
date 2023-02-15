@@ -76,6 +76,7 @@ var (
 	testKeyfactory crypto.FactorySECP256K1R
 
 	errMissingPrimaryValidators = errors.New("missing primary validator set")
+	errMissing                  = errors.New("missing")
 )
 
 type mutableSharedMemory struct {
@@ -83,7 +84,7 @@ type mutableSharedMemory struct {
 }
 
 type environment struct {
-	isBootstrapped *utils.AtomicBool
+	isBootstrapped *utils.Atomic[bool]
 	config         *config.Config
 	clk            *mockable.Clock
 	baseDB         *versiondb.Database
@@ -112,8 +113,8 @@ func (e *environment) SetState(blkID ids.ID, chainState state.Chain) {
 }
 
 func newEnvironment(postBanff bool) *environment {
-	var isBootstrapped utils.AtomicBool
-	isBootstrapped.SetValue(true)
+	var isBootstrapped utils.Atomic[bool]
+	isBootstrapped.Set(true)
 
 	config := defaultConfig(postBanff)
 	clk := defaultClock(postBanff)
@@ -122,7 +123,7 @@ func newEnvironment(postBanff bool) *environment {
 	baseDB := versiondb.New(baseDBManager.Current().Database)
 	ctx, msm := defaultCtx(baseDB)
 
-	fx := defaultFx(&clk, ctx.Log, isBootstrapped.GetValue())
+	fx := defaultFx(&clk, ctx.Log, isBootstrapped.Get())
 
 	rewards := reward.NewCalculator(config.RewardConfig)
 	baseState := defaultState(&config, ctx, baseDB, rewards)
@@ -270,7 +271,7 @@ func defaultCtx(db database.Database) (*snow.Context, *mutableSharedMemory) {
 				cChainID:                  constants.PrimaryNetworkID,
 			}[chainID]
 			if !ok {
-				return ids.Empty, errors.New("missing")
+				return ids.Empty, errMissing
 			}
 			return subnetID, nil
 		},
@@ -289,7 +290,7 @@ func defaultConfig(postBanff bool) config.Config {
 	primaryVdrs := validators.NewSet()
 	_ = vdrs.Add(constants.PrimaryNetworkID, primaryVdrs)
 	return config.Config{
-		Chains:                 chains.MockManager{},
+		Chains:                 chains.TestManager,
 		UptimeLockedCalculator: uptime.NewLockedCalculator(),
 		Validators:             vdrs,
 		TxFee:                  defaultTxFee,
@@ -425,7 +426,7 @@ func buildGenesisTest(ctx *snow.Context) []byte {
 }
 
 func shutdownEnvironment(env *environment) error {
-	if env.isBootstrapped.GetValue() {
+	if env.isBootstrapped.Get() {
 		primaryValidatorSet, exist := env.config.Validators.Get(constants.PrimaryNetworkID)
 		if !exist {
 			return errMissingPrimaryValidators
@@ -440,7 +441,7 @@ func shutdownEnvironment(env *environment) error {
 			return err
 		}
 
-		for subnetID := range env.config.WhitelistedSubnets {
+		for subnetID := range env.config.TrackedSubnets {
 			vdrs, exist := env.config.Validators.Get(subnetID)
 			if !exist {
 				return nil

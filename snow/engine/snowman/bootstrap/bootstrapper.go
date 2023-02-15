@@ -13,15 +13,16 @@ import (
 
 	"go.uber.org/zap"
 
-	"github.com/MetalBlockchain/metalgo/ids"
-	"github.com/MetalBlockchain/metalgo/snow"
-	"github.com/MetalBlockchain/metalgo/snow/choices"
-	"github.com/MetalBlockchain/metalgo/snow/consensus/snowman"
-	"github.com/MetalBlockchain/metalgo/snow/engine/common"
-	"github.com/MetalBlockchain/metalgo/snow/engine/snowman/block"
-	"github.com/MetalBlockchain/metalgo/utils/set"
-	"github.com/MetalBlockchain/metalgo/utils/timer"
-	"github.com/MetalBlockchain/metalgo/version"
+	"github.com/ava-labs/avalanchego/ids"
+	"github.com/ava-labs/avalanchego/proto/pb/p2p"
+	"github.com/ava-labs/avalanchego/snow"
+	"github.com/ava-labs/avalanchego/snow/choices"
+	"github.com/ava-labs/avalanchego/snow/consensus/snowman"
+	"github.com/ava-labs/avalanchego/snow/engine/common"
+	"github.com/ava-labs/avalanchego/snow/engine/snowman/block"
+	"github.com/ava-labs/avalanchego/utils/set"
+	"github.com/ava-labs/avalanchego/utils/timer"
+	"github.com/ava-labs/avalanchego/version"
 )
 
 // Parameters for delaying bootstrapping to avoid potential CPU burns
@@ -94,7 +95,7 @@ func New(ctx context.Context, config Config, onFinished func(ctx context.Context
 		PutHandler:                  common.NewNoOpPutHandler(config.Ctx.Log),
 		QueryHandler:                common.NewNoOpQueryHandler(config.Ctx.Log),
 		ChitsHandler:                common.NewNoOpChitsHandler(config.Ctx.Log),
-		AppHandler:                  common.NewNoOpAppHandler(config.Ctx.Log),
+		AppHandler:                  config.VM,
 
 		Fetcher: common.Fetcher{
 			OnFinished: onFinished,
@@ -121,7 +122,10 @@ func New(ctx context.Context, config Config, onFinished func(ctx context.Context
 func (b *bootstrapper) Start(ctx context.Context, startReqID uint32) error {
 	b.Ctx.Log.Info("starting bootstrapper")
 
-	b.Ctx.SetState(snow.Bootstrapping)
+	b.Ctx.State.Set(snow.EngineState{
+		Type:  p2p.EngineType_ENGINE_TYPE_SNOWMAN,
+		State: snow.Bootstrapping,
+	})
 	if err := b.VM.SetState(ctx, snow.Bootstrapping); err != nil {
 		return fmt.Errorf("failed to notify VM that bootstrapping has started: %w",
 			err)
@@ -292,7 +296,15 @@ func (b *bootstrapper) Shutdown(ctx context.Context) error {
 	return b.VM.Shutdown(ctx)
 }
 
-func (*bootstrapper) Notify(context.Context, common.Message) error {
+func (b *bootstrapper) Notify(_ context.Context, msg common.Message) error {
+	if msg != common.StateSyncDone {
+		b.Ctx.Log.Warn("received an unexpected message from the VM",
+			zap.Stringer("msg", msg),
+		)
+		return nil
+	}
+
+	b.Ctx.StateSyncing.Set(false)
 	return nil
 }
 

@@ -86,6 +86,7 @@ var (
 	testSubnet1  *txs.Tx
 
 	errMissingPrimaryValidators = errors.New("missing primary validator set")
+	errMissing                  = errors.New("missing")
 )
 
 type stakerStatus uint
@@ -110,7 +111,7 @@ type environment struct {
 	mempool    mempool.Mempool
 	sender     *common.SenderTest
 
-	isBootstrapped *utils.AtomicBool
+	isBootstrapped *utils.Atomic[bool]
 	config         *config.Config
 	clk            *mockable.Clock
 	baseDB         *versiondb.Database
@@ -131,16 +132,16 @@ func (*environment) ResetBlockTimer() {
 
 func newEnvironment(t *testing.T, ctrl *gomock.Controller) *environment {
 	res := &environment{
-		isBootstrapped: &utils.AtomicBool{},
+		isBootstrapped: &utils.Atomic[bool]{},
 		config:         defaultConfig(),
 		clk:            defaultClock(),
 	}
-	res.isBootstrapped.SetValue(true)
+	res.isBootstrapped.Set(true)
 
 	baseDBManager := db_manager.NewMemDB(version.Semantic1_0_0)
 	res.baseDB = versiondb.New(baseDBManager.Current().Database)
 	res.ctx = defaultCtx(res.baseDB)
-	res.fx = defaultFx(res.clk, res.ctx.Log, res.isBootstrapped.GetValue())
+	res.fx = defaultFx(res.clk, res.ctx.Log, res.isBootstrapped.Get())
 
 	rewardsCalc := reward.NewCalculator(res.config.RewardConfig)
 	res.atomicUTXOs = avax.NewAtomicUTXOManager(res.ctx.SharedMemory, txs.Codec)
@@ -321,7 +322,7 @@ func defaultCtx(db database.Database) *snow.Context {
 				cChainID:                  constants.PrimaryNetworkID,
 			}[chainID]
 			if !ok {
-				return ids.Empty, errors.New("missing")
+				return ids.Empty, errMissing
 			}
 			return subnetID, nil
 		},
@@ -335,7 +336,7 @@ func defaultConfig() *config.Config {
 	primaryVdrs := validators.NewSet()
 	_ = vdrs.Add(constants.PrimaryNetworkID, primaryVdrs)
 	return &config.Config{
-		Chains:                 chains.MockManager{},
+		Chains:                 chains.TestManager,
 		UptimeLockedCalculator: uptime.NewLockedCalculator(),
 		Validators:             vdrs,
 		TxFee:                  defaultTxFee,
@@ -471,7 +472,7 @@ func shutdownEnvironment(t *environment) error {
 		return nil
 	}
 
-	if t.isBootstrapped.GetValue() {
+	if t.isBootstrapped.Get() {
 		primaryValidatorSet, exist := t.config.Validators.Get(constants.PrimaryNetworkID)
 		if !exist {
 			return errMissingPrimaryValidators

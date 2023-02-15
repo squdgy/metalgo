@@ -17,31 +17,33 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/MetalBlockchain/metalgo/api/keystore"
-	"github.com/MetalBlockchain/metalgo/chains/atomic"
-	"github.com/MetalBlockchain/metalgo/database/manager"
-	"github.com/MetalBlockchain/metalgo/database/mockdb"
-	"github.com/MetalBlockchain/metalgo/database/prefixdb"
-	"github.com/MetalBlockchain/metalgo/ids"
-	"github.com/MetalBlockchain/metalgo/snow"
-	"github.com/MetalBlockchain/metalgo/snow/engine/common"
-	"github.com/MetalBlockchain/metalgo/snow/validators"
-	"github.com/MetalBlockchain/metalgo/utils/cb58"
-	"github.com/MetalBlockchain/metalgo/utils/constants"
-	"github.com/MetalBlockchain/metalgo/utils/crypto"
-	"github.com/MetalBlockchain/metalgo/utils/formatting"
-	"github.com/MetalBlockchain/metalgo/utils/formatting/address"
-	"github.com/MetalBlockchain/metalgo/utils/json"
-	"github.com/MetalBlockchain/metalgo/utils/wrappers"
-	"github.com/MetalBlockchain/metalgo/version"
-	"github.com/MetalBlockchain/metalgo/vms/avm/fxs"
-	"github.com/MetalBlockchain/metalgo/vms/avm/states"
-	"github.com/MetalBlockchain/metalgo/vms/avm/txs"
-	"github.com/MetalBlockchain/metalgo/vms/components/avax"
-	"github.com/MetalBlockchain/metalgo/vms/components/verify"
-	"github.com/MetalBlockchain/metalgo/vms/nftfx"
-	"github.com/MetalBlockchain/metalgo/vms/propertyfx"
-	"github.com/MetalBlockchain/metalgo/vms/secp256k1fx"
+	"github.com/ava-labs/avalanchego/api/keystore"
+	"github.com/ava-labs/avalanchego/chains/atomic"
+	"github.com/ava-labs/avalanchego/database"
+	"github.com/ava-labs/avalanchego/database/manager"
+	"github.com/ava-labs/avalanchego/database/memdb"
+	"github.com/ava-labs/avalanchego/database/prefixdb"
+	"github.com/ava-labs/avalanchego/database/versiondb"
+	"github.com/ava-labs/avalanchego/ids"
+	"github.com/ava-labs/avalanchego/snow"
+	"github.com/ava-labs/avalanchego/snow/engine/common"
+	"github.com/ava-labs/avalanchego/snow/validators"
+	"github.com/ava-labs/avalanchego/utils/cb58"
+	"github.com/ava-labs/avalanchego/utils/constants"
+	"github.com/ava-labs/avalanchego/utils/crypto"
+	"github.com/ava-labs/avalanchego/utils/formatting"
+	"github.com/ava-labs/avalanchego/utils/formatting/address"
+	"github.com/ava-labs/avalanchego/utils/json"
+	"github.com/ava-labs/avalanchego/utils/wrappers"
+	"github.com/ava-labs/avalanchego/version"
+	"github.com/ava-labs/avalanchego/vms/avm/fxs"
+	"github.com/ava-labs/avalanchego/vms/avm/states"
+	"github.com/ava-labs/avalanchego/vms/avm/txs"
+	"github.com/ava-labs/avalanchego/vms/components/avax"
+	"github.com/ava-labs/avalanchego/vms/components/verify"
+	"github.com/ava-labs/avalanchego/vms/nftfx"
+	"github.com/ava-labs/avalanchego/vms/propertyfx"
+	"github.com/ava-labs/avalanchego/vms/secp256k1fx"
 )
 
 var (
@@ -59,6 +61,8 @@ var (
 	password       = "StrnasfqewiurPasswdn56d" // #nosec G101
 	feeAssetName   = "TEST"
 	otherAssetName = "OTHER"
+
+	errMissing = errors.New("missing")
 )
 
 func init() {
@@ -107,7 +111,7 @@ func NewContext(tb testing.TB) *snow.Context {
 				chainID:                   ctx.SubnetID,
 			}[chainID]
 			if !ok {
-				return ids.Empty, errors.New("missing")
+				return ids.Empty, errMissing
 			}
 			return subnetID, nil
 		},
@@ -1111,24 +1115,22 @@ func TestTxCached(t *testing.T) {
 	_, err := vm.ParseTx(context.Background(), txBytes)
 	require.NoError(t, err)
 
-	db := mockdb.New()
-	called := new(bool)
-	db.OnGet = func([]byte) ([]byte, error) {
-		*called = true
-		return nil, errors.New("")
-	}
-
 	registerer := prometheus.NewRegistry()
 
 	err = vm.metrics.Initialize("", registerer)
 	require.NoError(t, err)
 
-	vm.state, err = states.New(prefixdb.New([]byte("tx"), db), vm.parser, registerer)
+	db := memdb.New()
+	vdb := versiondb.New(db)
+	vm.state, err = states.New(vdb, vm.parser, registerer)
 	require.NoError(t, err)
 
 	_, err = vm.ParseTx(context.Background(), txBytes)
 	require.NoError(t, err)
-	require.False(t, *called, "shouldn't have called the DB")
+
+	count, err := database.Count(vdb)
+	require.NoError(t, err)
+	require.Zero(t, count)
 }
 
 func TestTxNotCached(t *testing.T) {
@@ -1147,30 +1149,25 @@ func TestTxNotCached(t *testing.T) {
 	_, err := vm.ParseTx(context.Background(), txBytes)
 	require.NoError(t, err)
 
-	db := mockdb.New()
-	called := new(bool)
-	db.OnGet = func([]byte) ([]byte, error) {
-		*called = true
-		return nil, errors.New("")
-	}
-	db.OnPut = func([]byte, []byte) error {
-		return nil
-	}
-
 	registerer := prometheus.NewRegistry()
 	require.NoError(t, err)
 
 	err = vm.metrics.Initialize("", registerer)
 	require.NoError(t, err)
 
-	vm.state, err = states.New(db, vm.parser, registerer)
+	db := memdb.New()
+	vdb := versiondb.New(db)
+	vm.state, err = states.New(vdb, vm.parser, registerer)
 	require.NoError(t, err)
 
 	vm.uniqueTxs.Flush()
 
 	_, err = vm.ParseTx(context.Background(), txBytes)
 	require.NoError(t, err)
-	require.True(t, *called, "should have called the DB")
+
+	count, err := database.Count(vdb)
+	require.NoError(t, err)
+	require.NotZero(t, count)
 }
 
 func TestTxVerifyAfterIssueTx(t *testing.T) {

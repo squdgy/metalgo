@@ -7,11 +7,12 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/MetalBlockchain/metalgo/cache"
-	"github.com/MetalBlockchain/metalgo/utils/crypto"
-	"github.com/MetalBlockchain/metalgo/utils/hashing"
-	"github.com/MetalBlockchain/metalgo/utils/wrappers"
-	"github.com/MetalBlockchain/metalgo/vms/components/verify"
+	"github.com/ava-labs/avalanchego/cache"
+	"github.com/ava-labs/avalanchego/ids"
+	"github.com/ava-labs/avalanchego/utils/crypto"
+	"github.com/ava-labs/avalanchego/utils/hashing"
+	"github.com/ava-labs/avalanchego/utils/wrappers"
+	"github.com/ava-labs/avalanchego/vms/components/verify"
 )
 
 const (
@@ -52,7 +53,7 @@ func (fx *Fx) Initialize(vmIntf interface{}) error {
 	log.Debug("initializing secp256k1 fx")
 
 	fx.SECPFactory = crypto.FactorySECP256K1R{
-		Cache: cache.LRU{Size: defaultCacheSize},
+		Cache: cache.LRU[ids.ID, *crypto.PublicKeySECP256K1R]{Size: defaultCacheSize},
 	}
 	c := fx.VM.CodecRegistry()
 	errs := wrappers.Errs{}

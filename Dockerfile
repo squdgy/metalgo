@@ -17,17 +17,17 @@ RUN go mod download
 # Copy the code into the container
 COPY . .
 
-# Build avalanchego
+# Build metalgo
 RUN ./scripts/build.sh
 
 # ============= Cleanup Stage ================
 FROM debian:11-slim AS execution
 
 # Maintain compatibility with previous images
-RUN mkdir -p /avalanchego/build
-WORKDIR /avalanchego/build
+RUN mkdir -p /metalgo/build
+WORKDIR /metalgo/build
 
 # Copy the executables into the container
 COPY --from=builder /build/build/ .
 
-CMD [ "./avalanchego" ]
+CMD [ "./metalgo" ]

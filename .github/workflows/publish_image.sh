@@ -16,7 +16,7 @@ METAL_PATH=$( cd "$( dirname "${BASH_SOURCE[0]}" )"; cd ../.. && pwd )
 source "$METAL_PATH"/scripts/constants.sh
 
 if [[ $current_branch == "master" ]]; then
-  echo "Tagging current avalanchego image as $metalgo_dockerhub_repo:latest"
+  echo "Tagging current metalgo image as $metalgo_dockerhub_repo:latest"
   docker tag $metalgo_dockerhub_repo:$current_branch $metalgo_dockerhub_repo:latest
 fi
 

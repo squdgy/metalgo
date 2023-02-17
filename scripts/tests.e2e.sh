@@ -5,8 +5,8 @@ set -o pipefail
 
 # e.g.,
 # ./scripts/build.sh
-# ./scripts/tests.e2e.sh ./build/avalanchego
-# ENABLE_WHITELIST_VTX_TESTS=true ./scripts/tests.e2e.sh ./build/avalanchego
+# ./scripts/tests.e2e.sh ./build/metalgo
+# ENABLE_WHITELIST_VTX_TESTS=true ./scripts/tests.e2e.sh ./build/metalgo
 if ! [[ "$0" =~ scripts/tests.e2e.sh ]]; then
   echo "must be run from repository root"
   exit 255

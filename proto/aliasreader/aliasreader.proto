@@ -10,12 +10,6 @@ service AliasReader {
   rpc Aliases(ID) returns (AliasList);
 }
 
-service AliasReader {
-  rpc Lookup(Alias) returns (ID);
-  rpc PrimaryAlias(ID) returns (Alias);
-  rpc Aliases(ID) returns (AliasList);
-}
-
 message ID {
   bytes id = 1;
 }

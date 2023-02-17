@@ -8,10 +8,6 @@ service Messenger {
   rpc Notify(NotifyRequest) returns (NotifyResponse);
 }
 
-service Messenger {
-  rpc Notify(NotifyRequest) returns (NotifyResponse);
-}
-
 enum Message {
   MESSAGE_UNSPECIFIED = 0;
   MESSAGE_BUILD_BLOCK = 1;

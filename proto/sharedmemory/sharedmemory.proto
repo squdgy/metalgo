@@ -10,12 +10,6 @@ service SharedMemory {
   rpc Apply(ApplyRequest) returns (ApplyResponse);
 }
 
-service SharedMemory {
-  rpc Get(GetRequest) returns (GetResponse);
-  rpc Indexed(IndexedRequest) returns (IndexedResponse);
-  rpc Apply(ApplyRequest) returns (ApplyResponse);
-}
-
 message BatchPut {
   bytes key = 1;
   bytes value = 2;

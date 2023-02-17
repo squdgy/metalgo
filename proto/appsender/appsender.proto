@@ -11,13 +11,6 @@ service AppSender {
   rpc SendAppResponse(SendAppResponseMsg) returns (google.protobuf.Empty);
   rpc SendAppGossip(SendAppGossipMsg) returns (google.protobuf.Empty);
   rpc SendAppGossipSpecific(SendAppGossipSpecificMsg) returns (google.protobuf.Empty);
-}
-
-service AppSender {
-  rpc SendAppRequest(SendAppRequestMsg) returns (google.protobuf.Empty);
-  rpc SendAppResponse(SendAppResponseMsg) returns (google.protobuf.Empty);
-  rpc SendAppGossip(SendAppGossipMsg) returns (google.protobuf.Empty);
-  rpc SendAppGossipSpecific(SendAppGossipSpecificMsg) returns (google.protobuf.Empty);
 
   rpc SendCrossChainAppRequest(SendCrossChainAppRequestMsg) returns (google.protobuf.Empty);
   rpc SendCrossChainAppResponse(SendCrossChainAppResponseMsg) returns (google.protobuf.Empty);

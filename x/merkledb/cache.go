@@ -6,8 +6,8 @@ package merkledb
 import (
 	"sync"
 
-	"github.com/ava-labs/avalanchego/utils/linkedhashmap"
-	"github.com/ava-labs/avalanchego/utils/wrappers"
+	"github.com/MetalBlockchain/metalgo/utils/linkedhashmap"
+	"github.com/MetalBlockchain/metalgo/utils/wrappers"
 )
 
 // A cache that calls [onEviction] on the evicted element.

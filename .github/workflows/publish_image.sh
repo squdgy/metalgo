@@ -15,8 +15,8 @@ METAL_PATH=$( cd "$( dirname "${BASH_SOURCE[0]}" )"; cd ../.. && pwd )
 # Load the constants
 source "$METAL_PATH"/scripts/constants.sh
 
-# Build current avalanchego
-source "$AVALANCHE_PATH"/scripts/build_image.sh -r
+# Build current metalgo
+source "$METAL_PATH"/scripts/build_image.sh -r
 
 if [[ $current_branch == "master" ]]; then
   echo "Tagging current metalgo image as $metalgo_dockerhub_repo:latest"

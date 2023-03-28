@@ -27,6 +27,19 @@ func newNoopTracer() trace.Tracer {
 	return tracer
 }
 
+func Test_MerkleDB_Get_Safety(t *testing.T) {
+	db, err := getBasicDB()
+	require.NoError(t, err)
+	require.NoError(t, db.Put([]byte{0}, []byte{0, 1, 2}))
+
+	val, err := db.Get([]byte{0})
+	require.NoError(t, err)
+	n, err := db.getNode(newPath([]byte{0}))
+	require.NoError(t, err)
+	val[0] = 1
+	require.NotEqual(t, val, n.value.value)
+}
+
 func Test_MerkleDB_DB_Interface(t *testing.T) {
 	for _, test := range database.Tests {
 		db, err := getBasicDB()
@@ -55,10 +68,9 @@ func Test_MerkleDB_DB_Load_Root_From_DB(t *testing.T) {
 		context.Background(),
 		rdb,
 		Config{
-			Tracer:         newNoopTracer(),
-			HistoryLength:  100,
-			ValueCacheSize: 100,
-			NodeCacheSize:  100,
+			Tracer:        newNoopTracer(),
+			HistoryLength: 100,
+			NodeCacheSize: 100,
 		},
 	)
 	require.NoError(err)
@@ -70,7 +82,7 @@ func Test_MerkleDB_DB_Load_Root_From_DB(t *testing.T) {
 		k := []byte(strconv.Itoa(i))
 		require.NoError(view.Insert(context.Background(), k, hashing.ComputeHash256(k)))
 	}
-	require.NoError(view.commitToDB(context.Background(), nil))
+	require.NoError(view.commitToDB(context.Background()))
 
 	root, err := db.GetMerkleRoot(context.Background())
 	require.NoError(err)
@@ -82,10 +94,9 @@ func Test_MerkleDB_DB_Load_Root_From_DB(t *testing.T) {
 		context.Background(),
 		rdb,
 		Config{
-			Tracer:         newNoopTracer(),
-			HistoryLength:  100,
-			ValueCacheSize: 100,
-			NodeCacheSize:  100,
+			Tracer:        newNoopTracer(),
+			HistoryLength: 100,
+			NodeCacheSize: 100,
 		},
 	)
 	require.NoError(err)
@@ -106,10 +117,9 @@ func Test_MerkleDB_DB_Rebuild(t *testing.T) {
 		context.Background(),
 		rdb,
 		Config{
-			Tracer:         newNoopTracer(),
-			HistoryLength:  100,
-			ValueCacheSize: initialSize,
-			NodeCacheSize:  initialSize,
+			Tracer:        newNoopTracer(),
+			HistoryLength: 100,
+			NodeCacheSize: initialSize,
 		},
 	)
 	require.NoError(err)
@@ -139,9 +149,8 @@ func Test_MerkleDB_Failed_Batch_Commit(t *testing.T) {
 		context.Background(),
 		memDB,
 		Config{
-			Tracer:         newNoopTracer(),
-			HistoryLength:  300,
-			ValueCacheSize: minCacheSize,
+			Tracer:        newNoopTracer(),
+			HistoryLength: 300,
 		},
 	)
 	require.NoError(t, err)
@@ -166,10 +175,9 @@ func Test_MerkleDB_Value_Cache(t *testing.T) {
 		context.Background(),
 		memDB,
 		Config{
-			Tracer:         newNoopTracer(),
-			HistoryLength:  300,
-			ValueCacheSize: minCacheSize,
-			NodeCacheSize:  minCacheSize,
+			Tracer:        newNoopTracer(),
+			HistoryLength: 300,
+			NodeCacheSize: minCacheSize,
 		},
 	)
 	require.NoError(t, err)
@@ -450,7 +458,7 @@ func TestDatabaseNewUntrackedView(t *testing.T) {
 	require.NoError(err)
 
 	// Create a new untracked view.
-	view, err := db.newUntrackedView()
+	view, err := db.newUntrackedView(defaultPreallocationSize)
 	require.NoError(err)
 	require.Empty(db.childViews)
 
@@ -499,15 +507,15 @@ func TestDatabaseCommitChanges(t *testing.T) {
 	dbRoot := db.getMerkleRoot()
 
 	// Committing a nil view should be a no-op.
-	err = db.commitChanges(context.Background(), nil)
+	err = db.commitToDB(context.Background())
 	require.NoError(err)
 	require.Equal(dbRoot, db.getMerkleRoot()) // Root didn't change
 
 	// Committing an invalid view should fail.
-	invalidView := &trieView{
-		invalidated: true,
-	}
-	err = db.commitChanges(context.Background(), invalidView)
+	invalidView, err := db.NewView()
+	require.NoError(err)
+	invalidView.(*trieView).invalidate()
+	err = invalidView.commitToDB(context.Background())
 	require.ErrorIs(err, ErrInvalid)
 
 	// Add key-value pairs to the database
@@ -547,7 +555,7 @@ func TestDatabaseCommitChanges(t *testing.T) {
 	//      db
 
 	// Commit view1
-	err = db.commitChanges(context.Background(), view1)
+	err = view1.commitToDB(context.Background())
 	require.NoError(err)
 
 	// Make sure the key-value pairs are correct.
@@ -837,10 +845,9 @@ func runRandDBTest(require *require.Assertions, db *Database, r *rand.Rand, rt r
 				context.Background(),
 				memdb.New(),
 				Config{
-					Tracer:         newNoopTracer(),
-					ValueCacheSize: minCacheSize,
-					HistoryLength:  0,
-					NodeCacheSize:  minCacheSize,
+					Tracer:        newNoopTracer(),
+					HistoryLength: 0,
+					NodeCacheSize: minCacheSize,
 				},
 				&mockMetrics{},
 			)

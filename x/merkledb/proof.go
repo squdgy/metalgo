@@ -357,9 +357,9 @@ func (proof *ChangeProof) Verify(
 	}
 
 	// Make sure the deleted keys are sorted and in [start, end].
-	deletedKeys := make([]KeyValue, 0, len(proof.DeletedKeys))
-	for _, key := range proof.DeletedKeys {
-		deletedKeys = append(deletedKeys, KeyValue{Key: key, Value: nil})
+	deletedKeys := make([]KeyValue, len(proof.DeletedKeys))
+	for i, key := range proof.DeletedKeys {
+		deletedKeys[i] = KeyValue{Key: key, Value: nil}
 	}
 	if err := verifyKeyValues(deletedKeys, start, end); err != nil {
 		return err
@@ -367,23 +367,33 @@ func (proof *ChangeProof) Verify(
 
 	smallestPath := newPath(start)
 
-	// Find the greatest key in [proof.KeyValues] and [proof.DeletedKeys].
-	// Note that [proof.EndProof] is a proof for this key.
-	// [largestKey] is also used when we add children of proof nodes to [trie] below.
-	largestPath := newPath(proof.getLargestKey(end))
-
 	// Make sure the start proof, if given, is well-formed.
 	if err := verifyProofPath(proof.StartProof, smallestPath); err != nil {
 		return err
 	}
 
-	keyValues := make(map[path]Maybe[[]byte], len(proof.KeyValues))
+	// Find the greatest key in [proof.KeyValues] and [proof.DeletedKeys].
+	// Note that [proof.EndProof] is a proof for this key.
+	// [largestPath] is also used when we add children of proof nodes to [trie] below.
+	largestPath := newPath(proof.getLargestKey(end))
+
+	// Make sure the end proof, if given, is well-formed.
+	if err := verifyProofPath(proof.EndProof, largestPath); err != nil {
+		return err
+	}
+
+	// gather all key/values in the proof
+	keyValues := make(map[path]Maybe[[]byte], len(proof.KeyValues)+len(proof.DeletedKeys))
 	for _, keyValue := range proof.KeyValues {
 		keyValues[newPath(keyValue.Key)] = Some(keyValue.Value)
 	}
 	for _, key := range proof.DeletedKeys {
 		keyValues[newPath(key)] = Nothing[[]byte]()
 	}
+
+	// want to prevent commit writes to DB, but not prevent db reads
+	db.commitLock.RLock()
+	defer db.commitLock.RUnlock()
 
 	if err := verifyAllChangeProofKeyValuesPresent(
 		ctx,
@@ -396,10 +406,6 @@ func (proof *ChangeProof) Verify(
 		return err
 	}
 
-	// Make sure the end proof, if given, is well-formed.
-	if err := verifyProofPath(proof.EndProof, largestPath); err != nil {
-		return err
-	}
 	if err := verifyAllChangeProofKeyValuesPresent(
 		ctx,
 		db,
@@ -411,11 +417,8 @@ func (proof *ChangeProof) Verify(
 		return err
 	}
 
-	db.commitLock.Lock()
-	defer db.commitLock.Unlock()
-
 	// Don't need to lock [view] because nobody else has a reference to it.
-	view, err := db.newUntrackedView()
+	view, err := db.newUntrackedView(len(proof.KeyValues))
 	if err != nil {
 		return err
 	}
@@ -671,9 +674,8 @@ func getEmptyTrieView(ctx context.Context) (*trieView, error) {
 		ctx,
 		memdb.New(),
 		Config{
-			Tracer:         tracer,
-			ValueCacheSize: verificationCacheSize,
-			NodeCacheSize:  verificationCacheSize,
+			Tracer:        tracer,
+			NodeCacheSize: verificationCacheSize,
 		},
 		&mockMetrics{},
 	)
@@ -681,5 +683,5 @@ func getEmptyTrieView(ctx context.Context) (*trieView, error) {
 		return nil, err
 	}
 
-	return db.newUntrackedView()
+	return db.newUntrackedView(defaultPreallocationSize)
 }

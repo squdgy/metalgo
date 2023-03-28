@@ -14,22 +14,23 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/MetalBlockchain/metalgo/codec"
-	"github.com/MetalBlockchain/metalgo/database"
-	"github.com/MetalBlockchain/metalgo/database/manager"
-	"github.com/MetalBlockchain/metalgo/database/memdb"
-	"github.com/MetalBlockchain/metalgo/database/prefixdb"
-	"github.com/MetalBlockchain/metalgo/database/versiondb"
-	"github.com/MetalBlockchain/metalgo/ids"
-	"github.com/MetalBlockchain/metalgo/snow"
-	"github.com/MetalBlockchain/metalgo/snow/engine/common"
-	"github.com/MetalBlockchain/metalgo/utils/crypto/secp256k1"
-	"github.com/MetalBlockchain/metalgo/utils/wrappers"
-	"github.com/MetalBlockchain/metalgo/version"
-	"github.com/MetalBlockchain/metalgo/vms/avm/txs"
-	"github.com/MetalBlockchain/metalgo/vms/components/avax"
-	"github.com/MetalBlockchain/metalgo/vms/components/index"
-	"github.com/MetalBlockchain/metalgo/vms/secp256k1fx"
+	"github.com/ava-labs/avalanchego/codec"
+	"github.com/ava-labs/avalanchego/database"
+	"github.com/ava-labs/avalanchego/database/manager"
+	"github.com/ava-labs/avalanchego/database/memdb"
+	"github.com/ava-labs/avalanchego/database/prefixdb"
+	"github.com/ava-labs/avalanchego/database/versiondb"
+	"github.com/ava-labs/avalanchego/ids"
+	"github.com/ava-labs/avalanchego/snow"
+	"github.com/ava-labs/avalanchego/snow/engine/common"
+	"github.com/ava-labs/avalanchego/utils/constants"
+	"github.com/ava-labs/avalanchego/utils/crypto/secp256k1"
+	"github.com/ava-labs/avalanchego/utils/wrappers"
+	"github.com/ava-labs/avalanchego/version"
+	"github.com/ava-labs/avalanchego/vms/avm/txs"
+	"github.com/ava-labs/avalanchego/vms/components/avax"
+	"github.com/ava-labs/avalanchego/vms/components/index"
+	"github.com/ava-labs/avalanchego/vms/secp256k1fx"
 )
 
 var indexEnabledAvmConfig = Config{
@@ -104,7 +105,7 @@ func TestIndexTransaction_Ordered(t *testing.T) {
 
 		var inputUTXOs []*avax.UTXO
 		for _, utxoID := range uniqueParsedTX.InputUTXOs() {
-			utxo, err := vm.getUTXO(utxoID)
+			utxo, err := vm.dagState.GetUTXOFromID(utxoID)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -194,7 +195,7 @@ func TestIndexTransaction_MultipleTransactions(t *testing.T) {
 
 		var inputUTXOs []*avax.UTXO
 		for _, utxoID := range uniqueParsedTX.InputUTXOs() {
-			utxo, err := vm.getUTXO(utxoID)
+			utxo, err := vm.dagState.GetUTXOFromID(utxoID)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -264,7 +265,7 @@ func TestIndexTransaction_MultipleAddresses(t *testing.T) {
 
 	var inputUTXOs []*avax.UTXO //nolint:prealloc
 	for _, utxoID := range tx.Unsigned.InputUTXOs() {
-		utxo, err := vm.getUTXO(utxoID)
+		utxo, err := vm.dagState.GetUTXOFromID(utxoID)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -347,7 +348,7 @@ func TestIndexTransaction_UnorderedWrites(t *testing.T) {
 
 		var inputUTXOs []*avax.UTXO
 		for _, utxoID := range uniqueParsedTX.InputUTXOs() {
-			utxo, err := vm.getUTXO(utxoID)
+			utxo, err := vm.dagState.GetUTXOFromID(utxoID)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -485,7 +486,7 @@ func signTX(codec codec.Manager, tx *txs.Tx, key *secp256k1.PrivateKey) error {
 func buildTX(utxoID avax.UTXOID, txAssetID avax.Asset, address ...ids.ShortID) *txs.Tx {
 	return &txs.Tx{Unsigned: &txs.BaseTx{
 		BaseTx: avax.BaseTx{
-			NetworkID:    networkID,
+			NetworkID:    constants.UnitTestID,
 			BlockchainID: chainID,
 			Ins: []*avax.TransferableInput{{
 				UTXOID: utxoID,

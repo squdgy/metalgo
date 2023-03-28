@@ -828,10 +828,9 @@ func Test_Trie_MultipleStates(t *testing.T) {
 				context.Background(),
 				rdb,
 				Config{
-					Tracer:         newNoopTracer(),
-					HistoryLength:  100,
-					ValueCacheSize: minCacheSize,
-					NodeCacheSize:  100,
+					Tracer:        newNoopTracer(),
+					HistoryLength: 100,
+					NodeCacheSize: 100,
 				},
 			)
 			require.NoError(t, err)
@@ -1018,7 +1017,7 @@ func TestNewViewOnCommittedView(t *testing.T) {
 	require.Equal(db, view3.parentTrie)
 }
 
-func TestTrieViewNewView(t *testing.T) {
+func Test_TrieView_NewView(t *testing.T) {
 	require := require.New(t)
 
 	db, err := getBasicDB()

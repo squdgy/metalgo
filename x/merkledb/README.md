@@ -2,8 +2,6 @@
 
 ## TODOs
 
-
-- [ ] Consider allowing a child view to commit into a parent view without committing to the base DB.
 - [ ] Remove special casing around the root node from the physical structure of the hashed tree.
 - [ ] Analyze performance impact of needing to skip intermediate nodes when generating range and change proofs
   - [ ] Consider moving nodes with values to a separate db prefix
@@ -63,6 +61,6 @@ In some of `Database`'s methods, we create a `trieView` and call unexported meth
 We do so because the exported counterpart of the method read locks the `Database`, which is already locked.
 This pattern is safe because the `Database` is locked, so no data under the view is changing, and nobody else has a reference to the view, so there can't be any concurrent access.  
 
-To prevent deadlocks, `trieView` and `Database` never trigger the `lock` of any descendant views that are built atop it.
+To prevent deadlocks, `trieView` and `Database` never acquire the `lock` of any descendant views that are built atop it.
 That is, locking is always done from a view down to the underlying `Database`, never the other way around.
 The `validityTrackingLock` goes the opposite way.  Views can validityTrackingLock their children, but not their ancestors. Because of this, any function that takes the `validityTrackingLock` should avoid taking the `lock` as this will likely trigger a deadlock.  Keeping `lock` solely in the ancestor direction and `validityTrackingLock` solely in the descendant direction prevents deadlocks from occurring.  

@@ -1,14 +1,12 @@
 PKG_ROOT=/tmp/metalgo
 DEBIAN_BASE_DIR=$PKG_ROOT/debian
 METAL_BUILD_BIN_DIR=$DEBIAN_BASE_DIR/usr/local/bin
-METAL_LIB_DIR=$DEBIAN_BASE_DIR/usr/local/lib/metalgo
 TEMPLATE=.github/workflows/debian/template 
 DEBIAN_CONF=$DEBIAN_BASE_DIR/DEBIAN
 
 mkdir -p $DEBIAN_BASE_DIR
 mkdir -p $DEBIAN_CONF
 mkdir -p $METAL_BUILD_BIN_DIR
-mkdir -p $METAL_LIB_DIR
 
 # Assume binaries are at default locations
 OK=`cp ./build/metalgo $METAL_BUILD_BIN_DIR`

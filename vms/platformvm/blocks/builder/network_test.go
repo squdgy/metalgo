@@ -9,11 +9,11 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/MetalBlockchain/metalgo/ids"
-	"github.com/MetalBlockchain/metalgo/utils/constants"
-	"github.com/MetalBlockchain/metalgo/utils/crypto/secp256k1"
-	"github.com/MetalBlockchain/metalgo/vms/platformvm/message"
-	"github.com/MetalBlockchain/metalgo/vms/platformvm/txs"
+	"github.com/ava-labs/avalanchego/ids"
+	"github.com/ava-labs/avalanchego/utils/constants"
+	"github.com/ava-labs/avalanchego/utils/crypto/secp256k1"
+	"github.com/ava-labs/avalanchego/vms/components/message"
+	"github.com/ava-labs/avalanchego/vms/platformvm/txs"
 
 	txbuilder "github.com/MetalBlockchain/metalgo/vms/platformvm/txs/builder"
 )
@@ -93,7 +93,7 @@ func TestMempoolInvalidGossipedTxIsNotAddedToMempool(t *testing.T) {
 	// create a tx and mark as invalid
 	tx := getValidTx(env.txBuilder, t)
 	txID := tx.ID()
-	env.Builder.MarkDropped(txID, "dropped for testing")
+	env.Builder.MarkDropped(txID, errTestingDropped)
 
 	// show that the invalid tx is not requested
 	nodeID := ids.GenerateTestNodeID()

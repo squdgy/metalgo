@@ -6,7 +6,6 @@ package merkledb
 import (
 	"bytes"
 	"context"
-	"encoding/binary"
 	"errors"
 	"fmt"
 	"runtime"
@@ -24,11 +23,7 @@ import (
 	"github.com/MetalBlockchain/metalgo/utils/set"
 )
 
-const (
-	defaultPreallocationSize         = 100
-	minNodeCountForConcurrentHashing = 500
-	initialProofPathSize             = 16
-)
+const defaultPreallocationSize = 100
 
 var (
 	ErrCommitted          = errors.New("view has been committed")
@@ -36,10 +31,10 @@ var (
 	ErrOddLengthWithValue = errors.New(
 		"the underlying db only supports whole number of byte keys, so cannot record changes with odd nibble length",
 	)
-	ErrGetPathToFailure            = errors.New("GetPathTo failed to return the closest node")
-	ErrStartAfterEnd               = errors.New("start key > end key")
-	ErrViewIsNotAChild             = errors.New("passed in view is required to be a child of the current view")
-	ErrMinProofIsLargerThanMaxSize = errors.New("no proof is constructable because the minimum proof is larger than the passed maximum proof size")
+	ErrGetPathToFailure = errors.New("GetPathTo failed to return the closest node")
+	ErrStartAfterEnd    = errors.New("start key > end key")
+	ErrViewIsNotAChild  = errors.New("passed in view is required to be a child of the current view")
+	ErrNoValidRoot      = errors.New("a valid root was not provided to the trieView constructor")
 
 	_ TrieView = &trieView{}
 
@@ -66,7 +61,7 @@ type trieView struct {
 	// Since we ensure that all subviews are marked invalid before making an invalidating change
 	// then if we are still valid at the end of the function, then no corrupting changes could have
 	// occurred during execution.
-	// Namely if we have a method with:
+	// Namely, if we have a method with:
 	//
 	// *Code Accessing Ancestor State*
 	//
@@ -115,18 +110,18 @@ type trieView struct {
 	estimatedSize int
 }
 
-// Returns a new view on top of this one.
+// NewView returns a new view on top of this one.
 // Adds the new view to [t.childViews].
 // Assumes [t.lock] is not held.
 func (t *trieView) NewView() (TrieView, error) {
 	return t.NewPreallocatedView(defaultPreallocationSize)
 }
 
-// Returns a new view on top of this one with memory allocated to store the
+// NewPreallocatedView returns a new view on top of this one with memory allocated to store the
 // [estimatedChanges] number of key/value changes.
 // If this view is already committed, the new view's parent will
 // be set to the parent of the current view.
-// Otherwise adds the new view to [t.childViews].
+// Otherwise, adds the new view to [t.childViews].
 // Assumes [t.lock] is not held.
 func (t *trieView) NewPreallocatedView(
 	estimatedChanges int,
@@ -159,8 +154,6 @@ func (t *trieView) NewPreallocatedView(
 }
 
 // Creates a new view with the given [parentTrie].
-// If [changes] is nil, a new changeSummary is created.
-// Assumes [parentTrie] and its ancestors are read locked.
 func newTrieView(
 	db *Database,
 	parentTrie TrieView,
@@ -182,8 +175,6 @@ func newTrieView(
 }
 
 // Creates a new view with the given [parentTrie].
-// If [changes] is nil, a new changeSummary is created.
-// Assumes [parentTrie] and its ancestors are read locked.
 func newTrieViewWithChanges(
 	db *Database,
 	parentTrie TrieView,
@@ -229,7 +220,7 @@ func (t *trieView) calculateNodeIDs(ctx context.Context) error {
 	ctx, span := t.db.tracer.Start(ctx, "MerkleDB.trieview.calculateNodeIDs")
 	defer span.End()
 
-	// ensure that the view under this one is up to date before potentially pulling in nodes from it
+	// ensure that the view under this one is up-to-date before potentially pulling in nodes from it
 	// getting the Merkle root forces any unupdated nodes to recalculate their ids
 	if t.parentTrie != nil {
 		if _, err := t.getParentTrie().GetMerkleRoot(ctx); err != nil {
@@ -319,7 +310,7 @@ func (t *trieView) calculateNodeIDsHelper(ctx context.Context, n *node, eg *errg
 	return n.calculateID(t.db.metrics)
 }
 
-// Returns a proof that [bytesPath] is in or not in trie [t].
+// GetProof returns a proof that [bytesPath] is in or not in trie [t].
 func (t *trieView) GetProof(ctx context.Context, key []byte) (*Proof, error) {
 	_, span := t.db.tracer.Start(ctx, "MerkleDB.trieview.GetProof")
 	defer span.End()
@@ -380,10 +371,13 @@ func (t *trieView) getProof(ctx context.Context, key []byte) (*Proof, error) {
 		return nil, err
 	}
 	proof.Path = append(proof.Path, childNode.asProofNode())
+	if t.isInvalid() {
+		return nil, ErrInvalid
+	}
 	return proof, nil
 }
 
-// Returns a range proof for (at least part of) the key range [start, end].
+// GetRangeProof returns a range proof for (at least part of) the key range [start, end].
 // The returned proof's [KeyValues] has at most [maxLength] values.
 // [maxLength] must be > 0.
 func (t *trieView) GetRangeProof(
@@ -420,10 +414,7 @@ func (t *trieView) getRangeProof(
 		return nil, fmt.Errorf("%w but was %d", ErrInvalidMaxSize, maxSize)
 	}
 
-	// initialize to account for the varint storing the key/value count
-	totalSize := uint32(binary.MaxVarintLen64)
-
-	if err := t.calculateIDs(ctx); err != nil {
+	if err := t.calculateNodeIDs(ctx); err != nil {
 		return nil, err
 	}
 
@@ -431,6 +422,32 @@ func (t *trieView) getRangeProof(
 		result RangeProof
 		err    error
 	)
+
+	result.KeyValues, err = t.getKeyValues(
+		start,
+		end,
+		maxLength,
+		set.Set[string]{},
+		false, /*lock*/
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	// This proof may not contain all key-value pairs in [start, end] due to size limitations.
+	// The end proof we provide should be for the last key-value pair in the proof, not for
+	// the last key-value pair requested, which may not be in this proof.
+	if len(result.KeyValues) > 0 {
+		end = result.KeyValues[len(result.KeyValues)-1].Key
+	}
+
+	if len(end) > 0 {
+		endProof, err := t.getProof(ctx, end)
+		if err != nil {
+			return nil, err
+		}
+		result.EndProof = endProof.Path
+	}
 
 	if len(start) > 0 {
 		startProof, err := t.getProof(ctx, start)
@@ -536,11 +553,13 @@ func (t *trieView) getRangeProof(
 		}
 		result.EndProof = rootProof.Path
 	}
-
+	if t.isInvalid() {
+		return nil, ErrInvalid
+	}
 	return &result, nil
 }
 
-// Commits changes from this trie to the underlying DB.
+// CommitToDB commits changes from this trie to the underlying DB.
 func (t *trieView) CommitToDB(ctx context.Context) error {
 	ctx, span := t.db.tracer.Start(ctx, "MerkleDB.trieview.Commit")
 	defer span.End()
@@ -548,14 +567,16 @@ func (t *trieView) CommitToDB(ctx context.Context) error {
 	t.db.commitLock.Lock()
 	defer t.db.commitLock.Unlock()
 
-	return t.commitToDB(ctx, nil)
+	return t.commitToDB(ctx)
 }
 
 // Adds the changes from [trieToCommit] to this trie.
-// Assumes [t.lock] is held.
 // Assumes [trieToCommit.lock] is held if trieToCommit is not nil.
 func (t *trieView) commitChanges(ctx context.Context, trieToCommit *trieView) error {
-	_, span := t.db.tracer.Start(ctx, "MerkleDB.triview.commitChanges", oteltrace.WithAttributes(
+	t.lock.Lock()
+	defer t.lock.Unlock()
+
+	_, span := t.db.tracer.Start(ctx, "MerkleDB.trieview.commitChanges", oteltrace.WithAttributes(
 		attribute.Int("changeCount", len(t.changes.values)),
 	))
 	defer span.End()
@@ -617,19 +638,29 @@ func (t *trieView) commitChanges(ctx context.Context, trieToCommit *trieView) er
 	return nil
 }
 
-// Commits the changes from [trieToCommit] to this view,
-// this view to its parent, and so on until committing to the db.
-// Assumes [t.db.commitlock] is held.
-// Assumes [trieToCommit.lock] is held if [trieToCommit] is not nil.
-func (t *trieView) commitToDB(ctx context.Context, trieToCommit *trieView) error {
+// CommitToParent commits the changes from this view to its parent Trie
+func (t *trieView) CommitToParent(ctx context.Context) error {
+	// if we are about to write to the db, then we to hold the commitLock
+	if t.getParentTrie() == t.db {
+		t.db.commitLock.Lock()
+		defer t.db.commitLock.Unlock()
+	}
+
 	t.lock.Lock()
 	defer t.lock.Unlock()
 
-	ctx, span := t.db.tracer.Start(ctx, "MerkleDB.triview.commitToDB", oteltrace.WithAttributes(
-		attribute.Int("changeCount", len(t.changes.values)),
-	))
+	return t.commitToParent(ctx)
+}
+
+// commitToParent commits the changes from this view to its parent Trie
+// assumes [t.lock] is held
+func (t *trieView) commitToParent(ctx context.Context) error {
+	ctx, span := t.db.tracer.Start(ctx, "MerkleDB.trieview.commitToParent")
 	defer span.End()
 
+	if t.isInvalid() {
+		return ErrInvalid
+	}
 	if t.committed {
 		return ErrCommitted
 	}
@@ -640,19 +671,37 @@ func (t *trieView) commitToDB(ctx context.Context, trieToCommit *trieView) error
 	}
 
 	// overwrite this view with changes from the incoming view
-	if err := t.commitChanges(ctx, trieToCommit); err != nil {
+	if err := t.getParentTrie().commitChanges(ctx, t); err != nil {
 		return err
+	}
+	if t.isInvalid() {
+		return ErrInvalid
 	}
 
-	// pass the result onto the parent trie to merge and then commit to db
-	if err := t.getParentTrie().commitToDB(ctx, t); err != nil {
-		return err
-	}
 	t.committed = true
 
-	// now that this view is committed, all child views have been moved to the db, so none need to be tracked by this view
-	t.clearChildView()
 	return nil
+}
+
+// Commits the changes from [trieToCommit] to this view,
+// this view to its parent, and so on until committing to the db.
+// Assumes [t.db.commitLock] is held.
+func (t *trieView) commitToDB(ctx context.Context) error {
+	t.lock.Lock()
+	defer t.lock.Unlock()
+
+	ctx, span := t.db.tracer.Start(ctx, "MerkleDB.trieview.commitToDB", oteltrace.WithAttributes(
+		attribute.Int("changeCount", len(t.changes.values)),
+	))
+	defer span.End()
+
+	// first merge changes into the parent trie
+	if err := t.commitToParent(ctx); err != nil {
+		return err
+	}
+
+	// now commit the parent trie to the db
+	return t.getParentTrie().commitToDB(ctx)
 }
 
 // Assumes [t.validityTrackingLock] isn't held.
@@ -685,15 +734,19 @@ func (t *trieView) invalidateChildren() {
 	t.invalidateChildrenExcept(nil)
 }
 
-// move any child views from the trieToCommit to the current trie view
+// moveChildViewsToView removes any child views from the trieToCommit and moves them to the current trie view
 func (t *trieView) moveChildViewsToView(trieToCommit *trieView) {
 	t.validityTrackingLock.Lock()
 	defer t.validityTrackingLock.Unlock()
+
+	trieToCommit.validityTrackingLock.Lock()
+	defer trieToCommit.validityTrackingLock.Unlock()
 
 	for _, childView := range trieToCommit.childViews {
 		childView.updateParent(t)
 		t.childViews = append(t.childViews, childView)
 	}
+	trieToCommit.childViews = make([]*trieView, 0, defaultPreallocationSize)
 }
 
 func (t *trieView) updateParent(newParent TrieView) {
@@ -701,15 +754,6 @@ func (t *trieView) updateParent(newParent TrieView) {
 	defer t.validityTrackingLock.Unlock()
 
 	t.parentTrie = newParent
-}
-
-// Removes all tracked child views from [childViews]
-// Assumes [t.validityTrackingLock] isn't held.
-func (t *trieView) clearChildView() {
-	t.validityTrackingLock.Lock()
-	defer t.validityTrackingLock.Unlock()
-
-	t.childViews = make([]*trieView, 0, defaultPreallocationSize)
 }
 
 // Invalidates all children of this view except [exception].
@@ -734,7 +778,7 @@ func (t *trieView) invalidateChildrenExcept(exception *trieView) {
 	}
 }
 
-// Returns the ID of the root of this trie.
+// GetMerkleRoot returns the ID of the root of this trie.
 func (t *trieView) GetMerkleRoot(ctx context.Context) (ids.ID, error) {
 	t.lock.Lock()
 	defer t.lock.Unlock()
@@ -761,9 +805,12 @@ func (t *trieView) getKeyValues(
 	end []byte,
 	maxSize uint32,
 	keysToIgnore set.Set[string],
-) ([]KeyValue, uint32, error) {
-	ctx, span := t.db.tracer.Start(ctx, "MerkleDB.trieView.getKeyValues")
-	defer span.End()
+	lock bool,
+) ([]KeyValue, error) {
+	if lock {
+		t.lock.RLock()
+		defer t.lock.RUnlock()
+	}
 
 	if maxSize == 0 {
 		return nil, 0, fmt.Errorf("%w but was %d", ErrInvalidMaxSize, maxSize)
@@ -791,10 +838,13 @@ func (t *trieView) getKeyValues(
 		return bytes.Compare(a.Key, b.Key) == -1
 	})
 
-	// increase max size for base to ensure all possible values are returned
-	// if there is overlap in keys between this view and the base and the values in the base are larger
-	// then fewer keys from the base might be returned than are needed
-	baseKeyValues, _, err := t.getParentTrie().getKeyValues(ctx, start, end, 2*maxSize, keysToIgnore)
+	baseKeyValues, err := t.getParentTrie().getKeyValues(
+		start,
+		end,
+		maxLength,
+		keysToIgnore,
+		true, /*lock*/
+	)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -907,7 +957,12 @@ func (t *trieView) getKeyValues(
 		changesIndex++
 	}
 
-	return result, totalSize, nil
+	// ensure no ancestor changes occurred during execution
+	if t.isInvalid() {
+		return nil, ErrInvalid
+	}
+
+	return result, nil
 }
 
 func (t *trieView) GetValues(_ context.Context, keys [][]byte) ([][]byte, []error) {
@@ -915,15 +970,15 @@ func (t *trieView) GetValues(_ context.Context, keys [][]byte) ([][]byte, []erro
 	defer t.lock.RUnlock()
 
 	results := make([][]byte, len(keys))
-	errors := make([]error, len(keys))
+	valueErrors := make([]error, len(keys))
 
 	for i, key := range keys {
-		results[i], errors[i] = t.getValue(newPath(key))
+		results[i], valueErrors[i] = t.getValue(newPath(key))
 	}
-	return results, errors
+	return results, valueErrors
 }
 
-// Returns the value for the given [key].
+// GetValue returns the value for the given [key].
 // Returns database.ErrNotFound if it doesn't exist.
 func (t *trieView) GetValue(_ context.Context, key []byte) ([]byte, error) {
 	t.lock.RLock()
@@ -961,7 +1016,7 @@ func (t *trieView) getValue(key path) ([]byte, error) {
 	return value, nil
 }
 
-// Upserts the key/value pair into the trie.
+// Insert will upsert the key/value pair into the trie.
 func (t *trieView) Insert(_ context.Context, key []byte, value []byte) error {
 	t.lock.Lock()
 	defer t.lock.Unlock()
@@ -996,7 +1051,7 @@ func (t *trieView) insert(key []byte, value []byte) error {
 	return nil
 }
 
-// Removes the value associated with [key] from this trie.
+// Remove will delete the value associated with [key] from this trie.
 func (t *trieView) Remove(_ context.Context, key []byte) error {
 	t.lock.Lock()
 	defer t.lock.Unlock()
@@ -1189,7 +1244,7 @@ func (t *trieView) getEditableNode(key path) (*node, error) {
 		return nil, ErrInvalid
 	}
 
-	// return a clone of the node so it can be edited without affecting this trie
+	// return a clone of the node, so it can be edited without affecting this trie
 	return n.clone(), nil
 }
 
@@ -1383,7 +1438,7 @@ func (t *trieView) removeFromTrie(key path) error {
 	}
 
 	// A node with ancestry [nodePath] is being deleted, so we need to recalculate
-	// all of the nodes in this path.
+	// all the nodes in this path.
 	for _, node := range nodePath {
 		if err := t.recordNodeChange(node); err != nil {
 			return err
@@ -1437,7 +1492,7 @@ func (t *trieView) getNodeWithID(id ids.ID, key path) (*node, error) {
 		return nodeChange.after, nil
 	}
 
-	// get the node from the parent trie and store a localy copy
+	// get the node from the parent trie and store a local copy
 	parentTrieNode, err := t.getParentTrie().getEditableNode(key)
 	if err != nil {
 		return nil, err

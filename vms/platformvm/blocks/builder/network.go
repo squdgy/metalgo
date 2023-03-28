@@ -12,12 +12,12 @@ import (
 
 	"go.uber.org/zap"
 
-	"github.com/MetalBlockchain/metalgo/cache"
-	"github.com/MetalBlockchain/metalgo/ids"
-	"github.com/MetalBlockchain/metalgo/snow"
-	"github.com/MetalBlockchain/metalgo/snow/engine/common"
-	"github.com/MetalBlockchain/metalgo/vms/platformvm/message"
-	"github.com/MetalBlockchain/metalgo/vms/platformvm/txs"
+	"github.com/ava-labs/avalanchego/cache"
+	"github.com/ava-labs/avalanchego/ids"
+	"github.com/ava-labs/avalanchego/snow"
+	"github.com/ava-labs/avalanchego/snow/engine/common"
+	"github.com/ava-labs/avalanchego/vms/components/message"
+	"github.com/ava-labs/avalanchego/vms/platformvm/txs"
 )
 
 const (
@@ -132,7 +132,7 @@ func (n *network) AppGossip(_ context.Context, nodeID ids.NodeID, msgBytes []byt
 	n.ctx.Lock.Lock()
 	defer n.ctx.Lock.Unlock()
 
-	if _, dropped := n.blkBuilder.GetDropReason(txID); dropped {
+	if reason := n.blkBuilder.GetDropReason(txID); reason != nil {
 		// If the tx is being dropped - just ignore it
 		return nil
 	}

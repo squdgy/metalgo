@@ -4,15 +4,15 @@
 package avm
 
 import (
-	"container/list"
 	"context"
 	"testing"
 
-	"github.com/MetalBlockchain/metalgo/api"
-	"github.com/MetalBlockchain/metalgo/chains/atomic"
-	"github.com/MetalBlockchain/metalgo/ids"
-	"github.com/MetalBlockchain/metalgo/vms/avm/txs"
-	"github.com/MetalBlockchain/metalgo/vms/components/keystore"
+	"github.com/ava-labs/avalanchego/api"
+	"github.com/ava-labs/avalanchego/chains/atomic"
+	"github.com/ava-labs/avalanchego/ids"
+	"github.com/ava-labs/avalanchego/utils/linkedhashmap"
+	"github.com/ava-labs/avalanchego/vms/avm/txs"
+	"github.com/ava-labs/avalanchego/vms/components/keystore"
 )
 
 // Returns:
@@ -33,7 +33,10 @@ func setupWS(t *testing.T, isAVAXAsset bool) ([]byte, *VM, *WalletService, *atom
 		genesisTx = GetCreateTxFromGenesisTest(t, genesisBytes, feeAssetName)
 	}
 
-	ws := &WalletService{vm: vm, pendingTxMap: make(map[ids.ID]*list.Element), pendingTxOrdering: list.New()}
+	ws := &WalletService{
+		vm:         vm,
+		pendingTxs: linkedhashmap.New[ids.ID, *txs.Tx](),
+	}
 	return genesisBytes, vm, ws, m, genesisTx
 }
 

@@ -9,20 +9,20 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/MetalBlockchain/metalgo/codec"
-	"github.com/MetalBlockchain/metalgo/ids"
-	"github.com/MetalBlockchain/metalgo/utils/crypto/secp256k1"
-	"github.com/MetalBlockchain/metalgo/vms/avm/fxs"
-	"github.com/MetalBlockchain/metalgo/vms/avm/txs"
-	"github.com/MetalBlockchain/metalgo/vms/components/avax"
-	"github.com/MetalBlockchain/metalgo/vms/secp256k1fx"
+	"github.com/ava-labs/avalanchego/codec"
+	"github.com/ava-labs/avalanchego/ids"
+	"github.com/ava-labs/avalanchego/utils/constants"
+	"github.com/ava-labs/avalanchego/utils/crypto/secp256k1"
+	"github.com/ava-labs/avalanchego/vms/avm/fxs"
+	"github.com/ava-labs/avalanchego/vms/avm/txs"
+	"github.com/ava-labs/avalanchego/vms/components/avax"
+	"github.com/ava-labs/avalanchego/vms/secp256k1fx"
 )
 
 var (
-	networkID uint32 = 10
-	chainID          = ids.GenerateTestID()
-	keys             = secp256k1.TestKeys()
-	assetID          = ids.GenerateTestID()
+	chainID = ids.GenerateTestID()
+	keys    = secp256k1.TestKeys()
+	assetID = ids.GenerateTestID()
 )
 
 func TestStandardBlocks(t *testing.T) {
@@ -68,7 +68,7 @@ func createTestTxs(cm codec.Manager) ([]*txs.Tx, error) {
 	for i := 0; i < countTxs; i++ {
 		// Create the tx
 		tx := &txs.Tx{Unsigned: &txs.BaseTx{BaseTx: avax.BaseTx{
-			NetworkID:    networkID,
+			NetworkID:    constants.UnitTestID,
 			BlockchainID: chainID,
 			Outs: []*avax.TransferableOutput{{
 				Asset: avax.Asset{ID: assetID},

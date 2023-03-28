@@ -15,7 +15,6 @@ import (
 	"github.com/MetalBlockchain/metalgo/database/memdb"
 	"github.com/MetalBlockchain/metalgo/ids"
 	"github.com/MetalBlockchain/metalgo/utils/hashing"
-	"github.com/MetalBlockchain/metalgo/utils/set"
 )
 
 func getNodeValue(t ReadOnlyTrie, key string) ([]byte, error) {
@@ -55,58 +54,49 @@ func getNodeValue(t ReadOnlyTrie, key string) ([]byte, error) {
 	return nil, nil
 }
 
-func Test_Trie_GetKeyValues(t *testing.T) {
+func Test_GetValue_Safety(t *testing.T) {
+	require := require.New(t)
+
 	db, err := getBasicDB()
-	require.NoError(t, err)
+	require.NoError(err)
 
-	writeBasicBatch(t, db)
+	trieView, err := db.NewView()
+	require.NoError(err)
 
-	view, err := db.NewView(context.Background())
-	require.NoError(t, err)
+	require.NoError(trieView.Insert(context.Background(), []byte{0}, []byte{0}))
+	trieVal, err := trieView.GetValue(context.Background(), []byte{0})
+	require.NoError(err)
+	require.Equal([]byte{0}, trieVal)
+	trieVal[0] = 1
 
-	kvs, size, err := view.getKeyValues(context.Background(), []byte{0}, []byte{10}, 100, set.Set[string]{})
-	require.NoError(t, err)
-	require.Len(t, kvs, 5)
-	require.Equal(t, uint32(20), size)
+	// should still be []byte{0} after edit
+	trieVal, err = trieView.GetValue(context.Background(), []byte{0})
+	require.NoError(err)
+	require.Equal([]byte{0}, trieVal)
+}
 
-	// reduce maxSize to eliminate one item
-	kvs, size, err = view.getKeyValues(context.Background(), []byte{0}, []byte{10}, 16, set.Set[string]{})
-	require.NoError(t, err)
-	require.Len(t, kvs, 4)
-	require.Equal(t, uint32(16), size)
+func Test_GetValues_Safety(t *testing.T) {
+	require := require.New(t)
 
-	// reduce maxSize by 1 byte
-	// should remove the next item but the next item is 4 bytes so size goes down by more than 1 byte
-	kvs, size, err = view.getKeyValues(context.Background(), []byte{0}, []byte{10}, 15, set.Set[string]{})
-	require.NoError(t, err)
-	require.Len(t, kvs, 3)
-	require.Equal(t, uint32(12), size)
+	db, err := getBasicDB()
+	require.NoError(err)
 
-	// add more key/values that aren't in the underlying db
-	require.NoError(t, view.Insert(context.Background(), []byte{5}, []byte{5}))
-	require.NoError(t, view.Insert(context.Background(), []byte{6}, []byte{6}))
-	require.NoError(t, view.Insert(context.Background(), []byte{7}, []byte{7}))
+	trieView, err := db.NewView()
+	require.NoError(err)
 
-	// overwrite one key/value from underlying db
-	require.NoError(t, view.Insert(context.Background(), []byte{0}, []byte{1, 2, 3}))
+	require.NoError(trieView.Insert(context.Background(), []byte{0}, []byte{0}))
+	trieVals, errs := trieView.GetValues(context.Background(), [][]byte{{0}})
+	require.Len(errs, 1)
+	require.NoError(errs[0])
+	require.Equal([]byte{0}, trieVals[0])
+	trieVals[0][0] = 1
+	require.Equal([]byte{1}, trieVals[0])
 
-	kvs, size, err = view.getKeyValues(context.Background(), []byte{0}, []byte{10}, 100, set.Set[string]{})
-	require.NoError(t, err)
-	require.Len(t, kvs, 8)
-	require.Equal(t, uint32(34), size)
-
-	// reduce maxSize to eliminate one item
-	kvs, size, err = view.getKeyValues(context.Background(), []byte{0}, []byte{10}, 30, set.Set[string]{})
-	require.NoError(t, err)
-	require.Len(t, kvs, 7)
-	require.Equal(t, uint32(30), size)
-
-	// reduce maxSize by 1 byte
-	// should remove the next item but the next item is 4 bytes so size goes down by more than 1 byte
-	kvs, size, err = view.getKeyValues(context.Background(), []byte{0}, []byte{10}, 29, set.Set[string]{})
-	require.NoError(t, err)
-	require.Len(t, kvs, 6)
-	require.Equal(t, uint32(26), size)
+	// should still be []byte{0} after edit
+	trieVals, errs = trieView.GetValues(context.Background(), [][]byte{{0}})
+	require.Len(errs, 1)
+	require.NoError(errs[0])
+	require.Equal([]byte{0}, trieVals[0])
 }
 
 func TestTrieViewGetPathTo(t *testing.T) {

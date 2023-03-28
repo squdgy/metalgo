@@ -9,7 +9,7 @@ module github.com/MetalBlockchain/metalgo
 go 1.19
 
 require (
-	github.com/MetalBlockchain/coreth v0.11.8-rc.3
+	github.com/MetalBlockchain/coreth v0.11.9-rc.0
 	github.com/MetalBlockchain/metal-network-runner-sdk v0.3.0
 	github.com/Microsoft/go-winio v0.5.2
 	github.com/NYTimes/gziphandler v1.1.1

@@ -18,36 +18,37 @@ import (
 
 	"go.uber.org/zap"
 
-	"github.com/MetalBlockchain/metalgo/cache"
-	"github.com/MetalBlockchain/metalgo/database"
-	"github.com/MetalBlockchain/metalgo/database/manager"
-	"github.com/MetalBlockchain/metalgo/database/versiondb"
-	"github.com/MetalBlockchain/metalgo/ids"
-	"github.com/MetalBlockchain/metalgo/pubsub"
-	"github.com/MetalBlockchain/metalgo/snow"
-	"github.com/MetalBlockchain/metalgo/snow/choices"
-	"github.com/MetalBlockchain/metalgo/snow/consensus/snowman"
-	"github.com/MetalBlockchain/metalgo/snow/consensus/snowstorm"
-	"github.com/MetalBlockchain/metalgo/snow/engine/avalanche/vertex"
-	"github.com/MetalBlockchain/metalgo/snow/engine/common"
-	"github.com/MetalBlockchain/metalgo/utils/json"
-	"github.com/MetalBlockchain/metalgo/utils/linkedhashmap"
-	"github.com/MetalBlockchain/metalgo/utils/set"
-	"github.com/MetalBlockchain/metalgo/utils/timer"
-	"github.com/MetalBlockchain/metalgo/utils/timer/mockable"
-	"github.com/MetalBlockchain/metalgo/utils/wrappers"
-	"github.com/MetalBlockchain/metalgo/version"
-	"github.com/MetalBlockchain/metalgo/vms/avm/blocks"
-	"github.com/MetalBlockchain/metalgo/vms/avm/config"
-	"github.com/MetalBlockchain/metalgo/vms/avm/network"
-	"github.com/MetalBlockchain/metalgo/vms/avm/states"
-	"github.com/MetalBlockchain/metalgo/vms/avm/txs"
-	"github.com/MetalBlockchain/metalgo/vms/avm/txs/mempool"
-	"github.com/MetalBlockchain/metalgo/vms/avm/utxo"
-	"github.com/MetalBlockchain/metalgo/vms/components/avax"
-	"github.com/MetalBlockchain/metalgo/vms/components/index"
-	"github.com/MetalBlockchain/metalgo/vms/components/keystore"
-	"github.com/MetalBlockchain/metalgo/vms/secp256k1fx"
+	"github.com/ava-labs/avalanchego/cache"
+	"github.com/ava-labs/avalanchego/database"
+	"github.com/ava-labs/avalanchego/database/manager"
+	"github.com/ava-labs/avalanchego/database/versiondb"
+	"github.com/ava-labs/avalanchego/ids"
+	"github.com/ava-labs/avalanchego/pubsub"
+	"github.com/ava-labs/avalanchego/snow"
+	"github.com/ava-labs/avalanchego/snow/choices"
+	"github.com/ava-labs/avalanchego/snow/consensus/snowman"
+	"github.com/ava-labs/avalanchego/snow/consensus/snowstorm"
+	"github.com/ava-labs/avalanchego/snow/engine/avalanche/vertex"
+	"github.com/ava-labs/avalanchego/snow/engine/common"
+	"github.com/ava-labs/avalanchego/utils/json"
+	"github.com/ava-labs/avalanchego/utils/linkedhashmap"
+	"github.com/ava-labs/avalanchego/utils/set"
+	"github.com/ava-labs/avalanchego/utils/timer"
+	"github.com/ava-labs/avalanchego/utils/timer/mockable"
+	"github.com/ava-labs/avalanchego/utils/wrappers"
+	"github.com/ava-labs/avalanchego/version"
+	"github.com/ava-labs/avalanchego/vms/avm/blocks"
+	"github.com/ava-labs/avalanchego/vms/avm/config"
+	"github.com/ava-labs/avalanchego/vms/avm/metrics"
+	"github.com/ava-labs/avalanchego/vms/avm/network"
+	"github.com/ava-labs/avalanchego/vms/avm/states"
+	"github.com/ava-labs/avalanchego/vms/avm/txs"
+	"github.com/ava-labs/avalanchego/vms/avm/txs/mempool"
+	"github.com/ava-labs/avalanchego/vms/avm/utxo"
+	"github.com/ava-labs/avalanchego/vms/components/avax"
+	"github.com/ava-labs/avalanchego/vms/components/index"
+	"github.com/ava-labs/avalanchego/vms/components/keystore"
+	"github.com/ava-labs/avalanchego/vms/secp256k1fx"
 
 	blockbuilder "github.com/MetalBlockchain/metalgo/vms/avm/blocks/builder"
 	blockexecutor "github.com/MetalBlockchain/metalgo/vms/avm/blocks/executor"
@@ -75,7 +76,9 @@ type VM struct {
 	network.Atomic
 
 	config.Config
-	metrics
+
+	metrics metrics.Metrics
+
 	avax.AddressManager
 	avax.AtomicUTXOManager
 	ids.Aliaser
@@ -183,10 +186,13 @@ func (vm *VM) Initialize(
 	}
 	vm.registerer = registerer
 
-	err := vm.metrics.Initialize("", vm.registerer)
+	// Initialize metrics as soon as possible
+	var err error
+	vm.metrics, err = metrics.New("", registerer)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to initialize metrics: %w", err)
 	}
+
 	vm.AddressManager = avax.NewAddressManager(ctx)
 	vm.Aliaser = ids.NewAliaser()
 
@@ -352,8 +358,8 @@ func (vm *VM) CreateHandlers(context.Context) (map[string]*common.HTTPHandler, e
 	rpcServer := rpc.NewServer()
 	rpcServer.RegisterCodec(codec, "application/json")
 	rpcServer.RegisterCodec(codec, "application/json;charset=UTF-8")
-	rpcServer.RegisterInterceptFunc(vm.metrics.apiRequestMetric.InterceptRequest)
-	rpcServer.RegisterAfterFunc(vm.metrics.apiRequestMetric.AfterRequest)
+	rpcServer.RegisterInterceptFunc(vm.metrics.InterceptRequest)
+	rpcServer.RegisterAfterFunc(vm.metrics.AfterRequest)
 	// name this service "avm"
 	if err := rpcServer.RegisterService(&Service{vm: vm}, "avm"); err != nil {
 		return nil, err
@@ -362,8 +368,8 @@ func (vm *VM) CreateHandlers(context.Context) (map[string]*common.HTTPHandler, e
 	walletServer := rpc.NewServer()
 	walletServer.RegisterCodec(codec, "application/json")
 	walletServer.RegisterCodec(codec, "application/json;charset=UTF-8")
-	walletServer.RegisterInterceptFunc(vm.metrics.apiRequestMetric.InterceptRequest)
-	walletServer.RegisterAfterFunc(vm.metrics.apiRequestMetric.AfterRequest)
+	walletServer.RegisterInterceptFunc(vm.metrics.InterceptRequest)
+	walletServer.RegisterAfterFunc(vm.metrics.AfterRequest)
 	// name this service "wallet"
 	err := walletServer.RegisterService(&vm.walletService, "wallet")
 
@@ -434,6 +440,7 @@ func (vm *VM) Linearize(_ context.Context, stopVertexID ids.ID, toEngine chan<- 
 
 	vm.chainManager = blockexecutor.NewManager(
 		mempool,
+		vm.metrics,
 		&chainState{
 			State: vm.state,
 		},

@@ -1,6 +1,4 @@
-PKG_ROOT=/tmp
-VERSION=$TAG
-METAL_ROOT=$PKG_ROOT/metalgo-$VERSION
+METAL_ROOT=$PKG_ROOT/metalgo-$TAG
 
 mkdir -p $METAL_ROOT
 
@@ -12,7 +10,6 @@ fi
 
 echo "Build tgz package..."
 cd $PKG_ROOT
-echo "Version: $VERSION"
-tar -czvf "metalgo-linux-$ARCH-$VERSION.tar.gz" metalgo-$VERSION
-aws s3 cp metalgo-linux-$ARCH-$VERSION.tar.gz s3://$BUCKET/linux/binaries/ubuntu/$RELEASE/$ARCH/
-rm -rf $PKG_ROOT/metalgo*
+echo "Tag: $TAG"
+tar -czvf "metalgo-linux-$ARCH-$TAG.tar.gz" metalgo-$TAG
+aws s3 cp metalgo-linux-$ARCH-$TAG.tar.gz s3://$BUCKET/linux/binaries/ubuntu/$RELEASE/$ARCH/

@@ -12,7 +12,7 @@ import (
 	"github.com/MetalBlockchain/metalgo/chains/atomic"
 	"github.com/MetalBlockchain/metalgo/database/prefixdb"
 	"github.com/MetalBlockchain/metalgo/ids"
-	"github.com/MetalBlockchain/metalgo/utils/crypto"
+	"github.com/MetalBlockchain/metalgo/utils/crypto/secp256k1"
 	"github.com/MetalBlockchain/metalgo/vms/components/avax"
 	"github.com/MetalBlockchain/metalgo/vms/platformvm/status"
 	"github.com/MetalBlockchain/metalgo/vms/platformvm/txs"
@@ -68,7 +68,7 @@ func TestAtomicTxImports(t *testing.T) {
 	tx, err := env.txBuilder.NewImportTx(
 		env.ctx.XChainID,
 		recipientKey.PublicKey().Address(),
-		[]*crypto.PrivateKeySECP256K1R{recipientKey},
+		[]*secp256k1.PrivateKey{recipientKey},
 		ids.ShortEmpty, // change addr
 	)
 	require.NoError(err)

@@ -20,7 +20,7 @@ import (
 	"github.com/MetalBlockchain/metalgo/ids"
 	"github.com/MetalBlockchain/metalgo/utils"
 	"github.com/MetalBlockchain/metalgo/utils/constants"
-	"github.com/MetalBlockchain/metalgo/utils/crypto"
+	"github.com/MetalBlockchain/metalgo/utils/crypto/secp256k1"
 	"github.com/MetalBlockchain/metalgo/utils/formatting"
 	"github.com/MetalBlockchain/metalgo/utils/json"
 	"github.com/MetalBlockchain/metalgo/utils/logging"
@@ -122,7 +122,7 @@ type ExportKeyArgs struct {
 // ExportKeyReply is the response for ExportKey
 type ExportKeyReply struct {
 	// The decrypted PrivateKey for the Address provided in the arguments
-	PrivateKey *crypto.PrivateKeySECP256K1R `json:"privateKey"`
+	PrivateKey *secp256k1.PrivateKey `json:"privateKey"`
 }
 
 // ExportKey returns a private key from the provided user
@@ -152,7 +152,7 @@ func (s *Service) ExportKey(_ *http.Request, args *ExportKeyArgs, reply *ExportK
 // ImportKeyArgs are arguments for ImportKey
 type ImportKeyArgs struct {
 	api.UserPass
-	PrivateKey *crypto.PrivateKeySECP256K1R `json:"privateKey"`
+	PrivateKey *secp256k1.PrivateKey `json:"privateKey"`
 }
 
 // ImportKey adds a private key to the provided user

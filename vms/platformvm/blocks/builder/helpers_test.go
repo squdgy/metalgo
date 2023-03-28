@@ -27,7 +27,7 @@ import (
 	"github.com/MetalBlockchain/metalgo/snow/validators"
 	"github.com/MetalBlockchain/metalgo/utils"
 	"github.com/MetalBlockchain/metalgo/utils/constants"
-	"github.com/MetalBlockchain/metalgo/utils/crypto"
+	"github.com/MetalBlockchain/metalgo/utils/crypto/secp256k1"
 	"github.com/MetalBlockchain/metalgo/utils/formatting"
 	"github.com/MetalBlockchain/metalgo/utils/formatting/address"
 	"github.com/MetalBlockchain/metalgo/utils/json"
@@ -70,7 +70,7 @@ var (
 	defaultValidateEndTime    = defaultValidateStartTime.Add(10 * defaultMinStakingDuration)
 	defaultMinValidatorStake  = 5 * units.MilliAvax
 	defaultBalance            = 100 * defaultMinValidatorStake
-	preFundedKeys             = crypto.BuildTestKeys()
+	preFundedKeys             = secp256k1.TestKeys()
 	avaxAssetID               = ids.ID{'y', 'e', 'e', 't'}
 	defaultTxFee              = uint64(100)
 	xChainID                  = ids.Empty.Prefix(0)
@@ -206,7 +206,7 @@ func addSubnet(env *environment) {
 			preFundedKeys[1].PublicKey().Address(),
 			preFundedKeys[2].PublicKey().Address(),
 		},
-		[]*crypto.PrivateKeySECP256K1R{preFundedKeys[0]},
+		[]*secp256k1.PrivateKey{preFundedKeys[0]},
 		preFundedKeys[0].PublicKey().Address(),
 	)
 	if err != nil {

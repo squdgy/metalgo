@@ -39,9 +39,10 @@ import (
 	"github.com/MetalBlockchain/metalgo/snow/networking/timeout"
 	"github.com/MetalBlockchain/metalgo/snow/uptime"
 	"github.com/MetalBlockchain/metalgo/snow/validators"
+	"github.com/MetalBlockchain/metalgo/subnets"
 	"github.com/MetalBlockchain/metalgo/utils/constants"
-	"github.com/MetalBlockchain/metalgo/utils/crypto"
 	"github.com/MetalBlockchain/metalgo/utils/crypto/bls"
+	"github.com/MetalBlockchain/metalgo/utils/crypto/secp256k1"
 	"github.com/MetalBlockchain/metalgo/utils/formatting"
 	"github.com/MetalBlockchain/metalgo/utils/formatting/address"
 	"github.com/MetalBlockchain/metalgo/utils/json"
@@ -105,7 +106,7 @@ var (
 	banffForkTime = defaultValidateEndTime.Add(-5 * defaultMinStakingDuration)
 
 	// each key controls an address that has [defaultBalance] AVAX at genesis
-	keys = crypto.BuildTestKeys()
+	keys = secp256k1.TestKeys()
 
 	defaultMinValidatorStake = 5 * units.MilliAvax
 	defaultMaxValidatorStake = 500 * units.MilliAvax
@@ -124,7 +125,7 @@ var (
 	cChainID = ids.Empty.Prefix(1)
 
 	// Used to create and use keys.
-	testKeyFactory crypto.FactorySECP256K1R
+	testKeyFactory secp256k1.Factory
 
 	errMissing = errors.New("missing")
 )
@@ -390,8 +391,8 @@ func defaultVM() (*VM, database.Database, *mutableSharedMemory) {
 		2, // threshold; 2 sigs from keys[0], keys[1], keys[2] needed to add validator to this subnet
 		// control keys are keys[0], keys[1], keys[2]
 		[]ids.ShortID{keys[0].PublicKey().Address(), keys[1].PublicKey().Address(), keys[2].PublicKey().Address()},
-		[]*crypto.PrivateKeySECP256K1R{keys[0]}, // pays tx fee
-		keys[0].PublicKey().Address(),           // change addr
+		[]*secp256k1.PrivateKey{keys[0]}, // pays tx fee
+		keys[0].PublicKey().Address(),    // change addr
 	)
 	if err != nil {
 		panic(err)
@@ -479,8 +480,8 @@ func GenesisVMWithArgs(t *testing.T, args *api.BuildGenesisArgs) ([]byte, chan c
 		2, // threshold; 2 sigs from keys[0], keys[1], keys[2] needed to add validator to this subnet
 		// control keys are keys[0], keys[1], keys[2]
 		[]ids.ShortID{keys[0].PublicKey().Address(), keys[1].PublicKey().Address(), keys[2].PublicKey().Address()},
-		[]*crypto.PrivateKeySECP256K1R{keys[0]}, // pays tx fee
-		keys[0].PublicKey().Address(),           // change addr
+		[]*secp256k1.PrivateKey{keys[0]}, // pays tx fee
+		keys[0].PublicKey().Address(),    // change addr
 	)
 	require.NoError(err)
 
@@ -585,7 +586,7 @@ func TestAddValidatorCommit(t *testing.T) {
 		nodeID,
 		rewardAddress,
 		reward.PercentDenominator,
-		[]*crypto.PrivateKeySECP256K1R{keys[0]},
+		[]*secp256k1.PrivateKey{keys[0]},
 		ids.ShortEmpty, // change addr
 	)
 	require.NoError(err)
@@ -632,7 +633,7 @@ func TestInvalidAddValidatorCommit(t *testing.T) {
 		nodeID,
 		ids.ShortID(nodeID),
 		reward.PercentDenominator,
-		[]*crypto.PrivateKeySECP256K1R{keys[0]},
+		[]*secp256k1.PrivateKey{keys[0]},
 		ids.ShortEmpty, // change addr
 	)
 	require.NoError(err)
@@ -689,7 +690,7 @@ func TestAddValidatorReject(t *testing.T) {
 		nodeID,
 		rewardAddress,
 		reward.PercentDenominator,
-		[]*crypto.PrivateKeySECP256K1R{keys[0]},
+		[]*secp256k1.PrivateKey{keys[0]},
 		ids.ShortEmpty, // change addr
 	)
 	require.NoError(err)
@@ -735,7 +736,7 @@ func TestAddValidatorInvalidNotReissued(t *testing.T) {
 		repeatNodeID,
 		ids.ShortID(repeatNodeID),
 		reward.PercentDenominator,
-		[]*crypto.PrivateKeySECP256K1R{keys[0]},
+		[]*secp256k1.PrivateKey{keys[0]},
 		ids.ShortEmpty, // change addr
 	)
 	require.NoError(err)
@@ -768,7 +769,7 @@ func TestAddSubnetValidatorAccept(t *testing.T) {
 		uint64(endTime.Unix()),
 		nodeID,
 		testSubnet1.ID(),
-		[]*crypto.PrivateKeySECP256K1R{testSubnet1ControlKeys[0], testSubnet1ControlKeys[1]},
+		[]*secp256k1.PrivateKey{testSubnet1ControlKeys[0], testSubnet1ControlKeys[1]},
 		ids.ShortEmpty, // change addr
 	)
 	require.NoError(err)
@@ -814,7 +815,7 @@ func TestAddSubnetValidatorReject(t *testing.T) {
 		uint64(endTime.Unix()),
 		nodeID,
 		testSubnet1.ID(),
-		[]*crypto.PrivateKeySECP256K1R{testSubnet1ControlKeys[1], testSubnet1ControlKeys[2]},
+		[]*secp256k1.PrivateKey{testSubnet1ControlKeys[1], testSubnet1ControlKeys[2]},
 		ids.ShortEmpty, // change addr
 	)
 	require.NoError(err)
@@ -1157,7 +1158,7 @@ func TestCreateChain(t *testing.T) {
 		ids.ID{'t', 'e', 's', 't', 'v', 'm'},
 		nil,
 		"name",
-		[]*crypto.PrivateKeySECP256K1R{testSubnet1ControlKeys[0], testSubnet1ControlKeys[1]},
+		[]*secp256k1.PrivateKey{testSubnet1ControlKeys[0], testSubnet1ControlKeys[1]},
 		ids.ShortEmpty, // change addr
 	)
 	require.NoError(err)
@@ -1213,8 +1214,8 @@ func TestCreateSubnet(t *testing.T) {
 			keys[0].PublicKey().Address(),
 			keys[1].PublicKey().Address(),
 		},
-		[]*crypto.PrivateKeySECP256K1R{keys[0]}, // payer
-		keys[0].PublicKey().Address(),           // change addr
+		[]*secp256k1.PrivateKey{keys[0]}, // payer
+		keys[0].PublicKey().Address(),    // change addr
 	)
 	require.NoError(err)
 
@@ -1254,7 +1255,7 @@ func TestCreateSubnet(t *testing.T) {
 		uint64(endTime.Unix()),
 		nodeID,
 		createSubnetTx.ID(),
-		[]*crypto.PrivateKeySECP256K1R{keys[0]},
+		[]*secp256k1.PrivateKey{keys[0]},
 		ids.ShortEmpty, // change addr
 	)
 	require.NoError(err)
@@ -1332,7 +1333,7 @@ func TestAtomicImport(t *testing.T) {
 	_, err := vm.txBuilder.NewImportTx(
 		vm.ctx.XChainID,
 		recipientKey.PublicKey().Address(),
-		[]*crypto.PrivateKeySECP256K1R{keys[0]},
+		[]*secp256k1.PrivateKey{keys[0]},
 		ids.ShortEmpty, // change addr
 	)
 	require.Error(err, "should have errored due to missing utxos")
@@ -1373,7 +1374,7 @@ func TestAtomicImport(t *testing.T) {
 	tx, err := vm.txBuilder.NewImportTx(
 		vm.ctx.XChainID,
 		recipientKey.PublicKey().Address(),
-		[]*crypto.PrivateKeySECP256K1R{recipientKey},
+		[]*secp256k1.PrivateKey{recipientKey},
 		ids.ShortEmpty, // change addr
 	)
 	require.NoError(err)
@@ -1752,19 +1753,20 @@ func TestBootstrapPartiallyAccepted(t *testing.T) {
 	externalSender.Default(true)
 
 	// Passes messages from the consensus engine to the network
+	gossipConfig := subnets.GossipConfig{
+		AcceptedFrontierPeerSize:  1,
+		OnAcceptPeerSize:          1,
+		AppGossipValidatorSize:    1,
+		AppGossipNonValidatorSize: 1,
+	}
 	sender, err := sender.New(
 		consensusCtx,
 		mc,
 		externalSender,
 		chainRouter,
 		timeoutManager,
-		sender.GossipConfig{
-			AcceptedFrontierPeerSize:  1,
-			OnAcceptPeerSize:          1,
-			AppGossipValidatorSize:    1,
-			AppGossipNonValidatorSize: 1,
-		},
 		p2p.EngineType_ENGINE_TYPE_SNOWMAN,
+		subnets.New(subnets.Config{GossipConfig: gossipConfig}),
 	)
 	require.NoError(err)
 
@@ -1782,7 +1784,7 @@ func TestBootstrapPartiallyAccepted(t *testing.T) {
 	}
 
 	isBootstrapped := false
-	subnet := &common.SubnetTest{
+	bootstrapTracker := &common.BootstrapTrackerTest{
 		T: t,
 		IsBootstrappedF: func() bool {
 			return isBootstrapped
@@ -1806,7 +1808,7 @@ func TestBootstrapPartiallyAccepted(t *testing.T) {
 		StartupTracker:                 startup,
 		Alpha:                          (beacons.Weight() + 1) / 2,
 		Sender:                         sender,
-		Subnet:                         subnet,
+		BootstrapTracker:               bootstrapTracker,
 		AncestorsMaxContainersSent:     2000,
 		AncestorsMaxContainersReceived: 2000,
 		SharedCfg:                      &common.SharedConfig{},
@@ -1835,10 +1837,10 @@ func TestBootstrapPartiallyAccepted(t *testing.T) {
 		bootstrapConfig.Ctx,
 		beacons,
 		msgChan,
-		nil,
 		time.Hour,
 		cpuTracker,
 		vm,
+		subnets.New(subnets.Config{}),
 	)
 	require.NoError(err)
 
@@ -2843,9 +2845,8 @@ func TestRemovePermissionedValidatorDuringAddPending(t *testing.T) {
 		vm.ctx.Lock.Unlock()
 	}()
 
-	keyIntf, err := testKeyFactory.NewPrivateKey()
+	key, err := testKeyFactory.NewPrivateKey()
 	require.NoError(err)
-	key := keyIntf.(*crypto.PrivateKeySECP256K1R)
 
 	id := key.PublicKey().Address()
 
@@ -2856,7 +2857,7 @@ func TestRemovePermissionedValidatorDuringAddPending(t *testing.T) {
 		ids.NodeID(id),
 		id,
 		reward.PercentDenominator,
-		[]*crypto.PrivateKeySECP256K1R{keys[0]},
+		[]*secp256k1.PrivateKey{keys[0]},
 		keys[0].Address(),
 	)
 	require.NoError(err)
@@ -2874,7 +2875,7 @@ func TestRemovePermissionedValidatorDuringAddPending(t *testing.T) {
 	createSubnetTx, err := vm.txBuilder.NewCreateSubnetTx(
 		1,
 		[]ids.ShortID{id},
-		[]*crypto.PrivateKeySECP256K1R{keys[0]},
+		[]*secp256k1.PrivateKey{keys[0]},
 		keys[0].Address(),
 	)
 	require.NoError(err)
@@ -2895,7 +2896,7 @@ func TestRemovePermissionedValidatorDuringAddPending(t *testing.T) {
 		uint64(validatorEndTime.Unix()),
 		ids.NodeID(id),
 		createSubnetTx.ID(),
-		[]*crypto.PrivateKeySECP256K1R{key, keys[1]},
+		[]*secp256k1.PrivateKey{key, keys[1]},
 		keys[1].Address(),
 	)
 	require.NoError(err)
@@ -2903,7 +2904,7 @@ func TestRemovePermissionedValidatorDuringAddPending(t *testing.T) {
 	removeSubnetValidatorTx, err := vm.txBuilder.NewRemoveSubnetValidatorTx(
 		ids.NodeID(id),
 		createSubnetTx.ID(),
-		[]*crypto.PrivateKeySECP256K1R{key, keys[2]},
+		[]*secp256k1.PrivateKey{key, keys[2]},
 		keys[2].Address(),
 	)
 	require.NoError(err)

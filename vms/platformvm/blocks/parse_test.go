@@ -11,13 +11,13 @@ import (
 
 	"github.com/MetalBlockchain/metalgo/codec"
 	"github.com/MetalBlockchain/metalgo/ids"
-	"github.com/MetalBlockchain/metalgo/utils/crypto"
+	"github.com/MetalBlockchain/metalgo/utils/crypto/secp256k1"
 	"github.com/MetalBlockchain/metalgo/vms/components/avax"
 	"github.com/MetalBlockchain/metalgo/vms/platformvm/txs"
 	"github.com/MetalBlockchain/metalgo/vms/secp256k1fx"
 )
 
-var preFundedKeys = crypto.BuildTestKeys()
+var preFundedKeys = secp256k1.TestKeys()
 
 func TestStandardBlocks(t *testing.T) {
 	// check Apricot standard block can be built and parsed
@@ -294,7 +294,7 @@ func testAtomicTx() (*txs.Tx, error) {
 			},
 		}},
 	}
-	signers := [][]*crypto.PrivateKeySECP256K1R{{preFundedKeys[0]}}
+	signers := [][]*secp256k1.PrivateKey{{preFundedKeys[0]}}
 	return txs.NewSigned(utx, txs.Codec, signers)
 }
 
@@ -338,7 +338,7 @@ func testDecisionTxs() ([]*txs.Tx, error) {
 			SubnetAuth:  &secp256k1fx.Input{SigIndices: []uint32{1}},
 		}
 
-		signers := [][]*crypto.PrivateKeySECP256K1R{{preFundedKeys[0]}}
+		signers := [][]*secp256k1.PrivateKey{{preFundedKeys[0]}}
 		tx, err := txs.NewSigned(utx, txs.Codec, signers)
 		if err != nil {
 			return nil, err
@@ -353,6 +353,6 @@ func testProposalTx() (*txs.Tx, error) {
 		TxID: ids.ID{'r', 'e', 'w', 'a', 'r', 'd', 'I', 'D'},
 	}
 
-	signers := [][]*crypto.PrivateKeySECP256K1R{{preFundedKeys[0]}}
+	signers := [][]*secp256k1.PrivateKey{{preFundedKeys[0]}}
 	return txs.NewSigned(utx, txs.Codec, signers)
 }

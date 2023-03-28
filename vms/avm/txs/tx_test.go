@@ -10,7 +10,7 @@ import (
 	"github.com/MetalBlockchain/metalgo/codec/linearcodec"
 	"github.com/MetalBlockchain/metalgo/ids"
 	"github.com/MetalBlockchain/metalgo/snow"
-	"github.com/MetalBlockchain/metalgo/utils/crypto"
+	"github.com/MetalBlockchain/metalgo/utils/crypto/secp256k1"
 	"github.com/MetalBlockchain/metalgo/utils/units"
 	"github.com/MetalBlockchain/metalgo/utils/wrappers"
 	"github.com/MetalBlockchain/metalgo/vms/avm/fxs"
@@ -23,7 +23,7 @@ var (
 	chainID                = ids.ID{5, 4, 3, 2, 1}
 	platformChainID        = ids.Empty.Prefix(0)
 
-	keys = crypto.BuildTestKeys()
+	keys = secp256k1.TestKeys()
 
 	assetID = ids.ID{1, 2, 3}
 )

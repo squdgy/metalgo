@@ -11,7 +11,7 @@ import (
 
 	"github.com/MetalBlockchain/metalgo/ids"
 	"github.com/MetalBlockchain/metalgo/utils/constants"
-	"github.com/MetalBlockchain/metalgo/utils/crypto"
+	"github.com/MetalBlockchain/metalgo/utils/crypto/secp256k1"
 	"github.com/MetalBlockchain/metalgo/utils/hashing"
 	"github.com/MetalBlockchain/metalgo/utils/units"
 	"github.com/MetalBlockchain/metalgo/vms/components/avax"
@@ -35,7 +35,7 @@ func TestCreateChainTxInsufficientControlSigs(t *testing.T) {
 		constants.AVMID,
 		nil,
 		"chain name",
-		[]*crypto.PrivateKeySECP256K1R{preFundedKeys[0], preFundedKeys[1]},
+		[]*secp256k1.PrivateKey{preFundedKeys[0], preFundedKeys[1]},
 		ids.ShortEmpty,
 	)
 	require.NoError(err)
@@ -70,13 +70,13 @@ func TestCreateChainTxWrongControlSig(t *testing.T) {
 		constants.AVMID,
 		nil,
 		"chain name",
-		[]*crypto.PrivateKeySECP256K1R{testSubnet1ControlKeys[0], testSubnet1ControlKeys[1]},
+		[]*secp256k1.PrivateKey{testSubnet1ControlKeys[0], testSubnet1ControlKeys[1]},
 		ids.ShortEmpty,
 	)
 	require.NoError(err)
 
 	// Generate new, random key to sign tx with
-	factory := crypto.FactorySECP256K1R{}
+	factory := secp256k1.Factory{}
 	key, err := factory.NewPrivateKey()
 	require.NoError(err)
 
@@ -113,7 +113,7 @@ func TestCreateChainTxNoSuchSubnet(t *testing.T) {
 		constants.AVMID,
 		nil,
 		"chain name",
-		[]*crypto.PrivateKeySECP256K1R{testSubnet1ControlKeys[0], testSubnet1ControlKeys[1]},
+		[]*secp256k1.PrivateKey{testSubnet1ControlKeys[0], testSubnet1ControlKeys[1]},
 		ids.ShortEmpty,
 	)
 	require.NoError(err)
@@ -147,7 +147,7 @@ func TestCreateChainTxValid(t *testing.T) {
 		constants.AVMID,
 		nil,
 		"chain name",
-		[]*crypto.PrivateKeySECP256K1R{testSubnet1ControlKeys[0], testSubnet1ControlKeys[1]},
+		[]*secp256k1.PrivateKey{testSubnet1ControlKeys[0], testSubnet1ControlKeys[1]},
 		ids.ShortEmpty,
 	)
 	require.NoError(err)

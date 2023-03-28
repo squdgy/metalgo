@@ -11,7 +11,7 @@ import (
 
 	"github.com/MetalBlockchain/metalgo/ids"
 	"github.com/MetalBlockchain/metalgo/utils/constants"
-	"github.com/MetalBlockchain/metalgo/utils/crypto"
+	"github.com/MetalBlockchain/metalgo/utils/crypto/secp256k1"
 	"github.com/MetalBlockchain/metalgo/vms/platformvm/message"
 	"github.com/MetalBlockchain/metalgo/vms/platformvm/txs"
 
@@ -25,7 +25,7 @@ func getValidTx(txBuilder txbuilder.Builder, t *testing.T) *txs.Tx {
 		constants.AVMID,
 		nil,
 		"chain name",
-		[]*crypto.PrivateKeySECP256K1R{testSubnet1ControlKeys[0], testSubnet1ControlKeys[1]},
+		[]*secp256k1.PrivateKey{testSubnet1ControlKeys[0], testSubnet1ControlKeys[1]},
 		ids.ShortEmpty,
 	)
 	require.NoError(t, err)

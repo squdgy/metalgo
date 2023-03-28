@@ -11,7 +11,7 @@ import (
 	"github.com/MetalBlockchain/metalgo/codec"
 	"github.com/MetalBlockchain/metalgo/ids"
 	"github.com/MetalBlockchain/metalgo/utils"
-	"github.com/MetalBlockchain/metalgo/utils/crypto"
+	"github.com/MetalBlockchain/metalgo/utils/crypto/secp256k1"
 	"github.com/MetalBlockchain/metalgo/vms/avm/fxs"
 	"github.com/MetalBlockchain/metalgo/vms/components/avax"
 	"github.com/MetalBlockchain/metalgo/vms/components/verify"
@@ -82,7 +82,7 @@ func IsSortedAndUniqueOperations(ops []*Operation, c codec.Manager) bool {
 
 type innerSortOperationsWithSigners struct {
 	ops     []*Operation
-	signers [][]*crypto.PrivateKeySECP256K1R
+	signers [][]*secp256k1.PrivateKey
 	codec   codec.Manager
 }
 
@@ -110,6 +110,6 @@ func (ops *innerSortOperationsWithSigners) Swap(i, j int) {
 	ops.signers[j], ops.signers[i] = ops.signers[i], ops.signers[j]
 }
 
-func SortOperationsWithSigners(ops []*Operation, signers [][]*crypto.PrivateKeySECP256K1R, codec codec.Manager) {
+func SortOperationsWithSigners(ops []*Operation, signers [][]*secp256k1.PrivateKey, codec codec.Manager) {
 	sort.Sort(&innerSortOperationsWithSigners{ops: ops, signers: signers, codec: codec})
 }

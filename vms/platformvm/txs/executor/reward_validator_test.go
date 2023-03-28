@@ -11,7 +11,7 @@ import (
 
 	"github.com/MetalBlockchain/metalgo/ids"
 	"github.com/MetalBlockchain/metalgo/utils/constants"
-	"github.com/MetalBlockchain/metalgo/utils/crypto"
+	"github.com/MetalBlockchain/metalgo/utils/crypto/secp256k1"
 	"github.com/MetalBlockchain/metalgo/utils/math"
 	"github.com/MetalBlockchain/metalgo/utils/set"
 	"github.com/MetalBlockchain/metalgo/vms/components/avax"
@@ -238,7 +238,7 @@ func TestRewardDelegatorTxExecuteOnCommit(t *testing.T) {
 		vdrNodeID,        // node ID
 		vdrRewardAddress, // reward address
 		reward.PercentDenominator/4,
-		[]*crypto.PrivateKeySECP256K1R{preFundedKeys[0]},
+		[]*secp256k1.PrivateKey{preFundedKeys[0]},
 		ids.ShortEmpty,
 	)
 	require.NoError(err)
@@ -252,7 +252,7 @@ func TestRewardDelegatorTxExecuteOnCommit(t *testing.T) {
 		delEndTime,
 		vdrNodeID,
 		delRewardAddress,
-		[]*crypto.PrivateKeySECP256K1R{preFundedKeys[0]},
+		[]*secp256k1.PrivateKey{preFundedKeys[0]},
 		ids.ShortEmpty, // Change address
 	)
 	require.NoError(err)
@@ -365,7 +365,7 @@ func TestRewardDelegatorTxExecuteOnAbort(t *testing.T) {
 		vdrNodeID,        // node ID
 		vdrRewardAddress, // reward address
 		reward.PercentDenominator/4,
-		[]*crypto.PrivateKeySECP256K1R{preFundedKeys[0]},
+		[]*secp256k1.PrivateKey{preFundedKeys[0]},
 		ids.ShortEmpty,
 	)
 	require.NoError(err)
@@ -378,7 +378,7 @@ func TestRewardDelegatorTxExecuteOnAbort(t *testing.T) {
 		delEndTime,
 		vdrNodeID,
 		delRewardAddress,
-		[]*crypto.PrivateKeySECP256K1R{preFundedKeys[0]},
+		[]*secp256k1.PrivateKey{preFundedKeys[0]},
 		ids.ShortEmpty,
 	)
 	require.NoError(err)

@@ -23,8 +23,6 @@ import (
 
 	"go.uber.org/zap"
 
-	coreth "github.com/MetalBlockchain/coreth/plugin/evm"
-
 	"github.com/MetalBlockchain/metalgo/api/admin"
 	"github.com/MetalBlockchain/metalgo/api/auth"
 	"github.com/MetalBlockchain/metalgo/api/health"
@@ -539,7 +537,7 @@ func (n *Node) initIndexer() error {
 
 // Initializes the Platform chain.
 // Its genesis data specifies the other chains that should be created.
-func (n *Node) initChains(genesisBytes []byte) {
+func (n *Node) initChains(genesisBytes []byte) error {
 	n.Log.Info("initializing chains")
 
 	platformChain := chains.ChainParameters{
@@ -551,7 +549,7 @@ func (n *Node) initChains(genesisBytes []byte) {
 	}
 
 	// Start the chain creator with the Platform Chain
-	n.chainManager.StartChainCreator(platformChain)
+	return n.chainManager.StartChainCreator(platformChain)
 }
 
 func (n *Node) initMetrics() {
@@ -699,7 +697,6 @@ func (n *Node) initChainManager(avaxAssetID ids.ID) error {
 		MsgCreator:                              n.msgCreator,
 		Router:                                  n.Config.ConsensusRouter,
 		Net:                                     n.Net,
-		ConsensusParams:                         n.Config.ConsensusParams,
 		Validators:                              n.vdrs,
 		NodeID:                                  n.ID,
 		NetworkID:                               n.Config.NetworkID,
@@ -720,7 +717,6 @@ func (n *Node) initChainManager(avaxAssetID ids.ID) error {
 		SubnetConfigs:                           n.Config.SubnetConfigs,
 		ChainConfigs:                            n.Config.ChainConfigs,
 		ConsensusGossipFrequency:                n.Config.ConsensusGossipFrequency,
-		GossipConfig:                            n.Config.GossipConfig,
 		BootstrapMaxTimeGetAncestors:            n.Config.BootstrapMaxTimeGetAncestors,
 		BootstrapAncestorsMaxContainersSent:     n.Config.BootstrapAncestorsMaxContainersSent,
 		BootstrapAncestorsMaxContainersReceived: n.Config.BootstrapAncestorsMaxContainersReceived,
@@ -797,7 +793,6 @@ func (n *Node) initVMs() error {
 			TxFee:            n.Config.TxFee,
 			CreateAssetTxFee: n.Config.CreateAssetTxFee,
 		}),
-		vmRegisterer.Register(context.TODO(), constants.EVMID, &coreth.Factory{}),
 		n.Config.VMManager.RegisterFactory(context.TODO(), secp256k1fx.ID, &secp256k1fx.Factory{}),
 		n.Config.VMManager.RegisterFactory(context.TODO(), nftfx.ID, &nftfx.Factory{}),
 		n.Config.VMManager.RegisterFactory(context.TODO(), propertyfx.ID, &propertyfx.Factory{}),
@@ -1331,7 +1326,9 @@ func (n *Node) Initialize(
 	n.initProfiler()
 
 	// Start the Platform chain
-	n.initChains(n.Config.GenesisBytes)
+	if err := n.initChains(n.Config.GenesisBytes); err != nil {
+		return fmt.Errorf("couldn't initialize chains: %w", err)
+	}
 	return nil
 }
 

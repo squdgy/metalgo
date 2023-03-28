@@ -8,14 +8,14 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/MetalBlockchain/metalgo/utils/crypto"
+	"github.com/MetalBlockchain/metalgo/utils/crypto/secp256k1"
 	"github.com/MetalBlockchain/metalgo/utils/formatting"
 )
 
 var errNilCredential = errors.New("nil credential")
 
 type Credential struct {
-	Sigs [][crypto.SECP256K1RSigLen]byte `serialize:"true" json:"signatures"`
+	Sigs [][secp256k1.SignatureLen]byte `serialize:"true" json:"signatures"`
 }
 
 // MarshalJSON marshals [cr] to JSON

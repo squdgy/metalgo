@@ -14,7 +14,7 @@ import (
 
 	"github.com/MetalBlockchain/metalgo/ids"
 	"github.com/MetalBlockchain/metalgo/snow"
-	"github.com/MetalBlockchain/metalgo/utils/crypto"
+	"github.com/MetalBlockchain/metalgo/utils/crypto/secp256k1"
 	"github.com/MetalBlockchain/metalgo/utils/logging"
 	"github.com/MetalBlockchain/metalgo/utils/timer/mockable"
 	"github.com/MetalBlockchain/metalgo/vms/components/avax"
@@ -336,7 +336,7 @@ func TestBuildBlock(t *testing.T) {
 			},
 			Creds: []verify.Verifiable{
 				&secp256k1fx.Credential{
-					Sigs: [][crypto.SECP256K1RSigLen]byte{{1, 3, 3, 7}},
+					Sigs: [][secp256k1.SignatureLen]byte{{1, 3, 3, 7}},
 				},
 			},
 		}}

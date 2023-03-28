@@ -8,7 +8,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/MetalBlockchain/metalgo/utils/crypto"
+	"github.com/MetalBlockchain/metalgo/utils/crypto/secp256k1"
 	"github.com/MetalBlockchain/metalgo/utils/formatting/address"
 	"github.com/MetalBlockchain/metalgo/utils/hashing"
 )
@@ -18,7 +18,7 @@ const (
 	hrp        = "fuji"
 )
 
-var factory crypto.FactorySECP256K1R
+var factory secp256k1.Factory
 
 // TestLedger will be skipped if a ledger is not connected.
 func TestLedger(t *testing.T) {

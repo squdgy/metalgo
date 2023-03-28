@@ -25,6 +25,7 @@ import (
 	"github.com/MetalBlockchain/metalgo/snow/networking/tracker"
 	"github.com/MetalBlockchain/metalgo/snow/networking/worker"
 	"github.com/MetalBlockchain/metalgo/snow/validators"
+	"github.com/MetalBlockchain/metalgo/subnets"
 	"github.com/MetalBlockchain/metalgo/utils"
 	"github.com/MetalBlockchain/metalgo/utils/timer/mockable"
 )
@@ -113,16 +114,16 @@ func New(
 	ctx *snow.ConsensusContext,
 	validators validators.Set,
 	msgFromVMChan <-chan common.Message,
-	preemptTimeouts chan struct{},
 	gossipFrequency time.Duration,
 	resourceTracker tracker.ResourceTracker,
 	subnetConnector validators.SubnetConnector,
+	subnet subnets.Subnet,
 ) (Handler, error) {
 	h := &handler{
 		ctx:              ctx,
 		validators:       validators,
 		msgFromVMChan:    msgFromVMChan,
-		preemptTimeouts:  preemptTimeouts,
+		preemptTimeouts:  subnet.OnBootstrapCompleted(),
 		gossipFrequency:  gossipFrequency,
 		asyncMessagePool: worker.NewPool(threadPoolSize),
 		timeouts:         make(chan struct{}, 1),

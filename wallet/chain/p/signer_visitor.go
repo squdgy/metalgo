@@ -12,8 +12,8 @@ import (
 	"github.com/MetalBlockchain/metalgo/database"
 	"github.com/MetalBlockchain/metalgo/ids"
 	"github.com/MetalBlockchain/metalgo/utils/constants"
-	"github.com/MetalBlockchain/metalgo/utils/crypto"
 	"github.com/MetalBlockchain/metalgo/utils/crypto/keychain"
+	"github.com/MetalBlockchain/metalgo/utils/crypto/secp256k1"
 	"github.com/MetalBlockchain/metalgo/utils/hashing"
 	"github.com/MetalBlockchain/metalgo/vms/components/avax"
 	"github.com/MetalBlockchain/metalgo/vms/components/verify"
@@ -32,7 +32,7 @@ var (
 	errUnknownSubnetAuthType = errors.New("unknown subnet auth type")
 	errInvalidUTXOSigIndex   = errors.New("invalid UTXO signature index")
 
-	emptySig [crypto.SECP256K1RSigLen]byte
+	emptySig [secp256k1.SignatureLen]byte
 )
 
 // signerVisitor handles signing transactions for the signer
@@ -272,7 +272,7 @@ func sign(tx *txs.Tx, txSigners [][]keychain.Signer) error {
 		tx.Creds = make([]verify.Verifiable, expectedLen)
 	}
 
-	sigCache := make(map[ids.ShortID][crypto.SECP256K1RSigLen]byte)
+	sigCache := make(map[ids.ShortID][secp256k1.SignatureLen]byte)
 	for credIndex, inputSigners := range txSigners {
 		credIntf := tx.Creds[credIndex]
 		if credIntf == nil {
@@ -285,7 +285,7 @@ func sign(tx *txs.Tx, txSigners [][]keychain.Signer) error {
 			return errUnknownCredentialType
 		}
 		if expectedLen := len(inputSigners); expectedLen != len(cred.Sigs) {
-			cred.Sigs = make([][crypto.SECP256K1RSigLen]byte, expectedLen)
+			cred.Sigs = make([][secp256k1.SignatureLen]byte, expectedLen)
 		}
 
 		for sigIndex, signer := range inputSigners {

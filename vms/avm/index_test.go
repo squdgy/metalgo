@@ -23,7 +23,7 @@ import (
 	"github.com/MetalBlockchain/metalgo/ids"
 	"github.com/MetalBlockchain/metalgo/snow"
 	"github.com/MetalBlockchain/metalgo/snow/engine/common"
-	"github.com/MetalBlockchain/metalgo/utils/crypto"
+	"github.com/MetalBlockchain/metalgo/utils/crypto/secp256k1"
 	"github.com/MetalBlockchain/metalgo/utils/wrappers"
 	"github.com/MetalBlockchain/metalgo/version"
 	"github.com/MetalBlockchain/metalgo/vms/avm/txs"
@@ -478,8 +478,8 @@ func buildPlatformUTXO(utxoID avax.UTXOID, txAssetID avax.Asset, addr ids.ShortI
 	}
 }
 
-func signTX(codec codec.Manager, tx *txs.Tx, key *crypto.PrivateKeySECP256K1R) error {
-	return tx.SignSECP256K1Fx(codec, [][]*crypto.PrivateKeySECP256K1R{{key}})
+func signTX(codec codec.Manager, tx *txs.Tx, key *secp256k1.PrivateKey) error {
+	return tx.SignSECP256K1Fx(codec, [][]*secp256k1.PrivateKey{{key}})
 }
 
 func buildTX(utxoID avax.UTXOID, txAssetID avax.Asset, address ...ids.ShortID) *txs.Tx {

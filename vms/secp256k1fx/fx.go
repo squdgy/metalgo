@@ -9,7 +9,7 @@ import (
 
 	"github.com/MetalBlockchain/metalgo/cache"
 	"github.com/MetalBlockchain/metalgo/ids"
-	"github.com/MetalBlockchain/metalgo/utils/crypto"
+	"github.com/MetalBlockchain/metalgo/utils/crypto/secp256k1"
 	"github.com/MetalBlockchain/metalgo/utils/hashing"
 	"github.com/MetalBlockchain/metalgo/utils/wrappers"
 	"github.com/MetalBlockchain/metalgo/vms/components/verify"
@@ -40,7 +40,7 @@ var (
 // Fx describes the secp256k1 feature extension
 type Fx struct {
 	VM           VM
-	SECPFactory  crypto.FactorySECP256K1R
+	SECPFactory  secp256k1.Factory
 	bootstrapped bool
 }
 
@@ -52,8 +52,10 @@ func (fx *Fx) Initialize(vmIntf interface{}) error {
 	log := fx.VM.Logger()
 	log.Debug("initializing secp256k1 fx")
 
-	fx.SECPFactory = crypto.FactorySECP256K1R{
-		Cache: cache.LRU[ids.ID, *crypto.PublicKeySECP256K1R]{Size: defaultCacheSize},
+	fx.SECPFactory = secp256k1.Factory{
+		Cache: cache.LRU[ids.ID, *secp256k1.PublicKey]{
+			Size: defaultCacheSize,
+		},
 	}
 	c := fx.VM.CodecRegistry()
 	errs := wrappers.Errs{}

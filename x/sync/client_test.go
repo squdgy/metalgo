@@ -18,6 +18,7 @@ import (
 	"github.com/MetalBlockchain/metalgo/snow/engine/common"
 	"github.com/MetalBlockchain/metalgo/utils/logging"
 	"github.com/MetalBlockchain/metalgo/utils/set"
+	"github.com/MetalBlockchain/metalgo/version"
 	"github.com/MetalBlockchain/metalgo/x/merkledb"
 )
 
@@ -41,7 +42,7 @@ func sendRequest(
 	handler := NewNetworkServer(sender, db, logging.NoLog{})
 	clientNodeID, serverNodeID := ids.GenerateTestNodeID(), ids.GenerateTestNodeID()
 	networkClient := NewNetworkClient(sender, clientNodeID, 1, logging.NoLog{})
-	err := networkClient.Connected(context.Background(), serverNodeID, StateSyncVersion)
+	err := networkClient.Connected(context.Background(), serverNodeID, version.CurrentApp)
 	require.NoError(err)
 	client := NewClient(&ClientConfig{
 		NetworkClient: networkClient,

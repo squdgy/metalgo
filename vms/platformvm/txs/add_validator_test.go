@@ -11,7 +11,7 @@ import (
 
 	"github.com/MetalBlockchain/metalgo/ids"
 	"github.com/MetalBlockchain/metalgo/snow"
-	"github.com/MetalBlockchain/metalgo/utils/crypto"
+	"github.com/MetalBlockchain/metalgo/utils/crypto/secp256k1"
 	"github.com/MetalBlockchain/metalgo/utils/timer/mockable"
 	"github.com/MetalBlockchain/metalgo/vms/components/avax"
 	"github.com/MetalBlockchain/metalgo/vms/platformvm/reward"
@@ -25,7 +25,7 @@ func TestAddValidatorTxSyntacticVerify(t *testing.T) {
 	clk := mockable.Clock{}
 	ctx := snow.DefaultContextTest()
 	ctx.AVAXAssetID = ids.GenerateTestID()
-	signers := [][]*crypto.PrivateKeySECP256K1R{preFundedKeys}
+	signers := [][]*secp256k1.PrivateKey{preFundedKeys}
 
 	var (
 		stx            *Tx
@@ -147,7 +147,7 @@ func TestAddValidatorTxSyntacticVerifyNotAVAX(t *testing.T) {
 	clk := mockable.Clock{}
 	ctx := snow.DefaultContextTest()
 	ctx.AVAXAssetID = ids.GenerateTestID()
-	signers := [][]*crypto.PrivateKeySECP256K1R{preFundedKeys}
+	signers := [][]*secp256k1.PrivateKey{preFundedKeys}
 
 	var (
 		stx            *Tx

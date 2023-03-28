@@ -13,7 +13,7 @@ import (
 	"github.com/MetalBlockchain/metalgo/database/memdb"
 	"github.com/MetalBlockchain/metalgo/ids"
 	"github.com/MetalBlockchain/metalgo/snow"
-	"github.com/MetalBlockchain/metalgo/utils/crypto"
+	"github.com/MetalBlockchain/metalgo/utils/crypto/secp256k1"
 	"github.com/MetalBlockchain/metalgo/utils/timer/mockable"
 	"github.com/MetalBlockchain/metalgo/vms/components/avax"
 	"github.com/MetalBlockchain/metalgo/vms/components/verify"
@@ -321,7 +321,7 @@ func TestVerifySpendUTXOs(t *testing.T) {
 			outs: []*avax.TransferableOutput{},
 			creds: []verify.Verifiable{
 				&secp256k1fx.Credential{
-					Sigs: [][crypto.SECP256K1RSigLen]byte{
+					Sigs: [][secp256k1.SignatureLen]byte{
 						{},
 					},
 				},

@@ -12,11 +12,10 @@ import (
 	"github.com/MetalBlockchain/metalgo/ids"
 	"github.com/MetalBlockchain/metalgo/nat"
 	"github.com/MetalBlockchain/metalgo/network"
-	"github.com/MetalBlockchain/metalgo/snow/consensus/avalanche"
 	"github.com/MetalBlockchain/metalgo/snow/networking/benchlist"
 	"github.com/MetalBlockchain/metalgo/snow/networking/router"
-	"github.com/MetalBlockchain/metalgo/snow/networking/sender"
 	"github.com/MetalBlockchain/metalgo/snow/networking/tracker"
+	"github.com/MetalBlockchain/metalgo/subnets"
 	"github.com/MetalBlockchain/metalgo/trace"
 	"github.com/MetalBlockchain/metalgo/utils/crypto/bls"
 	"github.com/MetalBlockchain/metalgo/utils/dynamicip"
@@ -157,8 +156,6 @@ type Config struct {
 	// Network configuration
 	NetworkConfig network.Config `json:"networkConfig"`
 
-	GossipConfig sender.GossipConfig `json:"gossipConfig"`
-
 	AdaptiveTimeoutConfig timer.AdaptiveTimeoutConfig `json:"adaptiveTimeoutConfig"`
 
 	BenchlistConfig benchlist.Config `json:"benchlistConfig"`
@@ -172,9 +169,6 @@ type Config struct {
 	// File Descriptor Limit
 	FdLimit uint64 `json:"fdLimit"`
 
-	// Consensus configuration
-	ConsensusParams avalanche.Parameters `json:"consensusParams"`
-
 	// Metrics
 	MeterVMEnabled bool `json:"meterVMEnabled"`
 
@@ -187,7 +181,7 @@ type Config struct {
 
 	TrackedSubnets set.Set[ids.ID] `json:"trackedSubnets"`
 
-	SubnetConfigs map[ids.ID]chains.SubnetConfig `json:"subnetConfigs"`
+	SubnetConfigs map[ids.ID]subnets.Config `json:"subnetConfigs"`
 
 	ChainConfigs map[string]chains.ChainConfig `json:"-"`
 	ChainAliases map[ids.ID][]string           `json:"chainAliases"`
@@ -221,6 +215,7 @@ type Config struct {
 	TraceConfig trace.Config `json:"traceConfig"`
 
 	// See comment on [MinPercentConnectedStakeHealthy] in platformvm.Config
+	// TODO: consider moving to subnet config
 	MinPercentConnectedStakeHealthy map[ids.ID]float64 `json:"minPercentConnectedStakeHealthy"`
 
 	// See comment on [UseCurrentHeight] in platformvm.Config

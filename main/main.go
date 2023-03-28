@@ -12,9 +12,9 @@ import (
 
 	"golang.org/x/term"
 
-	"github.com/ava-labs/avalanchego/app"
-	"github.com/ava-labs/avalanchego/config"
-	"github.com/ava-labs/avalanchego/version"
+	"github.com/MetalBlockchain/metalgo/app"
+	"github.com/MetalBlockchain/metalgo/config"
+	"github.com/MetalBlockchain/metalgo/version"
 )
 
 func main() {

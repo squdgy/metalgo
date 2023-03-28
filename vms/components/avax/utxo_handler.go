@@ -3,7 +3,7 @@
 
 package avax
 
-import "github.com/ava-labs/avalanchego/ids"
+import "github.com/MetalBlockchain/metalgo/ids"
 
 // Removes the UTXOs consumed by [ins] from the UTXO set
 func Consume(utxoDB UTXODeleter, ins []*TransferableInput) {

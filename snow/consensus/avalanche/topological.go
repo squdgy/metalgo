@@ -11,13 +11,15 @@ import (
 
 	"go.uber.org/zap"
 
-	"github.com/MetalBlockchain/metalgo/ids"
-	"github.com/MetalBlockchain/metalgo/snow"
-	"github.com/MetalBlockchain/metalgo/snow/choices"
-	"github.com/MetalBlockchain/metalgo/snow/consensus/metrics"
-	"github.com/MetalBlockchain/metalgo/snow/consensus/snowstorm"
-	"github.com/MetalBlockchain/metalgo/utils/bag"
-	"github.com/MetalBlockchain/metalgo/utils/set"
+	"golang.org/x/exp/maps"
+
+	"github.com/ava-labs/avalanchego/ids"
+	"github.com/ava-labs/avalanchego/snow"
+	"github.com/ava-labs/avalanchego/snow/choices"
+	"github.com/ava-labs/avalanchego/snow/consensus/metrics"
+	"github.com/ava-labs/avalanchego/snow/consensus/snowstorm"
+	"github.com/ava-labs/avalanchego/utils/bag"
+	"github.com/ava-labs/avalanchego/utils/set"
 )
 
 const minMapSize = 16
@@ -315,9 +317,7 @@ func (ta *Topological) HealthCheck(ctx context.Context) (interface{}, error) {
 // the non-transitively applied votes. Also returns the list of leaf nodes.
 func (ta *Topological) calculateInDegree(responses bag.UniqueBag[ids.ID]) error {
 	// Clear the kahn node set
-	for k := range ta.kahnNodes {
-		delete(ta.kahnNodes, k)
-	}
+	maps.Clear(ta.kahnNodes)
 	// Clear the leaf set
 	ta.leaves.Clear()
 

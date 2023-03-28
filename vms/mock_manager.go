@@ -11,8 +11,8 @@ import (
 	context "context"
 	reflect "reflect"
 
-	ids "github.com/MetalBlockchain/metalgo/ids"
-	logging "github.com/MetalBlockchain/metalgo/utils/logging"
+	ids "github.com/ava-labs/avalanchego/ids"
+	logging "github.com/ava-labs/avalanchego/utils/logging"
 	gomock "github.com/golang/mock/gomock"
 )
 

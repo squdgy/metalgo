@@ -12,7 +12,9 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 
-	"github.com/MetalBlockchain/metalgo/utils"
+	"golang.org/x/exp/maps"
+
+	"github.com/ava-labs/avalanchego/utils"
 )
 
 var errDuplicateCheck = errors.New("duplicated check")
@@ -120,10 +122,7 @@ func (w *worker) runChecks(ctx context.Context) {
 	// during this iteration. If [w.checks] is modified during this iteration of
 	// [runChecks], then the added check will not be run until the next
 	// iteration.
-	checks := make(map[string]Checker, len(w.checks))
-	for name, checker := range w.checks {
-		checks[name] = checker
-	}
+	checks := maps.Clone(w.checks)
 	w.checksLock.RUnlock()
 
 	var wg sync.WaitGroup

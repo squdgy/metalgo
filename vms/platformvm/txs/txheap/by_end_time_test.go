@@ -9,10 +9,9 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/MetalBlockchain/metalgo/ids"
-	"github.com/MetalBlockchain/metalgo/vms/platformvm/txs"
-	"github.com/MetalBlockchain/metalgo/vms/platformvm/validator"
-	"github.com/MetalBlockchain/metalgo/vms/secp256k1fx"
+	"github.com/ava-labs/avalanchego/ids"
+	"github.com/ava-labs/avalanchego/vms/platformvm/txs"
+	"github.com/ava-labs/avalanchego/vms/secp256k1fx"
 )
 
 func TestByStopTime(t *testing.T) {
@@ -23,7 +22,7 @@ func TestByStopTime(t *testing.T) {
 	baseTime := time.Now()
 
 	utx0 := &txs.AddValidatorTx{
-		Validator: validator.Validator{
+		Validator: txs.Validator{
 			NodeID: ids.NodeID{0},
 			Start:  uint64(baseTime.Unix()),
 			End:    uint64(baseTime.Unix()) + 1,
@@ -35,7 +34,7 @@ func TestByStopTime(t *testing.T) {
 	require.NoError(err)
 
 	utx1 := &txs.AddValidatorTx{
-		Validator: validator.Validator{
+		Validator: txs.Validator{
 			NodeID: ids.NodeID{1},
 			Start:  uint64(baseTime.Unix()),
 			End:    uint64(baseTime.Unix()) + 2,
@@ -47,7 +46,7 @@ func TestByStopTime(t *testing.T) {
 	require.NoError(err)
 
 	utx2 := &txs.AddValidatorTx{
-		Validator: validator.Validator{
+		Validator: txs.Validator{
 			NodeID: ids.NodeID{1},
 			Start:  uint64(baseTime.Unix()),
 			End:    uint64(baseTime.Unix()) + 3,

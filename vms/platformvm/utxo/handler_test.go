@@ -10,16 +10,15 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/MetalBlockchain/metalgo/database/memdb"
-	"github.com/MetalBlockchain/metalgo/ids"
-	"github.com/MetalBlockchain/metalgo/snow"
-	"github.com/MetalBlockchain/metalgo/utils/crypto/secp256k1"
-	"github.com/MetalBlockchain/metalgo/utils/timer/mockable"
-	"github.com/MetalBlockchain/metalgo/vms/components/avax"
-	"github.com/MetalBlockchain/metalgo/vms/components/verify"
-	"github.com/MetalBlockchain/metalgo/vms/platformvm/stakeable"
-	"github.com/MetalBlockchain/metalgo/vms/platformvm/txs"
-	"github.com/MetalBlockchain/metalgo/vms/secp256k1fx"
+	"github.com/ava-labs/avalanchego/ids"
+	"github.com/ava-labs/avalanchego/snow"
+	"github.com/ava-labs/avalanchego/utils/crypto/secp256k1"
+	"github.com/ava-labs/avalanchego/utils/timer/mockable"
+	"github.com/ava-labs/avalanchego/vms/components/avax"
+	"github.com/ava-labs/avalanchego/vms/components/verify"
+	"github.com/ava-labs/avalanchego/vms/platformvm/stakeable"
+	"github.com/ava-labs/avalanchego/vms/platformvm/txs"
+	"github.com/ava-labs/avalanchego/vms/secp256k1fx"
 )
 
 var _ txs.UnsignedTx = (*dummyUnsignedTx)(nil)
@@ -41,11 +40,7 @@ func TestVerifySpendUTXOs(t *testing.T) {
 	h := &handler{
 		ctx: snow.DefaultContextTest(),
 		clk: &mockable.Clock{},
-		utxosReader: avax.NewUTXOState(
-			memdb.New(),
-			txs.Codec,
-		),
-		fx: fx,
+		fx:  fx,
 	}
 
 	// The handler time during a test, unless [chainTimestamp] is set

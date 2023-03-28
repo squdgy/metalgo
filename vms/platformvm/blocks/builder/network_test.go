@@ -9,11 +9,11 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/MetalBlockchain/metalgo/ids"
-	"github.com/MetalBlockchain/metalgo/utils/constants"
-	"github.com/MetalBlockchain/metalgo/utils/crypto/secp256k1"
-	"github.com/MetalBlockchain/metalgo/vms/platformvm/message"
-	"github.com/MetalBlockchain/metalgo/vms/platformvm/txs"
+	"github.com/ava-labs/avalanchego/ids"
+	"github.com/ava-labs/avalanchego/utils/constants"
+	"github.com/ava-labs/avalanchego/utils/crypto/secp256k1"
+	"github.com/ava-labs/avalanchego/vms/platformvm/message"
+	"github.com/ava-labs/avalanchego/vms/platformvm/txs"
 
 	txbuilder "github.com/MetalBlockchain/metalgo/vms/platformvm/txs/builder"
 )

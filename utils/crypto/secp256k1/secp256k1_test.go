@@ -4,7 +4,6 @@
 package secp256k1
 
 import (
-	"bytes"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -31,9 +30,7 @@ func TestRecover(t *testing.T) {
 	pubRec, err := f.RecoverPublicKey(msg, sig)
 	require.NoError(err)
 
-	if !bytes.Equal(pub.Bytes(), pubRec.Bytes()) {
-		t.Fatalf("Should have been equal")
-	}
+	require.Equal(pub, pubRec)
 }
 
 func TestCachedRecover(t *testing.T) {
@@ -52,53 +49,49 @@ func TestCachedRecover(t *testing.T) {
 	pub2, err := f.RecoverPublicKey(msg, sig)
 	require.NoError(err)
 
-	if pub1 != pub2 {
-		t.Fatalf("Should have returned the same public key")
-	}
+	require.Equal(pub1, pub2)
 }
 
 func TestExtensive(t *testing.T) {
-	f := Factory{}
+	require := require.New(t)
 
+	f := Factory{}
 	hash := hashing.ComputeHash256([]byte{1, 2, 3})
 	for i := 0; i < 1000; i++ {
-		if key, err := f.NewPrivateKey(); err != nil {
-			t.Fatalf("Generated bad private key")
-		} else if _, err := key.SignHash(hash); err != nil {
-			t.Fatalf("Failed signing with:\n0x%x", key.Bytes())
-		}
+		key, err := f.NewPrivateKey()
+		require.NoError(err)
+
+		_, err = key.SignHash(hash)
+		require.NoError(err)
 	}
 }
 
 func TestGenRecreate(t *testing.T) {
-	f := Factory{}
+	require := require.New(t)
 
+	f := Factory{}
 	for i := 0; i < 1000; i++ {
 		sk, err := f.NewPrivateKey()
-		if err != nil {
-			t.Fatal(err)
-		}
+		require.NoError(err)
+
 		skBytes := sk.Bytes()
 		recoveredSk, err := f.ToPrivateKey(skBytes)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if !bytes.Equal(sk.PublicKey().Address().Bytes(), recoveredSk.PublicKey().Address().Bytes()) {
-			t.Fatalf("Wrong public key")
-		}
+		require.NoError(err)
+
+		require.Equal(sk.PublicKey(), recoveredSk.PublicKey())
 	}
 }
 
 func TestVerifyMutatedSignature(t *testing.T) {
-	factory := Factory{}
+	require := require.New(t)
 
-	sk, err := factory.NewPrivateKey()
-	require.NoError(t, err)
+	f := Factory{}
+	sk, err := f.NewPrivateKey()
+	require.NoError(err)
 
 	msg := []byte{'h', 'e', 'l', 'l', 'o'}
-
 	sig, err := sk.Sign(msg)
-	require.NoError(t, err)
+	require.NoError(err)
 
 	var s secp256k1.ModNScalar
 	s.SetByteSlice(sig[32:64])
@@ -106,14 +99,14 @@ func TestVerifyMutatedSignature(t *testing.T) {
 	newSBytes := s.Bytes()
 	copy(sig[32:], newSBytes[:])
 
-	_, err = factory.RecoverPublicKey(msg, sig)
-	require.Error(t, err)
+	_, err = f.RecoverPublicKey(msg, sig)
+	require.Error(err)
 }
 
 func TestPrivateKeySECP256K1RUnmarshalJSON(t *testing.T) {
 	require := require.New(t)
-
 	f := Factory{}
+
 	key, err := f.NewPrivateKey()
 	require.NoError(err)
 
@@ -123,7 +116,7 @@ func TestPrivateKeySECP256K1RUnmarshalJSON(t *testing.T) {
 	key2 := PrivateKey{}
 	err = key2.UnmarshalJSON(keyJSON)
 	require.NoError(err)
-	require.Equal(key.PublicKey().Address(), key2.PublicKey().Address())
+	require.Equal(key.PublicKey(), key2.PublicKey())
 }
 
 func TestPrivateKeySECP256K1RUnmarshalJSONError(t *testing.T) {

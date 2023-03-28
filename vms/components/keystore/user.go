@@ -7,13 +7,13 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/MetalBlockchain/metalgo/api/keystore"
-	"github.com/MetalBlockchain/metalgo/database"
-	"github.com/MetalBlockchain/metalgo/database/encdb"
-	"github.com/MetalBlockchain/metalgo/ids"
-	"github.com/MetalBlockchain/metalgo/utils/crypto/secp256k1"
-	"github.com/MetalBlockchain/metalgo/utils/set"
-	"github.com/MetalBlockchain/metalgo/vms/secp256k1fx"
+	"github.com/ava-labs/avalanchego/api/keystore"
+	"github.com/ava-labs/avalanchego/database"
+	"github.com/ava-labs/avalanchego/database/encdb"
+	"github.com/ava-labs/avalanchego/ids"
+	"github.com/ava-labs/avalanchego/utils/crypto/secp256k1"
+	"github.com/ava-labs/avalanchego/utils/set"
+	"github.com/ava-labs/avalanchego/vms/secp256k1fx"
 )
 
 // Max number of addresses allowed for a single keystore user

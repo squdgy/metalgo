@@ -9,20 +9,20 @@ import (
 
 	"go.uber.org/zap"
 
-	"github.com/MetalBlockchain/metalgo/ids"
-	"github.com/MetalBlockchain/metalgo/snow"
-	"github.com/MetalBlockchain/metalgo/utils/crypto/secp256k1"
-	"github.com/MetalBlockchain/metalgo/utils/hashing"
-	"github.com/MetalBlockchain/metalgo/utils/math"
-	"github.com/MetalBlockchain/metalgo/utils/set"
-	"github.com/MetalBlockchain/metalgo/utils/timer/mockable"
-	"github.com/MetalBlockchain/metalgo/vms/components/avax"
-	"github.com/MetalBlockchain/metalgo/vms/components/verify"
-	"github.com/MetalBlockchain/metalgo/vms/platformvm/fx"
-	"github.com/MetalBlockchain/metalgo/vms/platformvm/stakeable"
-	"github.com/MetalBlockchain/metalgo/vms/platformvm/state"
-	"github.com/MetalBlockchain/metalgo/vms/platformvm/txs"
-	"github.com/MetalBlockchain/metalgo/vms/secp256k1fx"
+	"github.com/ava-labs/avalanchego/ids"
+	"github.com/ava-labs/avalanchego/snow"
+	"github.com/ava-labs/avalanchego/utils/crypto/secp256k1"
+	"github.com/ava-labs/avalanchego/utils/hashing"
+	"github.com/ava-labs/avalanchego/utils/math"
+	"github.com/ava-labs/avalanchego/utils/set"
+	"github.com/ava-labs/avalanchego/utils/timer/mockable"
+	"github.com/ava-labs/avalanchego/vms/components/avax"
+	"github.com/ava-labs/avalanchego/vms/components/verify"
+	"github.com/ava-labs/avalanchego/vms/platformvm/fx"
+	"github.com/ava-labs/avalanchego/vms/platformvm/stakeable"
+	"github.com/ava-labs/avalanchego/vms/platformvm/state"
+	"github.com/ava-labs/avalanchego/vms/platformvm/txs"
+	"github.com/ava-labs/avalanchego/vms/secp256k1fx"
 )
 
 var (
@@ -75,6 +75,7 @@ type Spender interface {
 	//                   the staking period
 	// - [signers] the proof of ownership of the funds being moved
 	Spend(
+		utxoReader avax.UTXOReader,
 		keys []*secp256k1.PrivateKey,
 		amount uint64,
 		fee uint64,
@@ -149,25 +150,23 @@ type Handler interface {
 func NewHandler(
 	ctx *snow.Context,
 	clk *mockable.Clock,
-	utxoReader avax.UTXOReader,
 	fx fx.Fx,
 ) Handler {
 	return &handler{
-		ctx:         ctx,
-		clk:         clk,
-		utxosReader: utxoReader,
-		fx:          fx,
+		ctx: ctx,
+		clk: clk,
+		fx:  fx,
 	}
 }
 
 type handler struct {
-	ctx         *snow.Context
-	clk         *mockable.Clock
-	utxosReader avax.UTXOReader
-	fx          fx.Fx
+	ctx *snow.Context
+	clk *mockable.Clock
+	fx  fx.Fx
 }
 
 func (h *handler) Spend(
+	utxoReader avax.UTXOReader,
 	keys []*secp256k1.PrivateKey,
 	amount uint64,
 	fee uint64,
@@ -183,7 +182,7 @@ func (h *handler) Spend(
 	for _, key := range keys {
 		addrs.Add(key.PublicKey().Address())
 	}
-	utxos, err := avax.GetAllUTXOs(h.utxosReader, addrs) // The UTXOs controlled by [keys]
+	utxos, err := avax.GetAllUTXOs(utxoReader, addrs) // The UTXOs controlled by [keys]
 	if err != nil {
 		return nil, nil, nil, nil, fmt.Errorf("couldn't get UTXOs: %w", err)
 	}

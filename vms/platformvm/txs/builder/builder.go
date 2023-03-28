@@ -8,20 +8,20 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/MetalBlockchain/metalgo/ids"
-	"github.com/MetalBlockchain/metalgo/snow"
-	"github.com/MetalBlockchain/metalgo/utils"
-	"github.com/MetalBlockchain/metalgo/utils/crypto/secp256k1"
-	"github.com/MetalBlockchain/metalgo/utils/math"
-	"github.com/MetalBlockchain/metalgo/utils/timer/mockable"
-	"github.com/MetalBlockchain/metalgo/vms/components/avax"
-	"github.com/MetalBlockchain/metalgo/vms/platformvm/config"
-	"github.com/MetalBlockchain/metalgo/vms/platformvm/fx"
-	"github.com/MetalBlockchain/metalgo/vms/platformvm/state"
-	"github.com/MetalBlockchain/metalgo/vms/platformvm/txs"
-	"github.com/MetalBlockchain/metalgo/vms/platformvm/utxo"
-	"github.com/MetalBlockchain/metalgo/vms/platformvm/validator"
-	"github.com/MetalBlockchain/metalgo/vms/secp256k1fx"
+	"github.com/ava-labs/avalanchego/ids"
+	"github.com/ava-labs/avalanchego/snow"
+	"github.com/ava-labs/avalanchego/utils"
+	"github.com/ava-labs/avalanchego/utils/crypto/secp256k1"
+	"github.com/ava-labs/avalanchego/utils/math"
+	"github.com/ava-labs/avalanchego/utils/timer/mockable"
+	"github.com/ava-labs/avalanchego/vms/components/avax"
+	"github.com/ava-labs/avalanchego/vms/platformvm/config"
+	"github.com/ava-labs/avalanchego/vms/platformvm/fx"
+	"github.com/ava-labs/avalanchego/vms/platformvm/state"
+	"github.com/ava-labs/avalanchego/vms/platformvm/txs"
+	"github.com/ava-labs/avalanchego/vms/platformvm/utxo"
+	"github.com/ava-labs/avalanchego/vms/platformvm/validator"
+	"github.com/ava-labs/avalanchego/vms/secp256k1fx"
 )
 
 // Max number of items allowed in a page
@@ -174,7 +174,7 @@ func New(
 	cfg *config.Config,
 	clk *mockable.Clock,
 	fx fx.Fx,
-	state state.Chain,
+	state state.State,
 	atomicUTXOManager avax.AtomicUTXOManager,
 	utxoSpender utxo.Spender,
 ) Builder {
@@ -192,7 +192,7 @@ func New(
 type builder struct {
 	avax.AtomicUTXOManager
 	utxo.Spender
-	state state.Chain
+	state state.State
 
 	cfg *config.Config
 	ctx *snow.Context
@@ -252,7 +252,7 @@ func (b *builder) NewImportTx(
 	switch {
 	case importedAVAX < b.cfg.TxFee: // imported amount goes toward paying tx fee
 		var baseSigners [][]*secp256k1.PrivateKey
-		ins, outs, _, baseSigners, err = b.Spend(keys, 0, b.cfg.TxFee-importedAVAX, changeAddr)
+		ins, outs, _, baseSigners, err = b.Spend(b.state, keys, 0, b.cfg.TxFee-importedAVAX, changeAddr)
 		if err != nil {
 			return nil, fmt.Errorf("couldn't generate tx inputs/outputs: %w", err)
 		}
@@ -310,7 +310,7 @@ func (b *builder) NewExportTx(
 	if err != nil {
 		return nil, fmt.Errorf("amount (%d) + tx fee(%d) overflows", amount, b.cfg.TxFee)
 	}
-	ins, outs, _, signers, err := b.Spend(keys, 0, toBurn, changeAddr)
+	ins, outs, _, signers, err := b.Spend(b.state, keys, 0, toBurn, changeAddr)
 	if err != nil {
 		return nil, fmt.Errorf("couldn't generate tx inputs/outputs: %w", err)
 	}
@@ -354,7 +354,7 @@ func (b *builder) NewCreateChainTx(
 ) (*txs.Tx, error) {
 	timestamp := b.state.GetTimestamp()
 	createBlockchainTxFee := b.cfg.GetCreateBlockchainTxFee(timestamp)
-	ins, outs, _, signers, err := b.Spend(keys, 0, createBlockchainTxFee, changeAddr)
+	ins, outs, _, signers, err := b.Spend(b.state, keys, 0, createBlockchainTxFee, changeAddr)
 	if err != nil {
 		return nil, fmt.Errorf("couldn't generate tx inputs/outputs: %w", err)
 	}
@@ -398,7 +398,7 @@ func (b *builder) NewCreateSubnetTx(
 ) (*txs.Tx, error) {
 	timestamp := b.state.GetTimestamp()
 	createSubnetTxFee := b.cfg.GetCreateSubnetTxFee(timestamp)
-	ins, outs, _, signers, err := b.Spend(keys, 0, createSubnetTxFee, changeAddr)
+	ins, outs, _, signers, err := b.Spend(b.state, keys, 0, createSubnetTxFee, changeAddr)
 	if err != nil {
 		return nil, fmt.Errorf("couldn't generate tx inputs/outputs: %w", err)
 	}
@@ -436,7 +436,7 @@ func (b *builder) NewAddValidatorTx(
 	keys []*secp256k1.PrivateKey,
 	changeAddr ids.ShortID,
 ) (*txs.Tx, error) {
-	ins, unstakedOuts, stakedOuts, signers, err := b.Spend(keys, stakeAmount, b.cfg.AddPrimaryNetworkValidatorFee, changeAddr)
+	ins, unstakedOuts, stakedOuts, signers, err := b.Spend(b.state, keys, stakeAmount, b.cfg.AddPrimaryNetworkValidatorFee, changeAddr)
 	if err != nil {
 		return nil, fmt.Errorf("couldn't generate tx inputs/outputs: %w", err)
 	}
@@ -478,7 +478,7 @@ func (b *builder) NewAddDelegatorTx(
 	keys []*secp256k1.PrivateKey,
 	changeAddr ids.ShortID,
 ) (*txs.Tx, error) {
-	ins, unlockedOuts, lockedOuts, signers, err := b.Spend(keys, stakeAmount, b.cfg.AddPrimaryNetworkDelegatorFee, changeAddr)
+	ins, unlockedOuts, lockedOuts, signers, err := b.Spend(b.state, keys, stakeAmount, b.cfg.AddPrimaryNetworkDelegatorFee, changeAddr)
 	if err != nil {
 		return nil, fmt.Errorf("couldn't generate tx inputs/outputs: %w", err)
 	}
@@ -519,7 +519,7 @@ func (b *builder) NewAddSubnetValidatorTx(
 	keys []*secp256k1.PrivateKey,
 	changeAddr ids.ShortID,
 ) (*txs.Tx, error) {
-	ins, outs, _, signers, err := b.Spend(keys, 0, b.cfg.TxFee, changeAddr)
+	ins, outs, _, signers, err := b.Spend(b.state, keys, 0, b.cfg.TxFee, changeAddr)
 	if err != nil {
 		return nil, fmt.Errorf("couldn't generate tx inputs/outputs: %w", err)
 	}
@@ -562,7 +562,7 @@ func (b *builder) NewRemoveSubnetValidatorTx(
 	keys []*secp256k1.PrivateKey,
 	changeAddr ids.ShortID,
 ) (*txs.Tx, error) {
-	ins, outs, _, signers, err := b.Spend(keys, 0, b.cfg.TxFee, changeAddr)
+	ins, outs, _, signers, err := b.Spend(b.state, keys, 0, b.cfg.TxFee, changeAddr)
 	if err != nil {
 		return nil, fmt.Errorf("couldn't generate tx inputs/outputs: %w", err)
 	}

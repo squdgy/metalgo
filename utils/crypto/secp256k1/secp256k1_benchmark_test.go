@@ -6,8 +6,10 @@ package secp256k1
 import (
 	"testing"
 
-	"github.com/MetalBlockchain/metalgo/ids"
-	"github.com/MetalBlockchain/metalgo/utils/hashing"
+	"github.com/stretchr/testify/require"
+
+	"github.com/ava-labs/avalanchego/ids"
+	"github.com/ava-labs/avalanchego/utils/hashing"
 )
 
 // NumVerifies is the number of verifications to run per operation
@@ -50,11 +52,11 @@ func init() {
 
 // BenchmarkSECP256k1Verify runs the benchmark with SECP256K1 keys
 func BenchmarkSECP256k1Verify(b *testing.B) {
+	require := require.New(b)
+
 	for n := 0; n < b.N; n++ {
 		for i := 0; i < NumVerifies; i++ {
-			if !keys[i].VerifyHash(hashes[i], sigs[i]) {
-				panic("Verification failed")
-			}
+			require.True(keys[i].VerifyHash(hashes[i], sigs[i]))
 		}
 	}
 }

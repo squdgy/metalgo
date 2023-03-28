@@ -19,37 +19,36 @@ import (
 
 	"github.com/spf13/viper"
 
-	"github.com/MetalBlockchain/metalgo/chains"
-	"github.com/MetalBlockchain/metalgo/genesis"
-	"github.com/MetalBlockchain/metalgo/ids"
-	"github.com/MetalBlockchain/metalgo/ipcs"
-	"github.com/MetalBlockchain/metalgo/nat"
-	"github.com/MetalBlockchain/metalgo/network"
-	"github.com/MetalBlockchain/metalgo/network/dialer"
-	"github.com/MetalBlockchain/metalgo/network/throttling"
-	"github.com/MetalBlockchain/metalgo/node"
-	"github.com/MetalBlockchain/metalgo/snow/consensus/avalanche"
-	"github.com/MetalBlockchain/metalgo/snow/consensus/snowball"
-	"github.com/MetalBlockchain/metalgo/snow/networking/benchlist"
-	"github.com/MetalBlockchain/metalgo/snow/networking/router"
-	"github.com/MetalBlockchain/metalgo/snow/networking/tracker"
-	"github.com/MetalBlockchain/metalgo/staking"
-	"github.com/MetalBlockchain/metalgo/subnets"
-	"github.com/MetalBlockchain/metalgo/trace"
-	"github.com/MetalBlockchain/metalgo/utils/constants"
-	"github.com/MetalBlockchain/metalgo/utils/crypto/bls"
-	"github.com/MetalBlockchain/metalgo/utils/dynamicip"
-	"github.com/MetalBlockchain/metalgo/utils/ips"
-	"github.com/MetalBlockchain/metalgo/utils/logging"
-	"github.com/MetalBlockchain/metalgo/utils/password"
-	"github.com/MetalBlockchain/metalgo/utils/perms"
-	"github.com/MetalBlockchain/metalgo/utils/profiler"
-	"github.com/MetalBlockchain/metalgo/utils/set"
-	"github.com/MetalBlockchain/metalgo/utils/storage"
-	"github.com/MetalBlockchain/metalgo/utils/timer"
-	"github.com/MetalBlockchain/metalgo/vms"
-	"github.com/MetalBlockchain/metalgo/vms/platformvm/reward"
-	"github.com/MetalBlockchain/metalgo/vms/proposervm"
+	"github.com/ava-labs/avalanchego/chains"
+	"github.com/ava-labs/avalanchego/genesis"
+	"github.com/ava-labs/avalanchego/ids"
+	"github.com/ava-labs/avalanchego/ipcs"
+	"github.com/ava-labs/avalanchego/nat"
+	"github.com/ava-labs/avalanchego/network"
+	"github.com/ava-labs/avalanchego/network/dialer"
+	"github.com/ava-labs/avalanchego/network/throttling"
+	"github.com/ava-labs/avalanchego/node"
+	"github.com/ava-labs/avalanchego/snow/consensus/avalanche"
+	"github.com/ava-labs/avalanchego/snow/consensus/snowball"
+	"github.com/ava-labs/avalanchego/snow/networking/benchlist"
+	"github.com/ava-labs/avalanchego/snow/networking/router"
+	"github.com/ava-labs/avalanchego/snow/networking/tracker"
+	"github.com/ava-labs/avalanchego/staking"
+	"github.com/ava-labs/avalanchego/subnets"
+	"github.com/ava-labs/avalanchego/trace"
+	"github.com/ava-labs/avalanchego/utils/constants"
+	"github.com/ava-labs/avalanchego/utils/crypto/bls"
+	"github.com/ava-labs/avalanchego/utils/dynamicip"
+	"github.com/ava-labs/avalanchego/utils/ips"
+	"github.com/ava-labs/avalanchego/utils/logging"
+	"github.com/ava-labs/avalanchego/utils/password"
+	"github.com/ava-labs/avalanchego/utils/perms"
+	"github.com/ava-labs/avalanchego/utils/profiler"
+	"github.com/ava-labs/avalanchego/utils/set"
+	"github.com/ava-labs/avalanchego/utils/storage"
+	"github.com/ava-labs/avalanchego/utils/timer"
+	"github.com/ava-labs/avalanchego/vms/platformvm/reward"
+	"github.com/ava-labs/avalanchego/vms/proposervm"
 )
 
 const (
@@ -925,21 +924,21 @@ func getChainAliases(v *viper.Viper) (map[ids.ID][]string, error) {
 	return getAliases(v, "chain aliases", ChainAliasesContentKey, ChainAliasesFileKey)
 }
 
-func getVMManager(v *viper.Viper) (vms.Manager, error) {
+func getVMAliaser(v *viper.Viper) (ids.Aliaser, error) {
 	vmAliases, err := getVMAliases(v)
 	if err != nil {
 		return nil, err
 	}
 
-	manager := vms.NewManager()
+	aliser := ids.NewAliaser()
 	for vmID, aliases := range vmAliases {
 		for _, alias := range aliases {
-			if err := manager.Alias(vmID, alias); err != nil {
+			if err := aliser.Alias(vmID, alias); err != nil {
 				return nil, err
 			}
 		}
 	}
-	return manager, nil
+	return aliser, nil
 }
 
 // getPathFromDirKey reads flag value from viper instance and then checks the folder existence
@@ -1401,7 +1400,7 @@ func GetNodeConfig(v *viper.Viper) (node.Config, error) {
 	}
 
 	// VM Aliases
-	nodeConfig.VMManager, err = getVMManager(v)
+	nodeConfig.VMAliaser, err = getVMAliaser(v)
 	if err != nil {
 		return node.Config{}, err
 	}

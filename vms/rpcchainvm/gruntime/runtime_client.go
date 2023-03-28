@@ -6,9 +6,9 @@ package gruntime
 import (
 	"context"
 
-	"github.com/ava-labs/avalanchego/vms/rpcchainvm/runtime"
+	"github.com/MetalBlockchain/metalgo/vms/rpcchainvm/runtime"
 
-	pb "github.com/ava-labs/avalanchego/proto/pb/vm/runtime"
+	pb "github.com/MetalBlockchain/metalgo/proto/pb/vm/runtime"
 )
 
 var _ runtime.Initializer = (*Client)(nil)

@@ -14,7 +14,7 @@ import (
 	message "github.com/MetalBlockchain/metalgo/message"
 	set "github.com/MetalBlockchain/metalgo/utils/set"
 	gomock "github.com/golang/mock/gomock"
-	subnets "github.com/ava-labs/avalanchego/subnets"
+	subnets "github.com/MetalBlockchain/metalgo/subnets"
 )
 
 // MockExternalSender is a mock of ExternalSender interface.

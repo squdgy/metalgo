@@ -9,9 +9,9 @@ import (
 
 	"golang.org/x/term"
 
-	"github.com/ava-labs/avalanchego/app"
-	"github.com/ava-labs/avalanchego/app/process"
-	"github.com/ava-labs/avalanchego/node"
+	"github.com/MetalBlockchain/metalgo/app"
+	"github.com/MetalBlockchain/metalgo/app/process"
+	"github.com/MetalBlockchain/metalgo/node"
 )
 
 // Run an AvalancheGo node.

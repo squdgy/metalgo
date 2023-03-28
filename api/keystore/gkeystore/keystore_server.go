@@ -6,10 +6,10 @@ package gkeystore
 import (
 	"context"
 
-	"github.com/ava-labs/avalanchego/api/keystore"
-	"github.com/ava-labs/avalanchego/database"
-	"github.com/ava-labs/avalanchego/database/rpcdb"
-	"github.com/ava-labs/avalanchego/vms/rpcchainvm/grpcutils"
+	"github.com/MetalBlockchain/metalgo/api/keystore"
+	"github.com/MetalBlockchain/metalgo/database"
+	"github.com/MetalBlockchain/metalgo/database/rpcdb"
+	"github.com/MetalBlockchain/metalgo/vms/rpcchainvm/grpcutils"
 
 	keystorepb "github.com/MetalBlockchain/metalgo/proto/pb/keystore"
 	rpcdbpb "github.com/MetalBlockchain/metalgo/proto/pb/rpcdb"

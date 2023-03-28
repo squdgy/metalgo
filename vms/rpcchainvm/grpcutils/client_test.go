@@ -16,10 +16,10 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/ava-labs/avalanchego/database/memdb"
-	"github.com/ava-labs/avalanchego/database/rpcdb"
+	"github.com/MetalBlockchain/metalgo/database/memdb"
+	"github.com/MetalBlockchain/metalgo/database/rpcdb"
 
-	pb "github.com/ava-labs/avalanchego/proto/pb/rpcdb"
+	pb "github.com/MetalBlockchain/metalgo/proto/pb/rpcdb"
 )
 
 func TestDialOptsSmoke(t *testing.T) {

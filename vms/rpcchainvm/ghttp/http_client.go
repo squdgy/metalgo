@@ -7,8 +7,8 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/ava-labs/avalanchego/vms/rpcchainvm/ghttp/gresponsewriter"
-	"github.com/ava-labs/avalanchego/vms/rpcchainvm/grpcutils"
+	"github.com/MetalBlockchain/metalgo/vms/rpcchainvm/ghttp/gresponsewriter"
+	"github.com/MetalBlockchain/metalgo/vms/rpcchainvm/grpcutils"
 
 	httppb "github.com/MetalBlockchain/metalgo/proto/pb/http"
 	responsewriterpb "github.com/MetalBlockchain/metalgo/proto/pb/http/responsewriter"

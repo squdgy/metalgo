@@ -6,7 +6,7 @@ package subnets
 import (
 	"time"
 
-	"github.com/ava-labs/avalanchego/snow/consensus/avalanche"
+	"github.com/MetalBlockchain/metalgo/snow/consensus/avalanche"
 )
 
 type GossipConfig struct {

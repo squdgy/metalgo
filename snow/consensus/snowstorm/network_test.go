@@ -6,10 +6,11 @@ package snowstorm
 import (
 	"context"
 
-	"github.com/MetalBlockchain/metalgo/ids"
-	"github.com/MetalBlockchain/metalgo/snow"
-	"github.com/MetalBlockchain/metalgo/snow/choices"
-	"github.com/MetalBlockchain/metalgo/utils/sampler"
+	"github.com/ava-labs/avalanchego/ids"
+	"github.com/ava-labs/avalanchego/snow"
+	"github.com/ava-labs/avalanchego/snow/choices"
+	"github.com/ava-labs/avalanchego/utils/bag"
+	"github.com/ava-labs/avalanchego/utils/sampler"
 
 	sbcon "github.com/MetalBlockchain/metalgo/snow/consensus/snowball"
 )
@@ -140,7 +141,7 @@ func (n *Network) Round() error {
 
 	_ = s.Initialize(uint64(len(n.nodes)))
 	indices, _ := s.Sample(n.params.K)
-	sampledColors := ids.Bag{}
+	sampledColors := bag.Bag[ids.ID]{}
 	sampledColors.SetThreshold(n.params.Alpha)
 	for _, index := range indices {
 		peer := n.nodes[int(index)]

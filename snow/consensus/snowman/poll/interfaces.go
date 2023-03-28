@@ -6,17 +6,18 @@ package poll
 import (
 	"fmt"
 
-	"github.com/MetalBlockchain/metalgo/ids"
-	"github.com/MetalBlockchain/metalgo/utils/formatting"
+	"github.com/ava-labs/avalanchego/ids"
+	"github.com/ava-labs/avalanchego/utils/bag"
+	"github.com/ava-labs/avalanchego/utils/formatting"
 )
 
 // Set is a collection of polls
 type Set interface {
 	fmt.Stringer
 
-	Add(requestID uint32, vdrs ids.NodeIDBag) bool
-	Vote(requestID uint32, vdr ids.NodeID, vote ids.ID) []ids.Bag
-	Drop(requestID uint32, vdr ids.NodeID) []ids.Bag
+	Add(requestID uint32, vdrs bag.Bag[ids.NodeID]) bool
+	Vote(requestID uint32, vdr ids.NodeID, vote ids.ID) []bag.Bag[ids.ID]
+	Drop(requestID uint32, vdr ids.NodeID) []bag.Bag[ids.ID]
 	Len() int
 }
 
@@ -27,10 +28,10 @@ type Poll interface {
 	Vote(vdr ids.NodeID, vote ids.ID)
 	Drop(vdr ids.NodeID)
 	Finished() bool
-	Result() ids.Bag
+	Result() bag.Bag[ids.ID]
 }
 
 // Factory creates a new Poll
 type Factory interface {
-	New(vdrs ids.NodeIDBag) Poll
+	New(vdrs bag.Bag[ids.NodeID]) Poll
 }

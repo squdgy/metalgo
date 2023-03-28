@@ -4,24 +4,17 @@
 package gwarp
 
 import (
-	"context"
-	"net"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/test/bufconn"
-
-	"github.com/MetalBlockchain/metalgo/ids"
-	"github.com/MetalBlockchain/metalgo/utils/crypto/bls"
-	"github.com/MetalBlockchain/metalgo/vms/platformvm/warp"
-	"github.com/MetalBlockchain/metalgo/vms/rpcchainvm/grpcutils"
+	"github.com/ava-labs/avalanchego/ids"
+	"github.com/ava-labs/avalanchego/utils/crypto/bls"
+	"github.com/ava-labs/avalanchego/vms/platformvm/warp"
+	"github.com/ava-labs/avalanchego/vms/rpcchainvm/grpcutils"
 
 	pb "github.com/MetalBlockchain/metalgo/proto/pb/warp"
 )
-
-const bufSize = 1024 * 1024
 
 type testSigner struct {
 	client  *Client
@@ -45,27 +38,19 @@ func setupSigner(t testing.TB) *testSigner {
 		chainID: chainID,
 	}
 
-	listener := bufconn.Listen(bufSize)
+	listener, err := grpcutils.NewListener()
+	if err != nil {
+		t.Fatalf("Failed to create listener: %s", err)
+	}
 	serverCloser := grpcutils.ServerCloser{}
 
-	serverFunc := func(opts []grpc.ServerOption) *grpc.Server {
-		server := grpcutils.NewDefaultServer(opts)
-		pb.RegisterSignerServer(server, NewServer(s.server))
-		serverCloser.Add(server)
-		return server
-	}
+	server := grpcutils.NewServer()
+	pb.RegisterSignerServer(server, NewServer(s.server))
+	serverCloser.Add(server)
 
-	go grpcutils.Serve(listener, serverFunc)
+	go grpcutils.Serve(listener, server)
 
-	dialer := grpc.WithContextDialer(
-		func(context.Context, string) (net.Conn, error) {
-			return listener.Dial()
-		},
-	)
-
-	dopts := grpcutils.DefaultDialOptions
-	dopts = append(dopts, dialer)
-	conn, err := grpcutils.Dial("", dopts...)
+	conn, err := grpcutils.Dial(listener.Addr().String())
 	require.NoError(err)
 
 	s.client = NewClient(pb.NewSignerClient(conn))

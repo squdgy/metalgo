@@ -4,7 +4,8 @@
 package snowball
 
 import (
-	"github.com/MetalBlockchain/metalgo/ids"
+	"github.com/ava-labs/avalanchego/ids"
+	"github.com/ava-labs/avalanchego/utils/bag"
 )
 
 var (
@@ -33,7 +34,7 @@ func (f *Flat) Initialize(params Parameters, choice ids.ID) {
 	f.params = params
 }
 
-func (f *Flat) RecordPoll(votes ids.Bag) bool {
+func (f *Flat) RecordPoll(votes bag.Bag[ids.ID]) bool {
 	if pollMode, numVotes := votes.Mode(); numVotes >= f.params.Alpha {
 		f.RecordSuccessfulPoll(pollMode)
 		return true

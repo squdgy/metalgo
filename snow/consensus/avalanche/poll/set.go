@@ -12,10 +12,11 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 
-	"github.com/MetalBlockchain/metalgo/ids"
-	"github.com/MetalBlockchain/metalgo/utils/linkedhashmap"
-	"github.com/MetalBlockchain/metalgo/utils/logging"
-	"github.com/MetalBlockchain/metalgo/utils/metric"
+	"github.com/ava-labs/avalanchego/ids"
+	"github.com/ava-labs/avalanchego/utils/bag"
+	"github.com/ava-labs/avalanchego/utils/linkedhashmap"
+	"github.com/ava-labs/avalanchego/utils/logging"
+	"github.com/ava-labs/avalanchego/utils/metric"
 )
 
 var (
@@ -92,7 +93,7 @@ func NewSet(
 // Add to the current set of polls
 // Returns true if the poll was registered correctly and the network sample
 // should be made.
-func (s *set) Add(requestID uint32, vdrs ids.NodeIDBag) bool {
+func (s *set) Add(requestID uint32, vdrs bag.Bag[ids.NodeID]) bool {
 	if _, exists := s.polls.Get(requestID); exists {
 		s.log.Debug("dropping poll",
 			zap.String("reason", "duplicated request"),
@@ -116,7 +117,7 @@ func (s *set) Add(requestID uint32, vdrs ids.NodeIDBag) bool {
 
 // Vote registers the connections response to a query for [id]. If there was no
 // query, or the response has already be registered, nothing is performed.
-func (s *set) Vote(requestID uint32, vdr ids.NodeID, votes []ids.ID) []ids.UniqueBag {
+func (s *set) Vote(requestID uint32, vdr ids.NodeID, votes []ids.ID) []bag.UniqueBag[ids.ID] {
 	holder, exists := s.polls.Get(requestID)
 	if !exists {
 		s.log.Verbo("dropping vote",
@@ -140,7 +141,7 @@ func (s *set) Vote(requestID uint32, vdr ids.NodeID, votes []ids.ID) []ids.Uniqu
 		return nil
 	}
 
-	var results []ids.UniqueBag
+	var results []bag.UniqueBag[ids.ID]
 
 	// iterate from oldest to newest
 	iter := s.polls.NewIterator()

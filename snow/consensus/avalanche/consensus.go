@@ -6,11 +6,12 @@ package avalanche
 import (
 	"context"
 
-	"github.com/MetalBlockchain/metalgo/api/health"
-	"github.com/MetalBlockchain/metalgo/ids"
-	"github.com/MetalBlockchain/metalgo/snow"
-	"github.com/MetalBlockchain/metalgo/snow/consensus/snowstorm"
-	"github.com/MetalBlockchain/metalgo/utils/set"
+	"github.com/ava-labs/avalanchego/api/health"
+	"github.com/ava-labs/avalanchego/ids"
+	"github.com/ava-labs/avalanchego/snow"
+	"github.com/ava-labs/avalanchego/snow/consensus/snowstorm"
+	"github.com/ava-labs/avalanchego/utils/bag"
+	"github.com/ava-labs/avalanchego/utils/set"
 )
 
 // TODO: Implement pruning of accepted decisions.
@@ -62,7 +63,7 @@ type Consensus interface {
 	// RecordPoll collects the results of a network poll. If a result has not
 	// been added, the result is dropped. Returns if a critical error has
 	// occurred.
-	RecordPoll(context.Context, ids.UniqueBag) error
+	RecordPoll(context.Context, bag.UniqueBag[ids.ID]) error
 
 	// Quiesce is guaranteed to return true if the instance is finalized. It
 	// may, but doesn't need to, return true if all processing vertices are

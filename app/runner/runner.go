@@ -7,38 +7,16 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/go-plugin"
-
 	"golang.org/x/term"
 
-	"github.com/MetalBlockchain/metalgo/app"
-	"github.com/MetalBlockchain/metalgo/app/process"
-	"github.com/MetalBlockchain/metalgo/node"
-	"github.com/MetalBlockchain/metalgo/vms/rpcchainvm/grpcutils"
-
-	appplugin "github.com/MetalBlockchain/metalgo/app/plugin"
+	"github.com/ava-labs/avalanchego/app"
+	"github.com/ava-labs/avalanchego/app/process"
+	"github.com/ava-labs/avalanchego/node"
 )
 
 // Run an AvalancheGo node.
-// If specified in the config, serves a hashicorp plugin that can be consumed by
-// the daemon (see avalanchego/main).
-func Run(config Config, nodeConfig node.Config) {
+func Run(nodeConfig node.Config) {
 	nodeApp := process.NewApp(nodeConfig) // Create node wrapper
-	if config.PluginMode {                // Serve as a plugin
-		plugin.Serve(&plugin.ServeConfig{
-			HandshakeConfig: appplugin.Handshake,
-			Plugins: map[string]plugin.Plugin{
-				appplugin.Name: appplugin.New(nodeApp),
-			},
-			GRPCServer: grpcutils.NewDefaultServer, // A non-nil value here enables gRPC serving for this plugin
-			Logger: hclog.New(&hclog.LoggerOptions{
-				Level: hclog.Error,
-			}),
-		})
-		return
-	}
-
 	if term.IsTerminal(int(os.Stdout.Fd())) {
 		fmt.Println(process.Header)
 	}

@@ -4,9 +4,10 @@
 package sender
 
 import (
-	"github.com/MetalBlockchain/metalgo/ids"
-	"github.com/MetalBlockchain/metalgo/message"
-	"github.com/MetalBlockchain/metalgo/utils/set"
+	"github.com/ava-labs/avalanchego/ids"
+	"github.com/ava-labs/avalanchego/message"
+	"github.com/ava-labs/avalanchego/subnets"
+	"github.com/ava-labs/avalanchego/utils/set"
 )
 
 // ExternalSender sends consensus messages to other validators
@@ -17,7 +18,7 @@ type ExternalSender interface {
 		msg message.OutboundMessage,
 		nodeIDs set.Set[ids.NodeID],
 		subnetID ids.ID,
-		validatorOnly bool,
+		allower subnets.Allower,
 	) set.Set[ids.NodeID]
 
 	// Send a message to a random group of nodes in a subnet.
@@ -25,9 +26,9 @@ type ExternalSender interface {
 	Gossip(
 		msg message.OutboundMessage,
 		subnetID ids.ID,
-		validatorOnly bool,
 		numValidatorsToSend int,
 		numNonValidatorsToSend int,
 		numPeersToSend int,
+		allower subnets.Allower,
 	) set.Set[ids.NodeID]
 }

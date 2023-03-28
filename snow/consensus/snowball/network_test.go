@@ -6,8 +6,9 @@ package snowball
 import (
 	"math/rand"
 
-	"github.com/MetalBlockchain/metalgo/ids"
-	"github.com/MetalBlockchain/metalgo/utils/sampler"
+	"github.com/ava-labs/avalanchego/ids"
+	"github.com/ava-labs/avalanchego/utils/bag"
+	"github.com/ava-labs/avalanchego/utils/sampler"
 )
 
 type Network struct {
@@ -75,7 +76,7 @@ func (n *Network) Round() {
 			count = n.params.K
 		}
 		indices, _ := s.Sample(count)
-		sampledColors := ids.Bag{}
+		sampledColors := bag.Bag[ids.ID]{}
 		for _, index := range indices {
 			peer := n.nodes[int(index)]
 			sampledColors.Add(peer.Preference())

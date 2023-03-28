@@ -12,7 +12,7 @@ import (
 	httppb "github.com/MetalBlockchain/metalgo/proto/pb/http"
 )
 
-func Test_convertWriteResponse(t *testing.T) {
+func TestConvertWriteResponse(t *testing.T) {
 	require := require.New(t)
 
 	scenerios := map[string]struct {

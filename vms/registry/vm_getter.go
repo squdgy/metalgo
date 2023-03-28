@@ -8,11 +8,12 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"github.com/MetalBlockchain/metalgo/ids"
-	"github.com/MetalBlockchain/metalgo/utils/filesystem"
-	"github.com/MetalBlockchain/metalgo/utils/resource"
-	"github.com/MetalBlockchain/metalgo/vms"
-	"github.com/MetalBlockchain/metalgo/vms/rpcchainvm"
+	"github.com/ava-labs/avalanchego/ids"
+	"github.com/ava-labs/avalanchego/utils/filesystem"
+	"github.com/ava-labs/avalanchego/utils/resource"
+	"github.com/ava-labs/avalanchego/vms"
+	"github.com/ava-labs/avalanchego/vms/rpcchainvm"
+	"github.com/ava-labs/avalanchego/vms/rpcchainvm/runtime"
 )
 
 var (
@@ -38,6 +39,7 @@ type VMGetterConfig struct {
 	Manager         vms.Manager
 	PluginDirectory string
 	CPUTracker      resource.ProcessTracker
+	RuntimeTracker  runtime.Tracker
 }
 
 type vmGetter struct {
@@ -100,6 +102,7 @@ func (getter *vmGetter) Get() (map[ids.ID]vms.Factory, map[ids.ID]vms.Factory, e
 		unregisteredVMs[vmID] = rpcchainvm.NewFactory(
 			filepath.Join(getter.config.PluginDirectory, file.Name()),
 			getter.config.CPUTracker,
+			getter.config.RuntimeTracker,
 		)
 	}
 	return registeredVMs, unregisteredVMs, nil

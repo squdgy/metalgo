@@ -44,7 +44,7 @@ import (
 	"github.com/MetalBlockchain/metalgo/utils/wrappers"
 	"github.com/MetalBlockchain/metalgo/version"
 	"github.com/MetalBlockchain/metalgo/vms/components/chain"
-	"github.com/MetalBlockchain/metalgo/vms/platformvm/teleporter/gteleporter"
+	"github.com/MetalBlockchain/metalgo/vms/platformvm/warp/gwarp"
 	"github.com/MetalBlockchain/metalgo/vms/rpcchainvm/ghttp"
 	"github.com/MetalBlockchain/metalgo/vms/rpcchainvm/grpcutils"
 	"github.com/MetalBlockchain/metalgo/vms/rpcchainvm/messenger"
@@ -56,9 +56,9 @@ import (
 	messengerpb "github.com/MetalBlockchain/metalgo/proto/pb/messenger"
 	rpcdbpb "github.com/MetalBlockchain/metalgo/proto/pb/rpcdb"
 	sharedmemorypb "github.com/MetalBlockchain/metalgo/proto/pb/sharedmemory"
-	teleporterpb "github.com/MetalBlockchain/metalgo/proto/pb/teleporter"
 	validatorstatepb "github.com/MetalBlockchain/metalgo/proto/pb/validatorstate"
 	vmpb "github.com/MetalBlockchain/metalgo/proto/pb/vm"
+	warppb "github.com/MetalBlockchain/metalgo/proto/pb/warp"
 )
 
 const (
@@ -93,13 +93,13 @@ type VMClient struct {
 	pid            int
 	processTracker resource.ProcessTracker
 
-	messenger              *messenger.Server
-	keystore               *gkeystore.Server
-	sharedMemory           *gsharedmemory.Server
-	bcLookup               *galiasreader.Server
-	appSender              *appsender.Server
-	validatorStateServer   *gvalidators.Server
-	teleporterSignerServer *gteleporter.Server
+	messenger            *messenger.Server
+	keystore             *gkeystore.Server
+	sharedMemory         *gsharedmemory.Server
+	bcLookup             *galiasreader.Server
+	appSender            *appsender.Server
+	validatorStateServer *gvalidators.Server
+	warpSignerServer     *gwarp.Server
 
 	serverCloser grpcutils.ServerCloser
 	conns        []*grpc.ClientConn
@@ -187,7 +187,7 @@ func (vm *VMClient) Initialize(
 	vm.bcLookup = galiasreader.NewServer(chainCtx.BCLookup)
 	vm.appSender = appsender.NewServer(appSender)
 	vm.validatorStateServer = gvalidators.NewServer(chainCtx.ValidatorState)
-	vm.teleporterSignerServer = gteleporter.NewServer(chainCtx.TeleporterSigner)
+	vm.warpSignerServer = gwarp.NewServer(chainCtx.WarpSigner)
 
 	serverListener, err := grpcutils.NewListener()
 	if err != nil {
@@ -327,7 +327,7 @@ func (vm *VMClient) getInitServer(opts []grpc.ServerOption) *grpc.Server {
 	appsenderpb.RegisterAppSenderServer(server, vm.appSender)
 	healthpb.RegisterHealthServer(server, grpcHealth)
 	validatorstatepb.RegisterValidatorStateServer(server, vm.validatorStateServer)
-	teleporterpb.RegisterSignerServer(server, vm.teleporterSignerServer)
+	warppb.RegisterSignerServer(server, vm.warpSignerServer)
 
 	// Ensure metric counters are zeroed on restart
 	grpc_prometheus.Register(server)

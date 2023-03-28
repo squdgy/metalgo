@@ -15,7 +15,7 @@ import (
 	"github.com/MetalBlockchain/metalgo/snow/validators"
 	"github.com/MetalBlockchain/metalgo/utils"
 	"github.com/MetalBlockchain/metalgo/utils/logging"
-	"github.com/MetalBlockchain/metalgo/vms/platformvm/teleporter"
+	"github.com/MetalBlockchain/metalgo/vms/platformvm/warp"
 )
 
 // ContextInitializable represents an object that can be initialized
@@ -46,7 +46,7 @@ type Context struct {
 	BCLookup     ids.AliaserReader
 	Metrics      metrics.OptionalGatherer
 
-	TeleporterSigner teleporter.Signer
+	WarpSigner warp.Signer
 
 	// snowman++ attributes
 	ValidatorState validators.State // interface for P-Chain validators

@@ -52,7 +52,7 @@ import (
 	"github.com/MetalBlockchain/metalgo/version"
 	"github.com/MetalBlockchain/metalgo/vms"
 	"github.com/MetalBlockchain/metalgo/vms/metervm"
-	"github.com/MetalBlockchain/metalgo/vms/platformvm/teleporter"
+	"github.com/MetalBlockchain/metalgo/vms/platformvm/warp"
 	"github.com/MetalBlockchain/metalgo/vms/proposervm"
 	"github.com/MetalBlockchain/metalgo/vms/tracedvm"
 
@@ -446,7 +446,7 @@ func (m *manager) buildChain(chainParams ChainParameters, sb Subnet) (*chain, er
 			BCLookup:     m,
 			Metrics:      vmMetrics,
 
-			TeleporterSigner: teleporter.NewSigner(m.StakingBLSKey, chainParams.ID),
+			WarpSigner: warp.NewSigner(m.StakingBLSKey, chainParams.ID),
 
 			ValidatorState: m.validatorState,
 			ChainDataDir:   chainDataDir,

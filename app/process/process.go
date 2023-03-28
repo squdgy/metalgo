@@ -13,6 +13,7 @@ import (
 	"github.com/MetalBlockchain/metalgo/nat"
 	"github.com/MetalBlockchain/metalgo/node"
 	"github.com/MetalBlockchain/metalgo/utils/constants"
+	"github.com/MetalBlockchain/metalgo/utils/ips"
 	"github.com/MetalBlockchain/metalgo/utils/logging"
 	"github.com/MetalBlockchain/metalgo/utils/perms"
 	"github.com/MetalBlockchain/metalgo/utils/ulimit"
@@ -92,6 +93,28 @@ func (p *process) Start() error {
 			"Please confirm the settings in your router")
 	}
 
+	// An empty host is treated as a wildcard to match all addresses, so it is
+	// considered public.
+	hostIsPublic := p.config.HTTPHost == ""
+	if !hostIsPublic {
+		ip, err := ips.Lookup(p.config.HTTPHost)
+		if err != nil {
+			log.Fatal("failed to lookup HTTP host",
+				zap.String("host", p.config.HTTPHost),
+				zap.Error(err),
+			)
+			logFactory.Close()
+			return err
+		}
+		hostIsPublic = !ip.IsLoopback() && !ip.IsPrivate()
+
+		log.Debug("finished HTTP host lookup",
+			zap.String("host", p.config.HTTPHost),
+			zap.Stringer("ip", ip),
+			zap.Bool("isPublic", hostIsPublic),
+		)
+	}
+
 	mapper := nat.NewPortMapper(log, p.config.Nat)
 
 	// Open staking port we want for NAT traversal to have the external port
@@ -107,17 +130,24 @@ func (p *process) Start() error {
 		)
 	}
 
-	// Open the HTTP port iff the HTTP server is not listening on localhost
-	if p.config.HTTPHost != "127.0.0.1" && p.config.HTTPHost != "localhost" && p.config.HTTPPort != 0 {
-		// For NAT traversal we want to route from the external port
-		// (config.ExternalHTTPPort) to our internal port (config.HTTPPort)
-		mapper.Map(
-			p.config.HTTPPort,
-			p.config.HTTPPort,
-			httpPortName,
-			nil,
-			p.config.IPResolutionFreq,
+	// Don't open the HTTP port if the HTTP server is private
+	if hostIsPublic {
+		log.Warn("HTTP server is binding to a potentially public host. "+
+			"You may be vulnerable to a DoS attack if your HTTP port is publicly accessible",
+			zap.String("host", p.config.HTTPHost),
 		)
+
+		// For NAT traversal we want to route from the external port
+		// (config.ExternalHTTPPort) to our internal port (config.HTTPPort).
+		if p.config.HTTPPort != 0 {
+			mapper.Map(
+				p.config.HTTPPort,
+				p.config.HTTPPort,
+				httpPortName,
+				nil,
+				p.config.IPResolutionFreq,
+			)
+		}
 	}
 
 	// Regularly update our public IP.

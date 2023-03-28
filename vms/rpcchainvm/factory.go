@@ -6,15 +6,13 @@ package rpcchainvm
 import (
 	"context"
 	"fmt"
-	"io"
 
-	"github.com/MetalBlockchain/metalgo/snow"
-	"github.com/MetalBlockchain/metalgo/utils/logging"
-	"github.com/MetalBlockchain/metalgo/utils/resource"
-	"github.com/MetalBlockchain/metalgo/vms"
-	"github.com/MetalBlockchain/metalgo/vms/rpcchainvm/grpcutils"
-	"github.com/MetalBlockchain/metalgo/vms/rpcchainvm/runtime"
-	"github.com/MetalBlockchain/metalgo/vms/rpcchainvm/runtime/subprocess"
+	"github.com/ava-labs/avalanchego/utils/logging"
+	"github.com/ava-labs/avalanchego/utils/resource"
+	"github.com/ava-labs/avalanchego/vms"
+	"github.com/ava-labs/avalanchego/vms/rpcchainvm/grpcutils"
+	"github.com/ava-labs/avalanchego/vms/rpcchainvm/runtime"
+	"github.com/ava-labs/avalanchego/vms/rpcchainvm/runtime/subprocess"
 
 	vmpb "github.com/MetalBlockchain/metalgo/proto/pb/vm"
 )
@@ -35,21 +33,12 @@ func NewFactory(path string, processTracker resource.ProcessTracker, runtimeTrac
 	}
 }
 
-func (f *factory) New(ctx *snow.Context) (interface{}, error) {
+func (f *factory) New(log logging.Logger) (interface{}, error) {
 	config := &subprocess.Config{
+		Stderr:           log,
+		Stdout:           log,
 		HandshakeTimeout: runtime.DefaultHandshakeTimeout,
-	}
-
-	// createStaticHandlers will send a nil ctx to disable logs
-	// TODO: create a separate log file and no-op ctx
-	if ctx != nil {
-		config.Stderr = ctx.Log
-		config.Stdout = ctx.Log
-		config.Log = ctx.Log
-	} else {
-		config.Stderr = io.Discard
-		config.Stdout = io.Discard
-		config.Log = logging.NoLog{}
+		Log:              log,
 	}
 
 	listener, err := grpcutils.NewListener()
@@ -73,7 +62,7 @@ func (f *factory) New(ctx *snow.Context) (interface{}, error) {
 	}
 
 	vm := NewClient(vmpb.NewVMClient(clientConn))
-	vm.SetProcess(ctx, stopper, status.Pid, f.processTracker)
+	vm.SetProcess(stopper, status.Pid, f.processTracker)
 
 	f.runtimeTracker.TrackRuntime(stopper)
 

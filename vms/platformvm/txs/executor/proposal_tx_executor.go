@@ -8,16 +8,15 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/MetalBlockchain/metalgo/database"
-	"github.com/MetalBlockchain/metalgo/ids"
-	"github.com/MetalBlockchain/metalgo/utils/constants"
-	"github.com/MetalBlockchain/metalgo/utils/math"
-	"github.com/MetalBlockchain/metalgo/vms/components/avax"
-	"github.com/MetalBlockchain/metalgo/vms/components/verify"
-	"github.com/MetalBlockchain/metalgo/vms/platformvm/reward"
-	"github.com/MetalBlockchain/metalgo/vms/platformvm/state"
-	"github.com/MetalBlockchain/metalgo/vms/platformvm/txs"
-	"github.com/MetalBlockchain/metalgo/vms/platformvm/utxo"
+	"github.com/ava-labs/avalanchego/database"
+	"github.com/ava-labs/avalanchego/ids"
+	"github.com/ava-labs/avalanchego/utils/constants"
+	"github.com/ava-labs/avalanchego/utils/math"
+	"github.com/ava-labs/avalanchego/vms/components/avax"
+	"github.com/ava-labs/avalanchego/vms/components/verify"
+	"github.com/ava-labs/avalanchego/vms/platformvm/reward"
+	"github.com/ava-labs/avalanchego/vms/platformvm/state"
+	"github.com/ava-labs/avalanchego/vms/platformvm/txs"
 )
 
 const (
@@ -123,9 +122,9 @@ func (e *ProposalTxExecutor) AddValidatorTx(tx *txs.AddValidatorTx) error {
 
 	// Set up the state if this tx is committed
 	// Consume the UTXOs
-	utxo.Consume(e.OnCommitState, tx.Ins)
+	avax.Consume(e.OnCommitState, tx.Ins)
 	// Produce the UTXOs
-	utxo.Produce(e.OnCommitState, txID, tx.Outs)
+	avax.Produce(e.OnCommitState, txID, tx.Outs)
 
 	newStaker, err := state.NewPendingStaker(txID, tx)
 	if err != nil {
@@ -136,9 +135,9 @@ func (e *ProposalTxExecutor) AddValidatorTx(tx *txs.AddValidatorTx) error {
 
 	// Set up the state if this tx is aborted
 	// Consume the UTXOs
-	utxo.Consume(e.OnAbortState, tx.Ins)
+	avax.Consume(e.OnAbortState, tx.Ins)
 	// Produce the UTXOs
-	utxo.Produce(e.OnAbortState, txID, onAbortOuts)
+	avax.Produce(e.OnAbortState, txID, onAbortOuts)
 
 	e.PrefersCommit = tx.StartTime().After(e.Clk.Time())
 	return nil
@@ -171,9 +170,9 @@ func (e *ProposalTxExecutor) AddSubnetValidatorTx(tx *txs.AddSubnetValidatorTx) 
 
 	// Set up the state if this tx is committed
 	// Consume the UTXOs
-	utxo.Consume(e.OnCommitState, tx.Ins)
+	avax.Consume(e.OnCommitState, tx.Ins)
 	// Produce the UTXOs
-	utxo.Produce(e.OnCommitState, txID, tx.Outs)
+	avax.Produce(e.OnCommitState, txID, tx.Outs)
 
 	newStaker, err := state.NewPendingStaker(txID, tx)
 	if err != nil {
@@ -184,9 +183,9 @@ func (e *ProposalTxExecutor) AddSubnetValidatorTx(tx *txs.AddSubnetValidatorTx) 
 
 	// Set up the state if this tx is aborted
 	// Consume the UTXOs
-	utxo.Consume(e.OnAbortState, tx.Ins)
+	avax.Consume(e.OnAbortState, tx.Ins)
 	// Produce the UTXOs
-	utxo.Produce(e.OnAbortState, txID, tx.Outs)
+	avax.Produce(e.OnAbortState, txID, tx.Outs)
 
 	e.PrefersCommit = tx.StartTime().After(e.Clk.Time())
 	return nil
@@ -220,9 +219,9 @@ func (e *ProposalTxExecutor) AddDelegatorTx(tx *txs.AddDelegatorTx) error {
 
 	// Set up the state if this tx is committed
 	// Consume the UTXOs
-	utxo.Consume(e.OnCommitState, tx.Ins)
+	avax.Consume(e.OnCommitState, tx.Ins)
 	// Produce the UTXOs
-	utxo.Produce(e.OnCommitState, txID, tx.Outs)
+	avax.Produce(e.OnCommitState, txID, tx.Outs)
 
 	newStaker, err := state.NewPendingStaker(txID, tx)
 	if err != nil {
@@ -233,9 +232,9 @@ func (e *ProposalTxExecutor) AddDelegatorTx(tx *txs.AddDelegatorTx) error {
 
 	// Set up the state if this tx is aborted
 	// Consume the UTXOs
-	utxo.Consume(e.OnAbortState, tx.Ins)
+	avax.Consume(e.OnAbortState, tx.Ins)
 	// Produce the UTXOs
-	utxo.Produce(e.OnAbortState, txID, onAbortOuts)
+	avax.Produce(e.OnAbortState, txID, onAbortOuts)
 
 	e.PrefersCommit = tx.StartTime().After(e.Clk.Time())
 	return nil

@@ -4,9 +4,9 @@
 package secp256k1fx
 
 import (
-	"github.com/MetalBlockchain/metalgo/ids"
-	"github.com/MetalBlockchain/metalgo/snow"
-	"github.com/MetalBlockchain/metalgo/vms"
+	"github.com/ava-labs/avalanchego/ids"
+	"github.com/ava-labs/avalanchego/utils/logging"
+	"github.com/ava-labs/avalanchego/vms"
 )
 
 var (
@@ -18,6 +18,6 @@ var (
 
 type Factory struct{}
 
-func (*Factory) New(*snow.Context) (interface{}, error) {
+func (*Factory) New(logging.Logger) (interface{}, error) {
 	return &Fx{}, nil
 }

@@ -10,11 +10,10 @@ package utxo
 import (
 	reflect "reflect"
 
-	ids "github.com/MetalBlockchain/metalgo/ids"
-	avax "github.com/MetalBlockchain/metalgo/vms/components/avax"
-	verify "github.com/MetalBlockchain/metalgo/vms/components/verify"
-	state "github.com/MetalBlockchain/metalgo/vms/platformvm/state"
-	txs "github.com/MetalBlockchain/metalgo/vms/platformvm/txs"
+	ids "github.com/ava-labs/avalanchego/ids"
+	avax "github.com/ava-labs/avalanchego/vms/components/avax"
+	verify "github.com/ava-labs/avalanchego/vms/components/verify"
+	txs "github.com/ava-labs/avalanchego/vms/platformvm/txs"
 	gomock "github.com/golang/mock/gomock"
 )
 
@@ -42,7 +41,7 @@ func (m *MockVerifier) EXPECT() *MockVerifierMockRecorder {
 }
 
 // VerifySpend mocks base method.
-func (m *MockVerifier) VerifySpend(arg0 txs.UnsignedTx, arg1 state.UTXOGetter, arg2 []*avax.TransferableInput, arg3 []*avax.TransferableOutput, arg4 []verify.Verifiable, arg5 map[ids.ID]uint64) error {
+func (m *MockVerifier) VerifySpend(arg0 txs.UnsignedTx, arg1 avax.UTXOGetter, arg2 []*avax.TransferableInput, arg3 []*avax.TransferableOutput, arg4 []verify.Verifiable, arg5 map[ids.ID]uint64) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "VerifySpend", arg0, arg1, arg2, arg3, arg4, arg5)
 	ret0, _ := ret[0].(error)

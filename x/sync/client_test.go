@@ -14,12 +14,13 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/MetalBlockchain/metalgo/ids"
-	"github.com/MetalBlockchain/metalgo/snow/engine/common"
-	"github.com/MetalBlockchain/metalgo/utils/logging"
-	"github.com/MetalBlockchain/metalgo/utils/set"
-	"github.com/MetalBlockchain/metalgo/version"
-	"github.com/MetalBlockchain/metalgo/x/merkledb"
+	"github.com/ava-labs/avalanchego/ids"
+	"github.com/ava-labs/avalanchego/snow/engine/common"
+	"github.com/ava-labs/avalanchego/utils/constants"
+	"github.com/ava-labs/avalanchego/utils/logging"
+	"github.com/ava-labs/avalanchego/utils/set"
+	"github.com/ava-labs/avalanchego/version"
+	"github.com/ava-labs/avalanchego/x/merkledb"
 )
 
 func sendRequest(
@@ -110,8 +111,8 @@ func sendRequest(
 func TestGetRangeProof(t *testing.T) {
 	r := rand.New(rand.NewSource(1)) // #nosec G404
 
-	smallTrieKeyCount := defaultLeafRequestLimit
-	smallTrieDB, _, err := generateTrieWithMinKeyLen(t, r, smallTrieKeyCount, 1)
+	smallTrieKeyCount := 1000
+	smallTrieDB, _, err := generateTrieWithMinKeyLen(t, r, 1000, 1)
 	require.NoError(t, err)
 	smallTrieRoot, err := smallTrieDB.GetMerkleRoot(context.Background())
 	require.NoError(t, err)
@@ -133,35 +134,36 @@ func TestGetRangeProof(t *testing.T) {
 			db: smallTrieDB,
 			request: &RangeProofRequest{
 				Root:  smallTrieRoot,
-				Limit: defaultLeafRequestLimit,
+				Limit: constants.DefaultMaxMessageSize,
 			},
-			expectedResponseLen: defaultLeafRequestLimit,
+			expectedResponseLen: smallTrieKeyCount,
 		},
 		"too many leaves in response": {
 			db: smallTrieDB,
 			request: &RangeProofRequest{
 				Root:  smallTrieRoot,
-				Limit: defaultLeafRequestLimit,
+				Limit: 3000,
 			},
 			modifyResponse: func(response *merkledb.RangeProof) {
-				response.KeyValues = append(response.KeyValues, merkledb.KeyValue{})
+				response.KeyValues = append(response.KeyValues,
+					merkledb.KeyValue{Key: []byte{255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255}})
 			},
-			expectedErr: errTooManyLeaves,
+			expectedErr: errProofTooLarge,
 		},
 		"partial response to request for entire trie (full leaf limit)": {
 			db: largeTrieDB,
 			request: &RangeProofRequest{
 				Root:  largeTrieRoot,
-				Limit: defaultLeafRequestLimit,
+				Limit: constants.DefaultMaxMessageSize,
 			},
-			expectedResponseLen: defaultLeafRequestLimit,
+			expectedResponseLen: largeTrieKeyCount,
 		},
 		"full response from near end of trie to end of trie (less than leaf limit)": {
 			db: largeTrieDB,
 			request: &RangeProofRequest{
 				Root:  largeTrieRoot,
 				Start: largeTrieKeys[len(largeTrieKeys)-30], // Set start 30 keys from the end of the large trie
-				Limit: defaultLeafRequestLimit,
+				Limit: constants.DefaultMaxMessageSize,
 			},
 			expectedResponseLen: 30,
 		},
@@ -171,7 +173,7 @@ func TestGetRangeProof(t *testing.T) {
 				Root:  largeTrieRoot,
 				Start: largeTrieKeys[1000], // Set the range for 1000 leafs in an intermediate range of the trie
 				End:   largeTrieKeys[1099], // (inclusive range)
-				Limit: defaultLeafRequestLimit,
+				Limit: constants.DefaultMaxMessageSize,
 			},
 			expectedResponseLen: 100,
 		},
@@ -179,7 +181,7 @@ func TestGetRangeProof(t *testing.T) {
 			db: largeTrieDB,
 			request: &RangeProofRequest{
 				Root:  largeTrieRoot,
-				Limit: defaultLeafRequestLimit,
+				Limit: constants.DefaultMaxMessageSize,
 			},
 			modifyResponse: func(response *merkledb.RangeProof) {
 				response.KeyValues = response.KeyValues[1:]
@@ -190,11 +192,11 @@ func TestGetRangeProof(t *testing.T) {
 			db: largeTrieDB,
 			request: &RangeProofRequest{
 				Root:  largeTrieRoot,
-				Limit: defaultLeafRequestLimit,
+				Limit: constants.DefaultMaxMessageSize,
 			},
 			modifyResponse: func(response *merkledb.RangeProof) {
 				start := response.KeyValues[1].Key
-				proof, err := largeTrieDB.GetRangeProof(context.Background(), start, nil, defaultLeafRequestLimit)
+				proof, err := largeTrieDB.GetRangeProof(context.Background(), start, nil, constants.DefaultMaxMessageSize)
 				if err != nil {
 					panic(err)
 				}
@@ -208,7 +210,7 @@ func TestGetRangeProof(t *testing.T) {
 			db: largeTrieDB,
 			request: &RangeProofRequest{
 				Root:  largeTrieRoot,
-				Limit: defaultLeafRequestLimit,
+				Limit: constants.DefaultMaxMessageSize,
 			},
 			modifyResponse: func(response *merkledb.RangeProof) {
 				response.KeyValues = response.KeyValues[:len(response.KeyValues)-2]
@@ -219,7 +221,7 @@ func TestGetRangeProof(t *testing.T) {
 			db: largeTrieDB,
 			request: &RangeProofRequest{
 				Root:  largeTrieRoot,
-				Limit: defaultLeafRequestLimit,
+				Limit: constants.DefaultMaxMessageSize,
 			},
 			modifyResponse: func(response *merkledb.RangeProof) {
 				response.KeyValues = append(response.KeyValues[:100], response.KeyValues[101:]...)
@@ -230,7 +232,7 @@ func TestGetRangeProof(t *testing.T) {
 			db: largeTrieDB,
 			request: &RangeProofRequest{
 				Root:  largeTrieRoot,
-				Limit: defaultLeafRequestLimit,
+				Limit: 10000,
 			},
 			modifyResponse: func(response *merkledb.RangeProof) {
 				response.StartProof = nil
@@ -258,7 +260,7 @@ func TestRetries(t *testing.T) {
 	r := rand.New(rand.NewSource(1)) // #nosec G404
 	require := require.New(t)
 
-	keyCount := defaultLeafRequestLimit
+	keyCount := 100
 	db, _, err := generateTrieWithMinKeyLen(t, r, keyCount, 1)
 	require.NoError(err)
 	root, err := db.GetMerkleRoot(context.Background())
@@ -267,7 +269,7 @@ func TestRetries(t *testing.T) {
 	maxRequests := 4
 	request := &RangeProofRequest{
 		Root:  root,
-		Limit: uint16(keyCount),
+		Limit: uint32(100 * keyCount),
 	}
 
 	responseCount := 0

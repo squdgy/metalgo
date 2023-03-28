@@ -6,6 +6,7 @@ package merkledb
 import (
 	"bytes"
 	"context"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"sync"
@@ -402,12 +403,12 @@ func (db *Database) GetRangeProof(
 	ctx context.Context,
 	start,
 	end []byte,
-	maxLength int,
+	maxSize uint32,
 ) (*RangeProof, error) {
 	db.lock.RLock()
 	defer db.lock.RUnlock()
 
-	return db.getRangeProofAtRoot(ctx, db.getMerkleRoot(), start, end, maxLength)
+	return db.getRangeProofAtRoot(ctx, db.getMerkleRoot(), start, end, maxSize)
 }
 
 // Returns a proof for the key/value pairs in this trie within the range
@@ -417,12 +418,12 @@ func (db *Database) GetRangeProofAtRoot(
 	rootID ids.ID,
 	start,
 	end []byte,
-	maxLength int,
+	maxSize uint32,
 ) (*RangeProof, error) {
 	db.lock.RLock()
 	defer db.lock.RUnlock()
 
-	return db.getRangeProofAtRoot(ctx, rootID, start, end, maxLength)
+	return db.getRangeProofAtRoot(ctx, rootID, start, end, maxSize)
 }
 
 // Assumes [db.lock] is read locked.
@@ -431,29 +432,29 @@ func (db *Database) getRangeProofAtRoot(
 	rootID ids.ID,
 	start,
 	end []byte,
-	maxLength int,
+	maxSize uint32,
 ) (*RangeProof, error) {
-	if maxLength <= 0 {
-		return nil, fmt.Errorf("%w but was %d", ErrInvalidMaxLength, maxLength)
+	if maxSize == 0 {
+		return nil, fmt.Errorf("%w but was %d", ErrInvalidMaxSize, maxSize)
 	}
 
 	historicalView, err := db.getHistoricalViewForRangeProof(rootID, start, end)
 	if err != nil {
 		return nil, err
 	}
-	return historicalView.getRangeProof(ctx, start, end, maxLength)
+	return historicalView.getRangeProof(ctx, start, end, maxSize)
 }
 
 // Returns a proof for a subset of the key/value changes in key range
 // [start, end] that occurred between [startRootID] and [endRootID].
-// Returns at most [maxLength] key/value pairs.
+// Returns a proof of at most [maxSize] bytes
 func (db *Database) GetChangeProof(
 	ctx context.Context,
 	startRootID ids.ID,
 	endRootID ids.ID,
 	start []byte,
 	end []byte,
-	maxLength int,
+	maxSize uint32,
 ) (*ChangeProof, error) {
 	if len(end) > 0 && bytes.Compare(start, end) == 1 {
 		return nil, ErrStartAfterEnd
@@ -468,56 +469,21 @@ func (db *Database) GetChangeProof(
 	result := &ChangeProof{
 		HadRootsInHistory: true,
 	}
-	changes, err := db.history.getValueChanges(startRootID, endRootID, start, end, maxLength)
-	if err == ErrRootIDNotPresent {
-		result.HadRootsInHistory = false
-		return result, nil
-	}
-	if err != nil {
-		return nil, err
-	}
-
-	// [changedKeys] are a subset of the keys that were added or had their
-	// values modified between [startRootID] to [endRootID] sorted in increasing
-	// order.
-	changedKeys := maps.Keys(changes.values)
-	slices.SortFunc(changedKeys, func(i, j path) bool {
-		return i.Compare(j) < 0
-	})
-
-	// TODO: sync.pool these buffers
-	result.KeyValues = make([]KeyValue, 0, len(changedKeys))
-	result.DeletedKeys = make([][]byte, 0, len(changedKeys))
-
-	for _, key := range changedKeys {
-		change := changes.values[key]
-		serializedKey := key.Serialize().Value
-
-		if change.after.IsNothing() {
-			result.DeletedKeys = append(result.DeletedKeys, serializedKey)
-		} else {
-			result.KeyValues = append(result.KeyValues, KeyValue{
-				Key:   serializedKey,
-				Value: change.after.value,
-			})
-		}
-	}
-	largestKey := result.getLargestKey(end)
 
 	// Since we hold [db.lock] we must still have sufficient
 	// history to recreate the trie at [endRootID].
 	historicalView, err := db.getHistoricalViewForRangeProof(endRootID, start, largestKey)
 	if err != nil {
+		if err == ErrRootIDNotPresent {
+			result.HadRootsInHistory = false
+			return result, nil
+		}
 		return nil, err
 	}
 
-	if len(largestKey) > 0 {
-		endProof, err := historicalView.getProof(ctx, largestKey)
-		if err != nil {
-			return nil, err
-		}
-		result.EndProof = endProof.Path
-	}
+	// initialize to take care of the two varints (one for change count, one for deleted count)
+	// it may is an over estimate, but it is close
+	totalSize := uint32(2 * binary.MaxVarintLen64)
 
 	if len(start) > 0 {
 		startProof, err := historicalView.getProof(ctx, start)
@@ -526,14 +492,148 @@ func (db *Database) GetChangeProof(
 		}
 		result.StartProof = startProof.Path
 
-		// strip out any common nodes to reduce proof size
-		commonNodeIndex := 0
-		for ; commonNodeIndex < len(result.StartProof) &&
-			commonNodeIndex < len(result.EndProof) &&
-			result.StartProof[commonNodeIndex].KeyPath.Equal(result.EndProof[commonNodeIndex].KeyPath); commonNodeIndex++ {
+		size, err := Codec.encodedProofPathByteCount(Version, result.StartProof)
+		if err != nil {
+			return nil, err
 		}
-		result.StartProof = result.StartProof[commonNodeIndex:]
+		totalSize += size
 	}
+
+	if totalSize > maxSize {
+		return nil, ErrMinProofIsLargerThanMaxSize
+	}
+
+	// leave room for end proof
+	changes, err := db.history.getValueChanges(startRootID, endRootID, start, end, maxSize-2*totalSize)
+	if err != nil {
+		return nil, err
+	}
+
+	// [changedKeys] are a subset of the keys that were added or had their
+	// values modified between [startRootID] to [endRootID] sorted in increasing
+	// order.
+	changedKeys := maps.Keys(changes)
+	slices.SortFunc(changedKeys, func(i, j path) bool {
+		return i.Compare(j) < 0
+	})
+
+	// if the end key exists and there are no changed keys
+	// generate a proof for the end key
+	if len(end) > 0 && len(changedKeys) == 0 {
+		endProof, err := historicalView.getProof(ctx, end)
+		if err != nil {
+			return nil, err
+		}
+		size, err := Codec.encodedProofPathByteCount(Version, endProof.Path)
+		if err != nil {
+			return nil, err
+		}
+		result.EndProof = endProof.Path
+
+		if size > maxSize-totalSize {
+			return nil, ErrMinProofIsLargerThanMaxSize
+		}
+	}
+
+	// determine how much space all of the changes will take up
+	for _, key := range changedKeys {
+		change := changes[key]
+
+		keySize, err := Codec.encodedByteSliceByteCount(Version, key.Serialize().Value)
+		if err != nil {
+			return nil, err
+		}
+		totalSize += keySize
+
+		if !change.after.IsNothing() {
+			valueSize, err := Codec.encodedByteSliceByteCount(Version, change.after.value)
+			if err != nil {
+				return nil, err
+			}
+			totalSize += valueSize
+		}
+	}
+
+	// if the size of the start proof + end proof + changes is too large, then we need to
+	// remove changes until we are under the max size
+	for len(changedKeys) > 0 {
+		// grab the current last key's proof
+		lastKey := changedKeys[len(changedKeys)-1].Serialize().Value
+		proof, err := historicalView.getProof(ctx, lastKey)
+		if err != nil {
+			return nil, err
+		}
+		proofSize, err := Codec.encodedProofPathByteCount(Version, proof.Path)
+		if err != nil {
+			return nil, err
+		}
+		result.EndProof = proof.Path
+
+		// if the proof fits within the max size, then we are done
+		if proofSize <= maxSize-totalSize {
+			break
+		}
+
+		// while the proof remains too big to fit within the maxSize and there are keys to remove, remove key/values
+		for proofSize > maxSize-totalSize && len(changedKeys) > 0 {
+			lastPath := changedKeys[len(changedKeys)-1]
+			lastKey := lastPath.Serialize().Value
+			change := changes[lastPath]
+
+			keySize, err := Codec.encodedByteSliceByteCount(Version, lastKey)
+			if err != nil {
+				return nil, err
+			}
+			// remove the key from the total size
+			totalSize -= keySize
+
+			// remove the value if it exists from the total size
+			if !change.after.IsNothing() {
+				valueSize, err := Codec.encodedByteSliceByteCount(Version, change.after.value)
+				if err != nil {
+					return nil, err
+				}
+				totalSize -= valueSize
+			}
+
+			changedKeys = changedKeys[:len(changedKeys)-1]
+		}
+
+		// there are no more keys
+		// the last key is now also the first key so the proof will be the same
+		if len(changedKeys) == 0 {
+			result.EndProof = result.StartProof
+			break
+		}
+	}
+
+	// add all of the remaining changed keys to the change proof
+	// TODO: sync.pool these buffers
+	result.KeyValues = make([]KeyValue, 0, len(changedKeys))
+	result.DeletedKeys = make([][]byte, 0, len(changedKeys))
+
+	for _, key := range changedKeys {
+		change := changes[key]
+		serializedKey := key.Serialize().Value
+
+		if change.after.IsNothing() {
+			result.DeletedKeys = append(result.DeletedKeys, serializedKey)
+		} else {
+			result.KeyValues = append(result.KeyValues,
+				KeyValue{
+					Key:   serializedKey,
+					Value: change.after.value,
+				})
+		}
+	}
+
+	// strip out any common nodes between the start and end proof to reduce total proof size
+	commonNodeIndex := 0
+	for ; commonNodeIndex < len(result.StartProof) &&
+		commonNodeIndex < len(result.EndProof) &&
+		result.StartProof[commonNodeIndex].KeyPath.Equal(result.EndProof[commonNodeIndex].KeyPath); commonNodeIndex++ {
+	}
+	result.StartProof = result.StartProof[commonNodeIndex:]
 
 	// Note that one of the following must be true:
 	//  - [result.StartProof] is non-empty.
@@ -982,43 +1082,49 @@ func (db *Database) getNode(key path) (*node, error) {
 func (db *Database) getKeyValues(
 	start []byte,
 	end []byte,
-	maxLength int,
+	maxSize uint32,
 	keysToIgnore set.Set[string],
-	lock bool,
-) ([]KeyValue, error) {
-	if lock {
-		db.lock.RLock()
-		defer db.lock.RUnlock()
-	}
-	if maxLength <= 0 {
-		return nil, fmt.Errorf("%w but was %d", ErrInvalidMaxLength, maxLength)
+) ([]KeyValue, uint32, error) {
+	if maxSize == 0 {
+		return nil, 0, fmt.Errorf("%w but was %d", ErrInvalidMaxSize, maxSize)
 	}
 
 	it := db.NewIteratorWithStart(start)
 	defer it.Release()
 
-	remainingLength := maxLength
-	result := make([]KeyValue, 0, maxLength)
+	totalSize := uint32(0)
+	// guess how many key/values will fit within the maxSize bytes
+	// defend against divide by 0 when we have no estimates yet
+	estimatedKeyCount := int(float64(maxSize) / (math.Max(db.history.estimatedValueSize, 10)))
+	result := make([]KeyValue, 0, estimatedKeyCount)
 	// Keep adding key/value pairs until one of the following:
 	// * We hit a key that is lexicographically larger than the end key.
-	// * [maxLength] elements are in [result].
+	// * [maxSize] bytes worth of key/values are in the list
 	// * There are no more values to add.
-	for remainingLength > 0 && it.Next() {
+	for totalSize <= maxSize && it.Next() {
 		key := it.Key()
-		if len(end) != 0 && bytes.Compare(it.Key(), end) > 0 {
+		if len(end) != 0 && bytes.Compare(key, end) > 0 {
 			break
 		}
 		if keysToIgnore.Contains(string(key)) {
 			continue
 		}
-		result = append(result, KeyValue{
+		kv := KeyValue{
 			Key:   key,
 			Value: it.Value(),
-		})
-		remainingLength--
+		}
+		kvSize, err := Codec.encodedKeyValueByteCount(Version, kv)
+		if err != nil {
+			return nil, 0, err
+		}
+		if totalSize+kvSize > maxSize {
+			return result, totalSize, it.Error()
+		}
+		totalSize += kvSize
+		result = append(result, kv)
 	}
 
-	return result, it.Error()
+	return result, totalSize, it.Error()
 }
 
 // Returns a new view atop [db] with the changes in [ops] applied to it.

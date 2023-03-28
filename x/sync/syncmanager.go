@@ -9,18 +9,12 @@ import (
 	"errors"
 	"fmt"
 	"sync"
-	"time"
 
 	"go.uber.org/zap"
 
 	"github.com/MetalBlockchain/metalgo/ids"
 	"github.com/MetalBlockchain/metalgo/utils/logging"
 	"github.com/MetalBlockchain/metalgo/x/merkledb"
-)
-
-const (
-	defaultLeafRequestLimit = 1024
-	maxTokenWaitTime        = 5 * time.Second
 )
 
 var (
@@ -115,6 +109,7 @@ type StateSyncConfig struct {
 	SimultaneousWorkLimit int
 	Log                   logging.Logger
 	TargetRoot            ids.ID
+	MaxProofSizeBytes     uint32
 }
 
 func NewStateSyncManager(config StateSyncConfig) (*StateSyncManager, error) {
@@ -276,7 +271,7 @@ func (m *StateSyncManager) getAndApplyChangeProof(ctx context.Context, workItem 
 			EndingRoot:   rootID,
 			Start:        workItem.start,
 			End:          workItem.end,
-			Limit:        defaultLeafRequestLimit,
+			Limit:        m.config.MaxProofSizeBytes,
 		},
 		m.config.SyncDB,
 	)
@@ -335,7 +330,7 @@ func (m *StateSyncManager) getAndApplyRangeProof(ctx context.Context, workItem *
 			Root:  rootID,
 			Start: workItem.start,
 			End:   workItem.end,
-			Limit: defaultLeafRequestLimit,
+			Limit: m.config.MaxProofSizeBytes,
 		},
 	)
 	if err != nil {

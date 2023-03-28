@@ -14,16 +14,17 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	"github.com/MetalBlockchain/metalgo/ids"
-	"github.com/MetalBlockchain/metalgo/snow/engine/common"
-	"github.com/MetalBlockchain/metalgo/utils/logging"
-	"github.com/MetalBlockchain/metalgo/x/merkledb"
+	"github.com/ava-labs/avalanchego/ids"
+	"github.com/ava-labs/avalanchego/snow/engine/common"
+	"github.com/ava-labs/avalanchego/utils/logging"
+	"github.com/ava-labs/avalanchego/utils/units"
+	"github.com/ava-labs/avalanchego/x/merkledb"
 )
 
-// Maximum number of key-value pairs to return in a proof.
+// Maximum number of bytes to return in a proof.
 // This overrides any other Limit specified in a RangeProofRequest
 // or ChangeProofRequest if the given Limit is greater.
-const maxKeyValuesLimit = 1024
+const maxProofSizeLimit = 2 * uint32(units.MiB)
 
 var _ Handler = (*NetworkServer)(nil)
 
@@ -137,11 +138,11 @@ func (s *NetworkServer) HandleChangeProofRequest(
 
 	// override limit if it is greater than maxKeyValuesLimit
 	limit := req.Limit
-	if limit > maxKeyValuesLimit {
-		limit = maxKeyValuesLimit
+	if limit > maxProofSizeLimit {
+		limit = maxProofSizeLimit
 	}
 
-	changeProof, err := s.db.GetChangeProof(ctx, req.StartingRoot, req.EndingRoot, req.Start, req.End, int(limit))
+	changeProof, err := s.db.GetChangeProof(ctx, req.StartingRoot, req.EndingRoot, req.Start, req.End, limit)
 	if err != nil {
 		// handle expected errors so clients cannot cause servers to spam warning logs.
 		if errors.Is(err, merkledb.ErrRootIDNotPresent) || errors.Is(err, merkledb.ErrStartRootNotFound) {
@@ -184,11 +185,11 @@ func (s *NetworkServer) HandleRangeProofRequest(
 
 	// override limit if it is greater than maxKeyValuesLimit
 	limit := req.Limit
-	if limit > maxKeyValuesLimit {
-		limit = maxKeyValuesLimit
+	if limit > maxProofSizeLimit {
+		limit = maxProofSizeLimit
 	}
 
-	rangeProof, err := s.db.GetRangeProofAtRoot(ctx, req.Root, req.Start, req.End, int(limit))
+	rangeProof, err := s.db.GetRangeProofAtRoot(ctx, req.Root, req.Start, req.End, limit)
 	if err != nil {
 		// handle expected errors so clients cannot cause servers to spam warning logs.
 		if errors.Is(err, merkledb.ErrRootIDNotPresent) {

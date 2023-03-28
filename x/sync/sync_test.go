@@ -16,11 +16,12 @@ import (
 
 	"golang.org/x/exp/slices"
 
-	"github.com/MetalBlockchain/metalgo/database/memdb"
-	"github.com/MetalBlockchain/metalgo/ids"
-	"github.com/MetalBlockchain/metalgo/trace"
-	"github.com/MetalBlockchain/metalgo/utils/logging"
-	"github.com/MetalBlockchain/metalgo/x/merkledb"
+	"github.com/ava-labs/avalanchego/database/memdb"
+	"github.com/ava-labs/avalanchego/ids"
+	"github.com/ava-labs/avalanchego/trace"
+	"github.com/ava-labs/avalanchego/utils/logging"
+	"github.com/ava-labs/avalanchego/utils/units"
+	"github.com/ava-labs/avalanchego/x/merkledb"
 )
 
 var _ Client = &mockClient{}
@@ -35,11 +36,11 @@ type mockClient struct {
 }
 
 func (client *mockClient) GetChangeProof(ctx context.Context, request *ChangeProofRequest, _ *merkledb.Database) (*merkledb.ChangeProof, error) {
-	return client.db.GetChangeProof(ctx, request.StartingRoot, request.EndingRoot, request.Start, request.End, int(request.Limit))
+	return client.db.GetChangeProof(ctx, request.StartingRoot, request.EndingRoot, request.Start, request.End, request.Limit)
 }
 
 func (client *mockClient) GetRangeProof(ctx context.Context, request *RangeProofRequest) (*merkledb.RangeProof, error) {
-	return client.db.GetRangeProofAtRoot(ctx, request.Root, request.Start, request.End, int(request.Limit))
+	return client.db.GetRangeProofAtRoot(ctx, request.Root, request.Start, request.End, request.Limit)
 }
 
 func Test_Creation(t *testing.T) {
@@ -61,6 +62,7 @@ func Test_Creation(t *testing.T) {
 		TargetRoot:            ids.Empty,
 		SimultaneousWorkLimit: 5,
 		Log:                   logging.NoLog{},
+		MaxProofSizeBytes:     units.MiB,
 	})
 	require.NotNil(t, syncer)
 	require.NoError(t, err)
@@ -101,6 +103,7 @@ func Test_Completion(t *testing.T) {
 			TargetRoot:            emptyRoot,
 			SimultaneousWorkLimit: 5,
 			Log:                   logging.NoLog{},
+			MaxProofSizeBytes:     units.MiB,
 		})
 		require.NoError(t, err)
 		require.NotNil(t, syncer)
@@ -203,6 +206,7 @@ func Test_Sync_FindNextKey_InSync(t *testing.T) {
 			TargetRoot:            syncRoot,
 			SimultaneousWorkLimit: 5,
 			Log:                   logging.NoLog{},
+			MaxProofSizeBytes:     units.MiB,
 		})
 		require.NoError(t, err)
 		require.NotNil(t, syncer)
@@ -212,7 +216,7 @@ func Test_Sync_FindNextKey_InSync(t *testing.T) {
 		err = syncer.Wait(context.Background())
 		require.NoError(t, err)
 
-		proof, err := dbToSync.GetRangeProof(context.Background(), nil, nil, 500)
+		proof, err := dbToSync.GetRangeProof(context.Background(), nil, nil, 5000)
 		require.NoError(t, err)
 
 		// the two dbs should be in sync, so next key should be nil
@@ -283,6 +287,7 @@ func Test_Sync_FindNextKey_ExtraValues(t *testing.T) {
 			TargetRoot:            syncRoot,
 			SimultaneousWorkLimit: 5,
 			Log:                   logging.NoLog{},
+			MaxProofSizeBytes:     units.MiB,
 		})
 		require.NoError(t, err)
 		require.NotNil(t, syncer)
@@ -292,7 +297,7 @@ func Test_Sync_FindNextKey_ExtraValues(t *testing.T) {
 		err = syncer.Wait(context.Background())
 		require.NoError(t, err)
 
-		proof, err := dbToSync.GetRangeProof(context.Background(), nil, nil, 500)
+		proof, err := dbToSync.GetRangeProof(context.Background(), nil, nil, 5000)
 		require.NoError(t, err)
 
 		// add an extra value to local db
@@ -315,7 +320,7 @@ func Test_Sync_FindNextKey_ExtraValues(t *testing.T) {
 		err = dbToSync.Put(midpoint, []byte{1})
 		require.NoError(t, err)
 
-		proof, err = dbToSync.GetRangeProof(context.Background(), nil, lastKey, 500)
+		proof, err = dbToSync.GetRangeProof(context.Background(), nil, lastKey, 5000)
 		require.NoError(t, err)
 
 		// next key at prefix of newly added point
@@ -366,6 +371,7 @@ func Test_Sync_FindNextKey_DifferentChild(t *testing.T) {
 			TargetRoot:            syncRoot,
 			SimultaneousWorkLimit: 5,
 			Log:                   logging.NoLog{},
+			MaxProofSizeBytes:     units.MiB,
 		})
 		require.NoError(t, err)
 		require.NotNil(t, syncer)
@@ -374,7 +380,7 @@ func Test_Sync_FindNextKey_DifferentChild(t *testing.T) {
 		err = syncer.Wait(context.Background())
 		require.NoError(t, err)
 
-		proof, err := dbToSync.GetRangeProof(context.Background(), nil, nil, 100)
+		proof, err := dbToSync.GetRangeProof(context.Background(), nil, nil, 4000)
 		require.NoError(t, err)
 		lastKey := proof.KeyValues[len(proof.KeyValues)-1].Key
 
@@ -386,7 +392,7 @@ func Test_Sync_FindNextKey_DifferentChild(t *testing.T) {
 		err = dbToSync.Put(lastKey, []byte{2})
 		require.NoError(t, err)
 
-		proof, err = dbToSync.GetRangeProof(context.Background(), nil, proof.KeyValues[len(proof.KeyValues)-1].Key, 100)
+		proof, err = dbToSync.GetRangeProof(context.Background(), nil, proof.KeyValues[len(proof.KeyValues)-1].Key, 4000)
 		require.NoError(t, err)
 
 		nextKey, err := syncer.findNextKey(context.Background(), proof.KeyValues[len(proof.KeyValues)-1].Key, nil, proof.EndProof)
@@ -420,6 +426,7 @@ func Test_Sync_Result_Correct_Root(t *testing.T) {
 			TargetRoot:            syncRoot,
 			SimultaneousWorkLimit: 5,
 			Log:                   logging.NoLog{},
+			MaxProofSizeBytes:     units.MiB,
 		})
 		require.NoError(t, err)
 		require.NotNil(t, syncer)
@@ -509,6 +516,7 @@ func Test_Sync_Result_Correct_Root_With_Sync_Restart(t *testing.T) {
 			TargetRoot:            syncRoot,
 			SimultaneousWorkLimit: 5,
 			Log:                   logging.NoLog{},
+			MaxProofSizeBytes:     units.MiB,
 		})
 		require.NoError(t, err)
 		require.NotNil(t, syncer)
@@ -524,6 +532,7 @@ func Test_Sync_Result_Correct_Root_With_Sync_Restart(t *testing.T) {
 			TargetRoot:            syncRoot,
 			SimultaneousWorkLimit: 5,
 			Log:                   logging.NoLog{},
+			MaxProofSizeBytes:     units.MiB,
 		})
 		require.NoError(t, err)
 		require.NotNil(t, newSyncer)
@@ -570,7 +579,7 @@ func Test_Sync_Error_During_Sync(t *testing.T) {
 	).AnyTimes()
 	client.EXPECT().GetChangeProof(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(
 		func(ctx context.Context, request *ChangeProofRequest, _ *merkledb.Database) (*merkledb.ChangeProof, error) {
-			return dbToSync.GetChangeProof(ctx, request.StartingRoot, request.EndingRoot, request.Start, request.End, int(request.Limit))
+			return dbToSync.GetChangeProof(ctx, request.StartingRoot, request.EndingRoot, request.Start, request.End, request.Limit)
 		},
 	).AnyTimes()
 
@@ -580,6 +589,7 @@ func Test_Sync_Error_During_Sync(t *testing.T) {
 		TargetRoot:            syncRoot,
 		SimultaneousWorkLimit: 5,
 		Log:                   logging.NoLog{},
+		MaxProofSizeBytes:     units.MiB,
 	})
 	require.NoError(err)
 	require.NotNil(t, syncer)
@@ -624,13 +634,13 @@ func Test_Sync_Result_Correct_Root_Update_Root_During(t *testing.T) {
 		client.EXPECT().GetRangeProof(gomock.Any(), gomock.Any()).DoAndReturn(
 			func(ctx context.Context, request *RangeProofRequest) (*merkledb.RangeProof, error) {
 				<-updatedRootChan
-				return dbToSync.GetRangeProofAtRoot(ctx, request.Root, request.Start, request.End, int(request.Limit))
+				return dbToSync.GetRangeProofAtRoot(ctx, request.Root, request.Start, request.End, request.Limit)
 			},
 		).AnyTimes()
 		client.EXPECT().GetChangeProof(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(
 			func(ctx context.Context, request *ChangeProofRequest, _ *merkledb.Database) (*merkledb.ChangeProof, error) {
 				<-updatedRootChan
-				return dbToSync.GetChangeProof(ctx, request.StartingRoot, request.EndingRoot, request.Start, request.End, int(request.Limit))
+				return dbToSync.GetChangeProof(ctx, request.StartingRoot, request.EndingRoot, request.Start, request.End, request.Limit)
 			},
 		).AnyTimes()
 
@@ -640,6 +650,7 @@ func Test_Sync_Result_Correct_Root_Update_Root_During(t *testing.T) {
 			TargetRoot:            syncRoot,
 			SimultaneousWorkLimit: 5,
 			Log:                   logging.NoLog{},
+			MaxProofSizeBytes:     units.MiB,
 		})
 		require.NoError(err)
 		require.NotNil(t, syncer)
@@ -711,6 +722,7 @@ func Test_Sync_UpdateSyncTarget(t *testing.T) {
 		TargetRoot:            ids.Empty,
 		SimultaneousWorkLimit: 5,
 		Log:                   logging.NoLog{},
+		MaxProofSizeBytes:     units.MiB,
 	})
 	require.NoError(err)
 

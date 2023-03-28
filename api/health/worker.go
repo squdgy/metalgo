@@ -14,7 +14,7 @@ import (
 
 	"golang.org/x/exp/maps"
 
-	"github.com/ava-labs/avalanchego/utils"
+	"github.com/MetalBlockchain/metalgo/utils"
 )
 
 var errDuplicateCheck = errors.New("duplicated check")

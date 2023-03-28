@@ -9,7 +9,7 @@ METAL_PATH=$( cd "$( dirname "${BASH_SOURCE[0]}" )"; cd .. && pwd ) # Directory 
 metalgo_path="$METAL_PATH/build/metalgo"
 plugin_dir=${PLUGIN_DIR:-$HOME/.metalgo/plugins}
 evm_path=${EVM_PATH:-$plugin_dir/evm}
-coreth_version=${CORETH_VERSION:-'v0.11.8-0.20230223235704-14175cdd347d'}
+coreth_version=${CORETH_VERSION:-'v0.11.8-rc.3'}
 
 # Set the PATHS
 GOPATH="$(go env GOPATH)"
@@ -40,3 +40,6 @@ fi
 # We use "export" here instead of just setting a bash variable because we need
 # to pass this flag to all child processes spawned by the shell.
 export CGO_CFLAGS="-O -D__BLST_PORTABLE__"
+# While CGO_ENABLED doesn't need to be explicitly set, it produces a much more
+# clear error due to the default value change in go1.20.
+export CGO_ENABLED=1

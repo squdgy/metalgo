@@ -9,11 +9,13 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/MetalBlockchain/metalgo/codec"
-	"github.com/MetalBlockchain/metalgo/ids"
-	"github.com/MetalBlockchain/metalgo/snow"
-	"github.com/MetalBlockchain/metalgo/utils"
-	"github.com/MetalBlockchain/metalgo/vms/secp256k1fx"
+	"github.com/ava-labs/avalanchego/codec"
+	"github.com/ava-labs/avalanchego/ids"
+	"github.com/ava-labs/avalanchego/snow"
+	"github.com/ava-labs/avalanchego/utils"
+	"github.com/ava-labs/avalanchego/vms/avm/config"
+	"github.com/ava-labs/avalanchego/vms/components/avax"
+	"github.com/ava-labs/avalanchego/vms/secp256k1fx"
 )
 
 const (
@@ -66,8 +68,7 @@ func (t *CreateAssetTx) SyntacticVerify(
 	ctx *snow.Context,
 	c codec.Manager,
 	txFeeAssetID ids.ID,
-	_ uint64,
-	txFee uint64,
+	config *config.Config,
 	numFxs int,
 ) error {
 	switch {
@@ -100,7 +101,17 @@ func (t *CreateAssetTx) SyntacticVerify(
 		}
 	}
 
-	if err := t.BaseTx.SyntacticVerify(ctx, c, txFeeAssetID, txFee, txFee, numFxs); err != nil {
+	if err := t.BaseTx.Verify(ctx); err != nil {
+		return err
+	}
+
+	if err := avax.VerifyTx(
+		config.CreateAssetTxFee,
+		txFeeAssetID,
+		[][]*avax.TransferableInput{t.Ins},
+		[][]*avax.TransferableOutput{t.Outs},
+		c,
+	); err != nil {
 		return err
 	}
 

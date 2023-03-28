@@ -55,7 +55,7 @@ go build $build_args -ldflags "-X github.com/MetalBlockchain/coreth/plugin/evm.V
 cd "$METAL_PATH"
 
 # Building coreth + using go get can mess with the go.mod file.
-go mod tidy -compat=1.18
+go mod tidy -compat=1.19
 
 # Exit build successfully if the Coreth EVM binary is created successfully
 if [[ -f "$evm_path" ]]; then

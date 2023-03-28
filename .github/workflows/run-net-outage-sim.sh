@@ -3,8 +3,8 @@ set -e
 
 SUCCESS=1
 
-# Polls AvalancheGo until it's healthy. When it is,
-# sets SUCCESS to 0 and returns. If AvalancheGo
+# Polls metalgo until it's healthy. When it is,
+# sets SUCCESS to 0 and returns. If metalgo
 # doesn't become healthy within 3 hours, sets
 # SUCCESS to 1 and returns.
 wait_until_healthy () {
@@ -38,7 +38,7 @@ wait_until_healthy () {
 #remove any existing database files
 echo "removing existing database files..."
 rm /opt/mainnet-db-daily* 2>/dev/null || true # Do || true to ignore error if files dont exist yet
-rm -rf /var/lib/avalanchego 2>/dev/null || true # Do || true to ignore error if files dont exist yet
+rm -rf /var/lib/metalgo 2>/dev/null || true # Do || true to ignore error if files dont exist yet
 echo "done existing database files"
 
 #download latest mainnet DB backup
@@ -51,15 +51,15 @@ echo "Done downloading database"
 
 # extract DB
 echo "Extracting database..."
-mkdir -p /var/lib/avalanchego/db 
-tar -zxf /opt/$DB_FILE*-tar.gz -C /var/lib/avalanchego/db 
+mkdir -p /var/lib/metalgo/db 
+tar -zxf /opt/$DB_FILE*-tar.gz -C /var/lib/metalgo/db 
 echo "Done extracting database"
 
 echo "Creating Docker network..."
 docker network create controlled-net 
 
 echo "Starting Docker container..."
-containerID=$(docker run --name="net_outage_simulation" --memory="12g" --memory-reservation="11g" --cpus="6.0" --net=controlled-net -p 9650:9650 -p 9651:9651 -v /var/lib/avalanchego/db:/db -d avaplatform/avalanchego:latest /avalanchego/build/avalanchego --db-dir /db --http-host=0.0.0.0)
+containerID=$(docker run --name="net_outage_simulation" --memory="12g" --memory-reservation="11g" --cpus="6.0" --net=controlled-net -p 9650:9650 -p 9651:9651 -v /var/lib/metalgo/db:/db -d avaplatform/metalgo:latest /metalgo/build/metalgo --db-dir /db --http-host=0.0.0.0)
 
 echo "Waiting 30 seconds for node to start..."
 sleep 30

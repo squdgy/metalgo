@@ -26,7 +26,7 @@ const (
 	DefaultHTTPPort    = 9650
 	DefaultStakingPort = 9651
 
-	AvalancheGoDataDirVar    = "AVALANCHEGO_DATA_DIR"
+	AvalancheGoDataDirVar    = "METALGO_DATA_DIR"
 	defaultUnexpandedDataDir = "$" + AvalancheGoDataDirVar
 )
 
@@ -364,7 +364,7 @@ func addNodeFlags(fs *flag.FlagSet) {
 	// TODO add flag to take in headers to send from exporter
 }
 
-// BuildFlagSet returns a complete set of flags for avalanchego
+// BuildFlagSet returns a complete set of flags for metalgo
 func BuildFlagSet() *flag.FlagSet {
 	// TODO parse directly into a *pflag.FlagSet instead of into a *flag.FlagSet
 	// and then putting those into a *plag.FlagSet
@@ -375,7 +375,7 @@ func BuildFlagSet() *flag.FlagSet {
 }
 
 // GetExpandedArg gets the string in viper corresponding to [key] and expands
-// any variables using the OS env. If the [AvalancheGoDataDirVar] var is used,
+// any variables using the OS env. If the [MetalGoDataDirVar] var is used,
 // we expand the value of the variable with the string in viper corresponding to
 // [DataDirKey].
 func GetExpandedArg(v *viper.Viper, key string) string {
@@ -383,7 +383,7 @@ func GetExpandedArg(v *viper.Viper, key string) string {
 }
 
 // GetExpandedString expands [s] with any variables using the OS env. If the
-// [AvalancheGoDataDirVar] var is used, we expand the value of the variable with
+// [MetalGoDataDirVar] var is used, we expand the value of the variable with
 // the string in viper corresponding to [DataDirKey].
 func GetExpandedString(v *viper.Viper, s string) string {
 	return os.Expand(

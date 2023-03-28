@@ -61,7 +61,7 @@ if update_marketplace:
             'ChangeName': 'Update'
           },
         ],
-        ChangeSetName='AvalancheGo Update ' + tag,
+        ChangeSetName='MetalGo Update ' + tag,
         ClientRequestToken=uid
     )
     print(response)

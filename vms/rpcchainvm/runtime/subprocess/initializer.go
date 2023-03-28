@@ -35,7 +35,7 @@ func (i *initializer) Initialize(_ context.Context, protocolVersion uint, vmAddr
 	i.once.Do(func() {
 		if version.RPCChainVMProtocol != protocolVersion {
 			i.err = fmt.Errorf(
-				"%w avalanchego: %d, vm: %d",
+				"%w metalgo: %d, vm: %d",
 				runtime.ErrProtocolVersionMismatch,
 				version.RPCChainVMProtocol,
 				protocolVersion,

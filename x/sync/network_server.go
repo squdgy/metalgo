@@ -42,7 +42,7 @@ func NewNetworkServer(appSender common.AppSender, db *merkledb.Database, log log
 	}
 }
 
-// AppRequest is called by avalanchego -> VM when there is an incoming AppRequest from a peer.
+// AppRequest is called by metalgo -> VM when there is an incoming AppRequest from a peer.
 // Never returns errors as they are considered fatal.
 // Sends a response back to the sender if length of response returned by the handler > 0.
 func (s *NetworkServer) AppRequest(

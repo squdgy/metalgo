@@ -57,7 +57,7 @@ jobs:
       - name: Create tgz package structure and upload to S3
         run: ./.github/workflows/build-tgz-pkg.sh
         env:
-          PKG_ROOT: /tmp/avalanchego
+          PKG_ROOT: /tmp/metalgo
           TAG: ${{ env.TAG }}
           BUCKET: ${{ secrets.BUCKET }}
           ARCH: "amd64"
@@ -67,12 +67,12 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: amd64
-          path: /tmp/avalanchego/avalanchego-linux-amd64-${{ env.TAG }}.tar.gz
+          path: /tmp/metalgo/metalgo-linux-amd64-${{ env.TAG }}.tar.gz
 
       - name: Cleanup
         run: |
           rm -rf ./build
-          rm -rf /tmp/avalanchego
+          rm -rf /tmp/metalgo
 
   build-arm64-binaries-tarball:
     runs-on: [self-hosted, linux, ARM64, focal]
@@ -119,7 +119,7 @@ jobs:
       - name: Create tgz package structure and upload to S3
         run: ./.github/workflows/build-tgz-pkg.sh
         env:
-          PKG_ROOT: /tmp/avalanchego
+          PKG_ROOT: /tmp/metalgo
           TAG: ${{ env.TAG }}
           BUCKET: ${{ secrets.BUCKET }}
           ARCH: "arm64"
@@ -129,9 +129,9 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: arm64
-          path: /tmp/avalanchego/avalanchego-linux-arm64-${{ env.TAG }}.tar.gz
+          path: /tmp/metalgo/metalgo-linux-arm64-${{ env.TAG }}.tar.gz
 
       - name: Cleanup
         run: |
           rm -rf ./build
-          rm -rf /tmp/avalanchego
+          rm -rf /tmp/metalgo

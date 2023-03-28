@@ -14,9 +14,9 @@ FROM golang:1.19.6-buster
 RUN mkdir -p /go/src/github.com/ava-labs
 
 WORKDIR $GOPATH/src/github.com/ava-labs
-COPY avalanchego avalanchego
+COPY metalgo metalgo
 
-WORKDIR $GOPATH/src/github.com/ava-labs/avalanchego
+WORKDIR $GOPATH/src/github.com/ava-labs/metalgo
 RUN ./scripts/build_avalanche.sh
 
-RUN ln -sv $GOPATH/src/github.com/ava-labs/avalanche-byzantine/ /avalanchego
+RUN ln -sv $GOPATH/src/github.com/ava-labs/avalanche-byzantine/ /metalgo

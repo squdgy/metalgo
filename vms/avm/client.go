@@ -80,7 +80,7 @@ type Client interface {
 	// CreateAsset creates a new asset and returns its assetID
 	//
 	// Deprecated: Transactions should be issued using the
-	// `avalanchego/wallet/chain/x.Wallet` utility.
+	// `metalgo/wallet/chain/x.Wallet` utility.
 	CreateAsset(
 		ctx context.Context,
 		user api.UserPass,
@@ -96,7 +96,7 @@ type Client interface {
 	// CreateFixedCapAsset creates a new fixed cap asset and returns its assetID
 	//
 	// Deprecated: Transactions should be issued using the
-	// `avalanchego/wallet/chain/x.Wallet` utility.
+	// `metalgo/wallet/chain/x.Wallet` utility.
 	CreateFixedCapAsset(
 		ctx context.Context,
 		user api.UserPass,
@@ -111,7 +111,7 @@ type Client interface {
 	// CreateVariableCapAsset creates a new variable cap asset and returns its assetID
 	//
 	// Deprecated: Transactions should be issued using the
-	// `avalanchego/wallet/chain/x.Wallet` utility.
+	// `metalgo/wallet/chain/x.Wallet` utility.
 	CreateVariableCapAsset(
 		ctx context.Context,
 		user api.UserPass,
@@ -126,7 +126,7 @@ type Client interface {
 	// CreateNFTAsset creates a new NFT asset and returns its assetID
 	//
 	// Deprecated: Transactions should be issued using the
-	// `avalanchego/wallet/chain/x.Wallet` utility.
+	// `metalgo/wallet/chain/x.Wallet` utility.
 	CreateNFTAsset(
 		ctx context.Context,
 		user api.UserPass,
@@ -156,7 +156,7 @@ type Client interface {
 	// Mint [amount] of [assetID] to be owned by [to]
 	//
 	// Deprecated: Transactions should be issued using the
-	// `avalanchego/wallet/chain/x.Wallet` utility.
+	// `metalgo/wallet/chain/x.Wallet` utility.
 	Mint(
 		ctx context.Context,
 		user api.UserPass,
@@ -170,7 +170,7 @@ type Client interface {
 	// SendNFT sends an NFT and returns the ID of the newly created transaction
 	//
 	// Deprecated: Transactions should be issued using the
-	// `avalanchego/wallet/chain/x.Wallet` utility.
+	// `metalgo/wallet/chain/x.Wallet` utility.
 	SendNFT(
 		ctx context.Context,
 		user api.UserPass,
@@ -184,7 +184,7 @@ type Client interface {
 	// MintNFT issues a MintNFT transaction and returns the ID of the newly created transaction
 	//
 	// Deprecated: Transactions should be issued using the
-	// `avalanchego/wallet/chain/x.Wallet` utility.
+	// `metalgo/wallet/chain/x.Wallet` utility.
 	MintNFT(
 		ctx context.Context,
 		user api.UserPass,
@@ -199,13 +199,13 @@ type Client interface {
 	// returns the ID of the newly created transaction
 	//
 	// Deprecated: Transactions should be issued using the
-	// `avalanchego/wallet/chain/x.Wallet` utility.
+	// `metalgo/wallet/chain/x.Wallet` utility.
 	Import(ctx context.Context, user api.UserPass, to ids.ShortID, sourceChain string, options ...rpc.Option) (ids.ID, error) // Export sends an asset from this chain to the P/C-Chain.
 	// After this tx is accepted, the AVAX must be imported to the P/C-chain with an importTx.
 	// Returns the ID of the newly created atomic transaction
 	//
 	// Deprecated: Transactions should be issued using the
-	// `avalanchego/wallet/chain/x.Wallet` utility.
+	// `metalgo/wallet/chain/x.Wallet` utility.
 	Export(
 		ctx context.Context,
 		user api.UserPass,

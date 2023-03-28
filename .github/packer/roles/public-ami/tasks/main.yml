@@ -3,7 +3,7 @@
     url: https://downloads.avax.network/avalanchego.gpg.key
     state: present
 
-- name: Setup avalanchego repo
+- name: Setup metalgo repo
   apt_repository:
     repo: deb https://downloads.avax.network/apt focal main
     state: present
@@ -28,68 +28,68 @@
 
 - name: Setup systemd
   template:
-    src: templates/avalanchego.service.j2
-    dest: /etc/systemd/system/avalanchego.service
+    src: templates/metalgo.service.j2
+    dest: /etc/systemd/system/metalgo.service
     mode: 0755
 
-- name: Create avalanche user
+- name: Create metal user
   user:
     name: "{{ ava_user }}"
     shell: /bin/bash
     uid: 114
     group: "{{ ava_group }}"
 
-- name: Create avalanche config dir
+- name: Create metal config dir
   file:
-    path: /etc/avalanchego
+    path: /etc/metalgo
     owner: "{{ ava_user }}"
     group: "{{ ava_group }}"
     state: directory
 
-- name: Create avalanche C config dir
+- name: Create metal C config dir
   file:
-    path: /etc/avalanchego/C
+    path: /etc/metalgo/C
     owner: "{{ ava_user }}"
     group: "{{ ava_group }}"
     state: directory
 
-- name: Create avalanche log dir
+- name: Create metal log dir
   file:
     path: "{{ log_dir }}"
     owner: "{{ ava_user }}"
     group: "{{ ava_group }}"
     state: directory
 
-- name: Create avalanche database dir
+- name: Create metal database dir
   file:
     path: "{{ db_dir }}"
     owner: "{{ ava_user }}"
     group: "{{ ava_group }}"
     state: directory
 
-- name: Build avalanchego
+- name: Build metalgo
   command: ./scripts/build.sh
   args:
     chdir: "{{ repo_folder }}"
 
-- name: Copy avalanchego binaries to the correct location
-  command: cp build/avalanchego /usr/local/bin/avalanchego
+- name: Copy metalgo binaries to the correct location
+  command: cp build/metalgo /usr/local/bin/metalgo
   args:
     chdir: "{{ repo_folder }}"
 
 - name: Configure avalanche 
   template:
     src: templates/conf.json.j2
-    dest: /etc/avalanchego/conf.json
+    dest: /etc/metalgo/conf.json
     mode: 0644
 
 - name: Configure avalanche C Chain
   template:
     src: templates/C/config.json.j2
-    dest: /etc/avalanchego/C/config.json
+    dest: /etc/metalgo/C/config.json
     mode: 0644
 
-- name: Enable Avalanche
+- name: Enable Metal
   systemd:
-    name: avalanchego
+    name: metalgo
     enabled: yes

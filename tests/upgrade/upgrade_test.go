@@ -15,8 +15,8 @@ import (
 	"github.com/onsi/ginkgo/v2"
 	"github.com/onsi/gomega"
 
-	"github.com/MetalBlockchain/metalgo/tests"
 	runner_sdk "github.com/MetalBlockchain/metal-network-runner-sdk"
+	"github.com/MetalBlockchain/metalgo/tests"
 )
 
 func TestUpgrade(t *testing.T) {
@@ -47,21 +47,21 @@ func init() {
 	)
 	flag.StringVar(
 		&networkRunnerAvalancheGoExecPath,
-		"network-runner-avalanchego-path",
+		"network-runner-metalgo-path",
 		"",
-		"avalanchego executable path",
+		"metalgo executable path",
 	)
 	flag.StringVar(
 		&networkRunnerAvalancheGoExecPathToUpgrade,
-		"network-runner-avalanchego-path-to-upgrade",
+		"network-runner-metalgo-path-to-upgrade",
 		"",
-		"avalanchego executable path (to upgrade to, only required for upgrade tests with local network-runner)",
+		"metalgo executable path (to upgrade to, only required for upgrade tests with local network-runner)",
 	)
 	flag.StringVar(
 		&networkRunnerAvalancheGoLogLevel,
-		"network-runner-avalanchego-log-level",
+		"network-runner-metalgo-log-level",
 		"INFO",
-		"avalanchego log-level",
+		"metalgo log-level",
 	)
 }
 

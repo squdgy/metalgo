@@ -54,7 +54,7 @@ jobs:
       - name: Create debian package
         run: ./.github/workflows/build-deb-pkg.sh
         env:
-          PKG_ROOT: /tmp/avalanchego
+          PKG_ROOT: /tmp/metalgo
           TAG: ${{ env.TAG }}
           BUCKET: ${{ secrets.BUCKET }}
           ARCH: "arm64"
@@ -64,12 +64,12 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: jammy
-          path: /tmp/avalanchego/avalanchego-${{ env.TAG }}-arm64.deb
+          path: /tmp/metalgo/metalgo-${{ env.TAG }}-arm64.deb
 
       - name: Cleanup
         run: |
           rm -rf ./build
-          rm -rf /tmp/avalanchego
+          rm -rf /tmp/metalgo
 
   build-focal-arm64-package:
     runs-on: [self-hosted, linux, ARM64, focal]
@@ -114,7 +114,7 @@ jobs:
       - name: Create debian package
         run: ./.github/workflows/build-deb-pkg.sh
         env:
-          PKG_ROOT: /tmp/avalanchego
+          PKG_ROOT: /tmp/metalgo
           TAG: ${{ env.TAG }}
           BUCKET: ${{ secrets.BUCKET }}
           ARCH: "arm64"
@@ -124,9 +124,9 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: focal
-          path: /tmp/avalanchego/avalanchego-${{ env.TAG }}-arm64.deb
+          path: /tmp/metalgo/metalgo-${{ env.TAG }}-arm64.deb
 
       - name: Cleanup
         run: |
           rm -rf ./build
-          rm -rf /tmp/avalanchego
+          rm -rf /tmp/metalgo

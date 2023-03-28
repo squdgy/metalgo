@@ -3,7 +3,7 @@ set -e
 
 # e.g.,
 # ./scripts/build.sh
-# ./scripts/tests.upgrade.sh 1.7.16 ./build/avalanchego
+# ./scripts/tests.upgrade.sh 1.7.16 ./build/metalgo
 if ! [[ "$0" =~ scripts/tests.upgrade.sh ]]; then
   echo "must be run from repository root"
   exit 255
@@ -24,32 +24,32 @@ if [[ -z "${NEW_BINARY}" ]]; then
 fi
 
 #################################
-# download avalanchego
-# https://github.com/ava-labs/avalanchego/releases
+# download metalgo
+# https://github.com/ava-labs/metalgo/releases
 GOARCH=$(go env GOARCH)
 GOOS=$(go env GOOS)
-DOWNLOAD_URL=https://github.com/ava-labs/avalanchego/releases/download/v${VERSION}/avalanchego-linux-${GOARCH}-v${VERSION}.tar.gz
-DOWNLOAD_PATH=/tmp/avalanchego.tar.gz
+DOWNLOAD_URL=https://github.com/MetalBlockchain/metalgo/releases/download/v${VERSION}/metalgo-linux-${GOARCH}-v${VERSION}.tar.gz
+DOWNLOAD_PATH=/tmp/metalgo.tar.gz
 if [[ ${GOOS} == "darwin" ]]; then
-  DOWNLOAD_URL=https://github.com/ava-labs/avalanchego/releases/download/v${VERSION}/avalanchego-macos-v${VERSION}.zip
-  DOWNLOAD_PATH=/tmp/avalanchego.zip
+  DOWNLOAD_URL=https://github.com/MetalBlockchain/metalgo/releases/download/v${VERSION}/metalgo-macos-v${VERSION}.zip
+  DOWNLOAD_PATH=/tmp/metalgo.zip
 fi
 
 rm -f ${DOWNLOAD_PATH}
-rm -rf /tmp/avalanchego-v${VERSION}
-rm -rf /tmp/avalanchego-build
+rm -rf /tmp/metalgo-v${VERSION}
+rm -rf /tmp/metalgo-build
 
-echo "downloading avalanchego ${VERSION} at ${DOWNLOAD_URL}"
+echo "downloading metalgo ${VERSION} at ${DOWNLOAD_URL}"
 curl -L ${DOWNLOAD_URL} -o ${DOWNLOAD_PATH}
 
-echo "extracting downloaded avalanchego"
+echo "extracting downloaded metalgo"
 if [[ ${GOOS} == "linux" ]]; then
   tar xzvf ${DOWNLOAD_PATH} -C /tmp
 elif [[ ${GOOS} == "darwin" ]]; then
-  unzip ${DOWNLOAD_PATH} -d /tmp/avalanchego-build
-  mv /tmp/avalanchego-build/build /tmp/avalanchego-v${VERSION}
+  unzip ${DOWNLOAD_PATH} -d /tmp/metalgo-build
+  mv /tmp/metalgo-build/build /tmp/metalgo-v${VERSION}
 fi
-find /tmp/avalanchego-v${VERSION}
+find /tmp/metalgo-v${VERSION}
 
 #################################
 # download avalanche-network-runner
@@ -95,9 +95,9 @@ echo "running upgrade tests against the local cluster with ${NEW_BINARY}"
 --ginkgo.v \
 --log-level debug \
 --network-runner-grpc-endpoint="0.0.0.0:12340" \
---network-runner-avalanchego-path=/tmp/avalanchego-v${VERSION}/avalanchego \
---network-runner-avalanchego-path-to-upgrade=${NEW_BINARY} \
---network-runner-avalanchego-log-level="WARN" || EXIT_CODE=$?
+--network-runner-metalgo-path=/tmp/metalgo-v${VERSION}/metalgo \
+--network-runner-metalgo-path-to-upgrade=${NEW_BINARY} \
+--network-runner-metalgo-log-level="WARN" || EXIT_CODE=$?
 
 # "e2e.test" already terminates the cluster
 # just in case tests are aborted, manually terminate them again

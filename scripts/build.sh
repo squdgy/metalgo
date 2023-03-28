@@ -38,7 +38,7 @@ build_args="$race"
 # Build metalgo
 "$METAL_PATH"/scripts/build_metal.sh $build_args
 
-# Exit build successfully if the AvalancheGo binary is created successfully
+# Exit build successfully if the MetalGo binary is created successfully
 if [[ -f "$metalgo_path" ]]; then
         echo "Build Successful"
         exit 0
